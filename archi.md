@@ -68,3 +68,9 @@ The architecture places no restrictions on the size or type of context fed to th
 Instead of predicting a single continuous scalar via MSE Regression (which forces the network to average out divergent multi-modal scenarios), the architecture maps the `[0, 100]` value space of election percentages into 100 discrete classification bins.
 
 The transformer's value head outputs a 100-dimensional probability distribution (`nn.Linear(d_model, 100)`), and the model is trained via Cross-Entropy loss. This allows the network to natively model uncertainty, split alliances, and express non-linear multimodal probability distributions.
+
+### Feature Scaling and Layer Normalization
+To ensure stability during training and properly handle embedding magnitudes, the architecture natively scales continuous token features and utilizes Pre-Layer Normalization:
+- **Date Scaling**: Raw timestamp floats are normalized (`(dates - 2000.0) / 20.0`) prior to linear projection to prevent extreme sequence feature variance from overwhelming other categorical identity embeddings.
+- **Input Normalization**: A `LayerNorm` is applied to the combined token embeddings directly prior to ingestion by the transformer blocks.
+- **Pre-Layer Normalization (Pre-LN)**: The transformer layers are configured with `norm_first=True` to guarantee mathematical stability and faster convergence during deeper stacked self-attention.

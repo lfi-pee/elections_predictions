@@ -18,19 +18,21 @@ def train_epoch(
     total_loss = 0.0
     num_batches = 0
 
-    for tokens_batch, masked_batch, targets_batch, padding_mask in dataloader:
+    for tokens_dict, masked_batch, targets, padding_mask in dataloader:
         optimizer.zero_grad()
 
         padding_mask = padding_mask.to(device)
-        targets = torch.cat(targets_batch).to(device)
+        targets = targets.to(device)
+        masked_batch = masked_batch.to(device)
 
-        outputs = model(tokens_batch, masked_batch, padding_mask)
+        tokens_dict = {k: v.to(device) for k, v in tokens_dict.items()}
 
-        flat_masked = [m for seq in masked_batch for m in seq]
+        outputs = model(tokens_dict, masked_batch, padding_mask)
+
         flat_outputs = outputs.view(-1, 100)
+        flat_masked = masked_batch.view(-1)
 
-        mask_tensor = torch.tensor(flat_masked, dtype=torch.bool, device=device)
-        masked_outputs = flat_outputs[mask_tensor]
+        masked_outputs = flat_outputs[flat_masked]
 
         if len(targets) == 0:
             continue
@@ -96,6 +98,7 @@ if __name__ == "__main__":
     model = UniversalMaskedSetTransformer(d_model=128, nhead=4, num_layers=4)
 
     print("Building dataloader...")
+    # Reduce epoch_size here temporarily for faster debugging, but I'll leave as is
     dataloader = build_training_dataloader(
         data_dir=data_dir, batch_size=32, max_seq_len=1024, epoch_size=100, num_workers=16
     )

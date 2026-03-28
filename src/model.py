@@ -1,10 +1,7 @@
 from __future__ import annotations
-import hashlib
 
 import torch
 import torch.nn as nn
-
-from src.data_token import DataToken
 
 
 class StringEmbedding(nn.Module):
@@ -13,13 +10,7 @@ class StringEmbedding(nn.Module):
         self.num_buckets = num_buckets
         self.embedding = nn.Embedding(num_buckets, dim)
 
-    def forward(self, strings: list[str]) -> torch.Tensor:
-        device = self.embedding.weight.device
-        hashes = [
-            int(hashlib.md5(s.encode("utf-8")).hexdigest(), 16) % self.num_buckets
-            for s in strings
-        ]
-        indices = torch.tensor(hashes, dtype=torch.long, device=device)
+    def forward(self, indices: torch.Tensor) -> torch.Tensor:
         return self.embedding(indices)
 
 
@@ -38,53 +29,47 @@ class TokenEmbedding(nn.Module):
         self.metric_emb = StringEmbedding(num_buckets, self.d_identity)
 
         self.mask_token = nn.Parameter(torch.randn(32))
+        self.layer_norm = nn.LayerNorm(d_model)
 
-    def _embed_identity(self, flat_tokens: list[DataToken]) -> torch.Tensor:
-        device = self.date_proj.weight.device
-        date_tensor = torch.tensor(
-            [[t.date_float] for t in flat_tokens], dtype=torch.float32, device=device
-        )
+    def _embed_identity(self, tokens_dict: dict[str, torch.Tensor]) -> torch.Tensor:
+        date_tensor = (tokens_dict["dates"].unsqueeze(-1) - 2000.0) / 20.0
         identity = self.date_proj(date_tensor)
-        identity += self.election_emb([t.election_type for t in flat_tokens])
-        identity += self.location_emb([t.location for t in flat_tokens])
-        identity += self.candidate_emb([t.candidate for t in flat_tokens])
-        identity += self.party_emb([t.party for t in flat_tokens])
-        identity += self.metric_emb([t.metric_type for t in flat_tokens])
+        
+        identity += self.election_emb(tokens_dict["election_type"])
+        identity += self.location_emb(tokens_dict["location"])
+        identity += self.candidate_emb(tokens_dict["candidate"])
+        identity += self.party_emb(tokens_dict["party"])
+        identity += self.metric_emb(tokens_dict["metric_type"])
         return identity
 
     def _embed_value(
-        self, flat_tokens: list[DataToken], flat_masked: list[bool]
+        self, tokens_dict: dict[str, torch.Tensor], masked_indices: torch.Tensor
     ) -> torch.Tensor:
-        device = self.value_proj.weight.device
+        val_tensor = tokens_dict["values"].unsqueeze(-1)
+        
+        val_tensor_masked = torch.where(
+            masked_indices.unsqueeze(-1), 
+            torch.zeros_like(val_tensor), 
+            val_tensor
+        )
+        val_embedded = self.value_proj(val_tensor_masked)
 
-        val_inputs = [
-            [0.0] if m else [t.value] for t, m in zip(flat_tokens, flat_masked)
-        ]
-        val_tensor = torch.tensor(val_inputs, dtype=torch.float32, device=device)
-        val_embedded = self.value_proj(val_tensor)
-
-        mask_tensor = torch.tensor(
-            flat_masked, dtype=torch.bool, device=device
-        ).unsqueeze(1)
+        mask_expanded = masked_indices.unsqueeze(-1)
         val_embedded = torch.where(
-            mask_tensor, self.mask_token.expand_as(val_embedded), val_embedded
+            mask_expanded, 
+            self.mask_token.view(1, 1, -1).expand_as(val_embedded), 
+            val_embedded
         )
         return val_embedded
 
     def forward(
-        self, tokens: list[list[DataToken]], masked_indices: list[list[bool]]
+        self, tokens_dict: dict[str, torch.Tensor], masked_indices: torch.Tensor
     ) -> torch.Tensor:
-        batch_size = len(tokens)
-        seq_len = len(tokens[0])
+        identity = self._embed_identity(tokens_dict)
+        val_embedded = self._embed_value(tokens_dict, masked_indices)
 
-        flat_tokens = [t for seq in tokens for t in seq]
-        flat_masked = [m for seq in masked_indices for m in seq]
-
-        identity = self._embed_identity(flat_tokens)
-        val_embedded = self._embed_value(flat_tokens, flat_masked)
-
-        combined = torch.cat([identity, val_embedded], dim=1)
-        return combined.view(batch_size, seq_len, -1)
+        combined = torch.cat([identity, val_embedded], dim=-1)
+        return self.layer_norm(combined)
 
 
 class UniversalMaskedSetTransformer(nn.Module):
@@ -104,16 +89,17 @@ class UniversalMaskedSetTransformer(nn.Module):
             dim_feedforward=d_model * 4,
             dropout=0.1,
             batch_first=True,
+            norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.value_head = nn.Linear(d_model, 100)
 
     def forward(
         self,
-        tokens: list[list[DataToken]],
-        masked_indices: list[list[bool]],
+        tokens_dict: dict[str, torch.Tensor],
+        masked_indices: torch.Tensor,
         padding_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        x = self.token_embedding(tokens, masked_indices)
+        x = self.token_embedding(tokens_dict, masked_indices)
         out = self.transformer(x, src_key_padding_mask=padding_mask)
         return self.value_head(out)

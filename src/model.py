@@ -15,7 +15,7 @@ class StringEmbedding(nn.Module):
 
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, d_model: int = 128, num_buckets: int = 10000) -> None:
+    def __init__(self, d_model: int = 128, num_buckets: int = 50000) -> None:
         super().__init__()
         self.d_identity = d_model - 32
 
@@ -27,6 +27,9 @@ class TokenEmbedding(nn.Module):
         self.candidate_emb = StringEmbedding(num_buckets, self.d_identity)
         self.party_emb = StringEmbedding(num_buckets, self.d_identity)
         self.metric_emb = StringEmbedding(num_buckets, self.d_identity)
+
+        # Geo-coordinate projection: (lat, lon) → identity space
+        self.geo_proj = nn.Linear(2, self.d_identity)
 
         self.mask_token = nn.Parameter(torch.randn(32))
         self.layer_norm = nn.LayerNorm(d_model)
@@ -40,6 +43,13 @@ class TokenEmbedding(nn.Module):
         identity += self.candidate_emb(tokens_dict["candidate"])
         identity += self.party_emb(tokens_dict["party"])
         identity += self.metric_emb(tokens_dict["metric_type"])
+
+        # Geo: normalize lat/lon centered on France, then project
+        lat = (tokens_dict["latitude"].unsqueeze(-1) - 46.5) / 5.0
+        lon = (tokens_dict["longitude"].unsqueeze(-1) - 2.5) / 5.0
+        geo_tensor = torch.cat([lat, lon], dim=-1)
+        identity += self.geo_proj(geo_tensor)
+
         return identity
 
     def _embed_value(

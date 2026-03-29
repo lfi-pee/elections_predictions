@@ -27,12 +27,14 @@ def _load_nsp_presidentielle(data_dir: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     dates = df["fin_enquete"].apply(_parse_date_to_float).astype(np.float32)
     institute = df["nom_institut"].fillna("Unknown")
+    tour_map = {"Premier tour": "T1", "Deuxième tour": "T2"}
+    tour = df["tour"].map(tour_map).fillna("T1")
     return pd.DataFrame(
         {
             "date_float": dates,
-            "election_type": "Presidentielle_T1",
+            "election_type": "Presidentielle_" + tour,
             "location": "National",
-            "candidate": df["candidat"].values,
+            "candidate": df["candidat"].str.strip().str.upper().values,
             "party": df["parti"].fillna("").values,
             "metric_type": "Poll_" + institute,
             "value": pd.to_numeric(df["intentions"], errors="coerce")
@@ -56,7 +58,7 @@ def _load_nsp_regionales(data_dir: Path) -> pd.DataFrame:
             "date_float": dates,
             "election_type": "Regionales_" + tour,
             "location": df["region_name"].values,
-            "candidate": df["tete_liste"].values,
+            "candidate": df["tete_liste"].astype(str).str.strip().str.upper().values,
             "party": df["parti"].fillna("").values,
             "metric_type": "Poll_" + institute,
             "value": pd.to_numeric(df["intentions"], errors="coerce")
@@ -185,7 +187,7 @@ def _parse_wiki_poll_csv(path: Path, election_type: str) -> pd.DataFrame | None:
                     "date_float": np.float32(date_float),
                     "election_type": election_type,
                     "location": "National",
-                    "candidate": candidate.strip(),
+                    "candidate": candidate.strip().upper(),
                     "party": "",
                     "metric_type": f"Poll_{institute}",
                     "value": np.float32(val_float),
@@ -193,6 +195,21 @@ def _parse_wiki_poll_csv(path: Path, election_type: str) -> pd.DataFrame | None:
             )
 
     return pd.DataFrame(rows) if rows else None
+
+
+def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
+    """Merge latitude/longitude from geo lookup onto a token DataFrame."""
+    coords_path = data_dir / "geo" / "location_coords.parquet"
+    if coords_path.exists():
+        coords = pd.read_parquet(coords_path)
+        df = df.merge(coords[["location", "latitude", "longitude"]], on="location", how="left")
+    else:
+        df["latitude"] = np.float32(np.nan)
+        df["longitude"] = np.float32(np.nan)
+    # Fallback for unmatched locations: center of France
+    df["latitude"] = df["latitude"].fillna(46.2276).astype(np.float32)
+    df["longitude"] = df["longitude"].fillna(2.2137).astype(np.float32)
+    return df
 
 
 def load_poll_tokens(data_dir: Path) -> pd.DataFrame:
@@ -212,9 +229,12 @@ def load_poll_tokens(data_dir: Path) -> pd.DataFrame:
                 "party",
                 "metric_type",
                 "value",
+                "latitude",
+                "longitude",
             ]
         )
     combined = pd.concat(frames, ignore_index=True)
+    combined = _merge_geo_coords(combined, data_dir)
     combined.sort_values("date_float", inplace=True)
     combined.reset_index(drop=True, inplace=True)
     return combined

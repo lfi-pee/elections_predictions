@@ -74,7 +74,8 @@ def train(
         if avg_loss < best_loss - 1e-4:
             best_loss = avg_loss
             patience_counter = 0
-            print(f"New best loss: {best_loss:.4f}", flush=True)
+            print(f"New best loss: {best_loss:.4f}. Saving checkpoint...", flush=True)
+            torch.save(model.state_dict(), "best_model.pth")
         else:
             patience_counter += 1
             print(
@@ -95,12 +96,12 @@ if __name__ == "__main__":
 
     print(f"Using device: {device}")
 
-    model = UniversalMaskedSetTransformer(d_model=128, nhead=4, num_layers=4)
+    model = UniversalMaskedSetTransformer(d_model=256, nhead=8, num_layers=8)
 
     print("Building dataloader...")
     # Reduce epoch_size here temporarily for faster debugging, but I'll leave as is
     dataloader = build_training_dataloader(
-        data_dir=data_dir, batch_size=32, max_seq_len=1024, epoch_size=100, num_workers=16
+        data_dir=data_dir, batch_size=32, max_seq_len=1024, epoch_size=2000, num_workers=16
     )
 
     print("Starting training...")
@@ -108,7 +109,7 @@ if __name__ == "__main__":
         model=model,
         dataloader=dataloader,
         max_epochs=200,
-        learning_rate=1e-3,
+        learning_rate=3e-4,
         device=device,
         patience=10,
     )

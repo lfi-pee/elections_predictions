@@ -10,14 +10,17 @@ import torch
 from torch.utils.data import Dataset
 
 
-def hash_str_array(arr: np.ndarray, num_buckets: int = 10000) -> np.ndarray:
+def hash_str_array(arr: np.ndarray, num_buckets: int = 50000) -> np.ndarray:
     def hash_str(s):
         return int(hashlib.md5(str(s).encode("utf-8")).hexdigest(), 16) % num_buckets
-    return np.vectorize(hash_str)(arr).astype(np.int64)
+    
+    codes, uniques = pd.factorize(arr)
+    hashed_uniques = np.array([hash_str(str(s)) for s in uniques], dtype=np.int64)
+    return hashed_uniques[codes]
 
 
 class TokenPool:
-    def __init__(self, df_sorted: "pd.DataFrame", num_buckets: int = 10000) -> None:
+    def __init__(self, df_sorted: "pd.DataFrame", num_buckets: int = 50000) -> None:
         self.dates = df_sorted["date_float"].values.astype(np.float32)
         
         self.election_type = hash_str_array(df_sorted["election_type"].values, num_buckets)
@@ -28,6 +31,14 @@ class TokenPool:
         
         self.value = df_sorted["value"].values.astype(np.float32)
         self.is_result = np.array(df_sorted["metric_type"].values == "Result")
+
+        # Geo-coordinates (normalized: centered on France)
+        if "latitude" in df_sorted.columns:
+            self.latitude = df_sorted["latitude"].values.astype(np.float32)
+            self.longitude = df_sorted["longitude"].values.astype(np.float32)
+        else:
+            self.latitude = np.full(len(self.dates), 46.2276, dtype=np.float32)
+            self.longitude = np.full(len(self.dates), 2.2137, dtype=np.float32)
 
     def __len__(self) -> int:
         return len(self.dates)
@@ -101,6 +112,8 @@ class TokenDataset(Dataset):
         party = self.pool.party[sampled_idx]
         metric_type = self.pool.metric_type[sampled_idx]
         values = self.pool.value[sampled_idx]
+        latitude = self.pool.latitude[sampled_idx]
+        longitude = self.pool.longitude[sampled_idx]
 
         seq_len = len(sampled_idx)
         masked = np.random.rand(seq_len) < self.mask_prob
@@ -117,6 +130,8 @@ class TokenDataset(Dataset):
             "party": party,
             "metric_type": metric_type,
             "values": values,
+            "latitude": latitude,
+            "longitude": longitude,
         }
         return token_dict, masked, true_values
 
@@ -137,6 +152,8 @@ def collate_token_sets(
     party = torch.zeros((batch_size, max_len), dtype=torch.long)
     metric_type = torch.zeros((batch_size, max_len), dtype=torch.long)
     values = torch.zeros((batch_size, max_len), dtype=torch.float32)
+    latitude = torch.zeros((batch_size, max_len), dtype=torch.float32)
+    longitude = torch.zeros((batch_size, max_len), dtype=torch.float32)
     
     masked_batch = torch.zeros((batch_size, max_len), dtype=torch.bool)
     padding_mask = torch.ones((batch_size, max_len), dtype=torch.bool)
@@ -153,6 +170,8 @@ def collate_token_sets(
         party[i, :seq_len] = torch.from_numpy(token_dict["party"])
         metric_type[i, :seq_len] = torch.from_numpy(token_dict["metric_type"])
         values[i, :seq_len] = torch.from_numpy(token_dict["values"])
+        latitude[i, :seq_len] = torch.from_numpy(token_dict["latitude"])
+        longitude[i, :seq_len] = torch.from_numpy(token_dict["longitude"])
         
         masked_batch[i, :seq_len] = torch.from_numpy(masked)
         padding_mask[i, :seq_len] = False
@@ -167,6 +186,8 @@ def collate_token_sets(
         "party": party,
         "metric_type": metric_type,
         "values": values,
+        "latitude": latitude,
+        "longitude": longitude,
     }
     
     return batched_tokens, masked_batch, torch.cat(targets) if targets else torch.empty(0, dtype=torch.long), padding_mask

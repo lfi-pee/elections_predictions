@@ -50,7 +50,7 @@ def _aggregate_candidate_tokens(data_dir: Path) -> pd.DataFrame:
         columns=["id_election", "code_commune", "nom", "prenom", "nuance", "voix"],
     )
     commune = df.groupby(
-        ["id_election", "code_commune", "nom", "prenom", "nuance"], as_index=False
+        ["id_election", "code_commune", "nom", "prenom", "nuance"], as_index=False, dropna=False
     )["voix"].sum()
     total = (
         df.groupby(["id_election", "code_commune"], as_index=False)["voix"]
@@ -85,20 +85,25 @@ def _aggregate_context_tokens(data_dir: Path) -> pd.DataFrame:
 
 
 def _build_candidate_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
-    dates = []
-    election_types = []
-    for eid in commune_df["id_election"]:
+    unique_eids = commune_df["id_election"].unique()
+    dates_map = {}
+    etypes_map = {}
+    for eid in unique_eids:
         d, e = parse_election_id(eid)
-        dates.append(d)
-        election_types.append(e)
+        dates_map[eid] = d
+        etypes_map[eid] = e
+        
+    dates = commune_df["id_election"].map(dates_map).values.astype(np.float32)
+    election_types = commune_df["id_election"].map(etypes_map).values
 
     return pd.DataFrame(
         {
-            "date_float": np.array(dates, dtype=np.float32),
+            "date_float": dates,
             "election_type": election_types,
             "location": commune_df["code_commune"].values,
             "candidate": (commune_df["prenom"] + " " + commune_df["nom"])
             .str.strip()
+            .str.upper()
             .values,
             "party": commune_df["nuance"].fillna("").values,
             "metric_type": "Result",
@@ -108,19 +113,21 @@ def _build_candidate_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _build_context_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
-    dates_a, etypes_a = [], []
-    dates_b, etypes_b = [], []
-    for eid in commune_df["id_election"]:
+    unique_eids = commune_df["id_election"].unique()
+    dates_map = {}
+    etypes_map = {}
+    for eid in unique_eids:
         d, e = parse_election_id(eid)
-        dates_a.append(d)
-        etypes_a.append(e)
-        dates_b.append(d)
-        etypes_b.append(e)
+        dates_map[eid] = d
+        etypes_map[eid] = e
+
+    dates = commune_df["id_election"].map(dates_map).values.astype(np.float32)
+    election_types = commune_df["id_election"].map(etypes_map).values
 
     abstention = pd.DataFrame(
         {
-            "date_float": np.array(dates_a, dtype=np.float32),
-            "election_type": etypes_a,
+            "date_float": dates,
+            "election_type": election_types,
             "location": commune_df["code_commune"].values,
             "candidate": "Abstention",
             "party": "",
@@ -130,8 +137,8 @@ def _build_context_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
     )
     blancs = pd.DataFrame(
         {
-            "date_float": np.array(dates_b, dtype=np.float32),
-            "election_type": etypes_b,
+            "date_float": dates,
+            "election_type": election_types,
             "location": commune_df["code_commune"].values,
             "candidate": "Blancs",
             "party": "",
@@ -142,6 +149,21 @@ def _build_context_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([abstention, blancs], ignore_index=True)
 
 
+def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
+    """Merge latitude/longitude from geo lookup onto a token DataFrame."""
+    coords_path = data_dir / "geo" / "location_coords.parquet"
+    if coords_path.exists():
+        coords = pd.read_parquet(coords_path)
+        df = df.merge(coords[["location", "latitude", "longitude"]], on="location", how="left")
+    else:
+        df["latitude"] = np.float32(np.nan)
+        df["longitude"] = np.float32(np.nan)
+    # Fallback for unmatched locations: center of France
+    df["latitude"] = df["latitude"].fillna(46.2276).astype(np.float32)
+    df["longitude"] = df["longitude"].fillna(2.2137).astype(np.float32)
+    return df
+
+
 def load_election_tokens(data_dir: Path) -> pd.DataFrame:
     candidate_commune = _aggregate_candidate_tokens(data_dir)
     context_commune = _aggregate_context_tokens(data_dir)
@@ -150,6 +172,7 @@ def load_election_tokens(data_dir: Path) -> pd.DataFrame:
     context_df = _build_context_arrays(context_commune)
 
     combined = pd.concat([candidate_df, context_df], ignore_index=True)
+    combined = _merge_geo_coords(combined, data_dir)
     combined.sort_values("date_float", inplace=True)
     combined.reset_index(drop=True, inplace=True)
     return combined

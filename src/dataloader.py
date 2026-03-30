@@ -22,30 +22,67 @@ def load_all_tokens(data_dir: Path) -> TokenPool:
     return TokenPool(combined)
 
 
-def build_training_dataloader(
+def build_dataloaders(
     data_dir: Path,
+    split_date: float = 2025.2916,
     batch_size: int = 32,
     mask_prob: float = 0.15,
     max_seq_len: int = 1024,
     window_half_years: float = 0.5,
     result_fraction: float = 0.3,
-    epoch_size: int = 10000,
+    train_epoch_size: int = 10000,
+    val_epoch_size: int = 2000,
     num_workers: int = 0,
-) -> DataLoader:
-    pool = load_all_tokens(data_dir)
-    dataset = TokenDataset(
-        pool=pool,
+) -> tuple[DataLoader, DataLoader, TokenPool, TokenPool]:
+    election_df = load_election_tokens(data_dir)
+    poll_df = load_poll_tokens(data_dir)
+
+    frames = [f for f in [election_df, poll_df] if len(f) > 0]
+    combined = pd.concat(frames, ignore_index=True)
+    combined.dropna(subset=["value"], inplace=True)
+    combined.sort_values("date_float", inplace=True)
+    combined.reset_index(drop=True, inplace=True)
+
+    train_df = combined[combined["date_float"] <= split_date].copy().reset_index(drop=True)
+    val_df = combined[combined["date_float"] > split_date].copy().reset_index(drop=True)
+
+    train_pool = TokenPool(train_df)
+    val_pool = TokenPool(val_df)
+
+    train_dataset = TokenDataset(
+        pool=train_pool,
         mask_prob=mask_prob,
         max_seq_len=max_seq_len,
         window_half_years=window_half_years,
         result_fraction=result_fraction,
-        epoch_size=epoch_size,
+        epoch_size=train_epoch_size,
         is_training=True,
     )
-    return DataLoader(
-        dataset,
+
+    val_dataset = TokenDataset(
+        pool=val_pool,
+        mask_prob=mask_prob,
+        max_seq_len=max_seq_len,
+        window_half_years=window_half_years,
+        result_fraction=result_fraction,
+        epoch_size=val_epoch_size,
+        is_training=False,
+    )
+
+    train_dl = DataLoader(
+        train_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
         collate_fn=collate_token_sets,
     )
+
+    val_dl = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        collate_fn=collate_token_sets,
+    )
+
+    return train_dl, val_dl, train_pool, val_pool

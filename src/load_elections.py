@@ -47,10 +47,14 @@ def parse_election_id(id_election: str) -> tuple[float, str]:
 def _aggregate_candidate_tokens(data_dir: Path) -> pd.DataFrame:
     df = pd.read_parquet(
         data_dir / "elections" / "agregees" / "candidats_results.parquet",
-        columns=["id_election", "code_commune", "nom", "prenom", "nuance", "voix"],
+        columns=[
+            "id_election", "code_commune", "nom", "prenom", "nuance", "voix",
+            "libelle_abrege_liste",
+        ],
     )
     commune = df.groupby(
-        ["id_election", "code_commune", "nom", "prenom", "nuance"], as_index=False, dropna=False
+        ["id_election", "code_commune", "nom", "prenom", "nuance", "libelle_abrege_liste"],
+        as_index=False, dropna=False,
     )["voix"].sum()
     total = (
         df.groupby(["id_election", "code_commune"], as_index=False)["voix"]
@@ -84,6 +88,74 @@ def _aggregate_context_tokens(data_dir: Path) -> pd.DataFrame:
     return commune
 
 
+def _resolve_candidate_names(commune_df: pd.DataFrame) -> pd.Series:
+    """Build a candidate name series using a fallback chain.
+
+    Priority:
+      1. prenom + nom (present for 2008-2020, 2026_muni_t2, overseas)
+      2. Cross-fill from T2: if a T1 entry has no name but a matching
+         (code_commune, libelle_abrege_liste) exists in T2, use T2's name
+      3. libelle_abrege_liste (present for municipales list-based communes)
+      4. nuance code as last resort
+    """
+    # Step 1: Direct name
+    name = (commune_df["prenom"].fillna("") + " " + commune_df["nom"].fillna("")).str.strip()
+    has_name = commune_df["nom"].notna() & (commune_df["nom"] != "")
+
+    # Step 2: Cross-fill from T2 for T1 entries without names
+    missing_mask = ~has_name
+    if missing_mask.any() and "libelle_abrege_liste" in commune_df.columns:
+        # Build lookup from T2 entries that DO have names
+        t2_mask = commune_df["id_election"].str.endswith("_t2") & has_name
+        if t2_mask.any():
+            t2_lookup = (
+                commune_df.loc[t2_mask]
+                .groupby(["code_commune", "libelle_abrege_liste"], dropna=False)
+                .agg(nom_t2=("nom", "first"), prenom_t2=("prenom", "first"))
+                .reset_index()
+            )
+            t2_lookup = t2_lookup.dropna(subset=["nom_t2"])
+            t2_lookup["t2_name"] = (
+                t2_lookup["prenom_t2"].fillna("") + " " + t2_lookup["nom_t2"].fillna("")
+            ).str.strip()
+            if len(t2_lookup) > 0:
+                # Merge T2 names onto full dataframe by (code_commune, libelle_abrege_liste)
+                t2_map = t2_lookup.set_index(
+                    ["code_commune", "libelle_abrege_liste"]
+                )["t2_name"]
+                # Build a multi-index key for lookup
+                keys = list(zip(
+                    commune_df["code_commune"].values,
+                    commune_df["libelle_abrege_liste"].values,
+                ))
+                t2_filled = pd.Series(
+                    [t2_map.get(k, "") for k in keys],
+                    index=commune_df.index,
+                )
+                # Only apply to T1 entries that are missing names
+                apply_mask = (
+                    missing_mask
+                    & commune_df["id_election"].str.endswith("_t1")
+                    & (t2_filled != "")
+                )
+                name.loc[apply_mask] = t2_filled.loc[apply_mask]
+
+    # Recompute what's still missing after T2 cross-fill
+    still_empty = name.eq("") | name.isna()
+
+    # Step 3: Use libelle_abrege_liste
+    if "libelle_abrege_liste" in commune_df.columns:
+        liste = commune_df["libelle_abrege_liste"].fillna("")
+        name = name.where(~still_empty, liste)
+        still_empty = name.eq("") | name.isna()
+
+    # Step 4: Use nuance code as last resort
+    nuance = commune_df["nuance"].fillna("UNKNOWN")
+    name = name.where(~still_empty, nuance)
+
+    return name.str.upper()
+
+
 def _build_candidate_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
     unique_eids = commune_df["id_election"].unique()
     dates_map = {}
@@ -96,15 +168,14 @@ def _build_candidate_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
     dates = commune_df["id_election"].map(dates_map).values.astype(np.float32)
     election_types = commune_df["id_election"].map(etypes_map).values
 
+    candidate_names = _resolve_candidate_names(commune_df)
+
     return pd.DataFrame(
         {
             "date_float": dates,
             "election_type": election_types,
             "location": commune_df["code_commune"].values,
-            "candidate": (commune_df["prenom"] + " " + commune_df["nom"])
-            .str.strip()
-            .str.upper()
-            .values,
+            "candidate": candidate_names.values,
             "party": commune_df["nuance"].fillna("").values,
             "metric_type": "Result",
             "value": commune_df["ratio"].astype(np.float32).values,

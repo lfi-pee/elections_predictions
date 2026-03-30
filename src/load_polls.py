@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import numpy as np
@@ -197,6 +198,135 @@ def _parse_wiki_poll_csv(path: Path, election_type: str) -> pd.DataFrame | None:
     return pd.DataFrame(rows) if rows else None
 
 
+_FRENCH_MONTHS = {
+    "janvier": 1, "février": 2, "mars": 3, "avril": 4,
+    "mai": 5, "juin": 6, "juillet": 7, "août": 8,
+    "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12,
+}
+
+
+def _parse_french_date(s: str) -> float | None:
+    """Parse French survey date strings like '5-10 mars 2026' into a date float."""
+    s = str(s).strip()
+    if not s or s == "nan":
+        return None
+    year_match = re.search(r"(\d{4})", s)
+    if not year_match:
+        return None
+    year = int(year_match.group(1))
+    months_found: list[tuple[int, int]] = []
+    for name, num in _FRENCH_MONTHS.items():
+        for m in re.finditer(name, s, re.IGNORECASE):
+            months_found.append((m.start(), num))
+    if not months_found:
+        return None
+    months_found.sort()
+    month = months_found[-1][1]
+    days = [
+        int(d)
+        for d in re.findall(r"(\d{1,2})", s)
+        if int(d) <= 31 and d != str(year)
+    ]
+    day = days[-1] if days else 15
+    return year + (month - 1 + day / 30.0) / 12.0
+
+
+def _clean_poll_value(raw: object) -> float | None:
+    """Extract a numeric poll value from messy cell contents.
+
+    Handles footnotes like '26[d]', French decimals '0,5', '<1', '—',
+    and embedded candidate names like '32 Doucet'.
+    """
+    s = str(raw).strip()
+    if not s or s in ("nan", "—", "-", "–"):
+        return None
+    # Strip footnote references e.g. [d], [e], [c]
+    s = re.sub(r"\[[a-zA-Z0-9]+\]", "", s).strip()
+    # "<1" or "<0,5" -> just take the number
+    s = s.replace("<", "").replace(">", "").strip()
+    # French decimal
+    s = s.replace(",", ".").strip()
+    # Strip embedded candidate names: "32 Doucet" -> "32"
+    m = re.match(r"^([\d.]+)", s)
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return None
+    return None
+
+
+def _extract_city_from_filename(fname: str) -> str:
+    """Extract city name from filenames like 'municipales_2026_paris_sondages_8.csv'."""
+    m = re.match(r"municipales_\d{4}_(.+?)_sondages", fname)
+    if m:
+        return m.group(1).replace("_", " ").title()
+    return "Unknown"
+
+
+def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
+    """Load all scraped Wikipedia municipales polling CSVs."""
+    muni_dir = data_dir / "polls" / "municipales"
+    if not muni_dir.exists():
+        return pd.DataFrame()
+
+    rows: list[dict[str, object]] = []
+
+    for csv_path in sorted(muni_dir.glob("*.csv")):
+        city = _extract_city_from_filename(csv_path.name)
+        fname_lower = csv_path.name.lower()
+
+        # Determine round from table structure (even-indexed = T1, odd = T2
+        # for most cities). T2 tables typically have fewer, coalesced columns.
+        # We'll figure this out from whether the column set looks like T1 or T2.
+        df = pd.read_csv(csv_path)
+        if len(df) < 3:
+            continue
+
+        meta_cols = {"Source", "Date de réalisation", "Échantillon", "Autres"}
+        candidate_cols = [
+            c for c in df.columns
+            if c not in meta_cols and "Unnamed" not in str(c)
+        ]
+        if not candidate_cols:
+            continue
+
+        # Determine election round. Heuristic: if columns contain coalition
+        # strings with " - " separators AND <= 6 candidate cols, it's T2.
+        coalition_cols = sum(1 for c in candidate_cols if " - " in c)
+        etype = "Municipales_T2" if (coalition_cols > len(candidate_cols) * 0.5 and len(candidate_cols) <= 8) else "Municipales_T1"
+
+        for _, row in df.iterrows():
+            date_str = str(row.get("Date de réalisation", ""))
+            date_float = _parse_french_date(date_str)
+            if date_float is None:
+                continue
+
+            institute = str(row.get("Source", "Unknown"))
+            if institute in ("nan", "Source", ""):
+                institute = "Unknown"
+
+            for cand_col in candidate_cols:
+                val = _clean_poll_value(row.get(cand_col))
+                if val is None:
+                    continue
+                # For municipales polls the column header IS the party/coalition
+                # Use the first component as the primary party for the party field
+                party_label = cand_col.strip()
+                rows.append({
+                    "date_float": np.float32(date_float),
+                    "election_type": etype,
+                    "location": city,
+                    "candidate": cand_col.strip().upper(),
+                    "party": party_label,
+                    "metric_type": f"Poll_{institute}",
+                    "value": np.float32(val),
+                })
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+
 def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
     """Merge latitude/longitude from geo lookup onto a token DataFrame."""
     coords_path = data_dir / "geo" / "location_coords.parquet"
@@ -217,6 +347,7 @@ def load_poll_tokens(data_dir: Path) -> pd.DataFrame:
         _load_nsp_presidentielle(data_dir),
         _load_nsp_regionales(data_dir),
         _load_all_wiki_polls(data_dir),
+        _load_municipales_polls(data_dir),
     ]
     frames = [f for f in frames if len(f) > 0]
     if not frames:

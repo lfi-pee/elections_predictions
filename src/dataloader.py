@@ -28,10 +28,8 @@ def build_dataloaders(
     batch_size: int = 32,
     mask_prob: float = 0.15,
     max_seq_len: int = 1024,
-    window_half_years: float = 0.5,
+    window_years: float = 1.0,
     result_fraction: float = 0.3,
-    train_epoch_size: int = 10000,
-    val_epoch_size: int = 2000,
     num_workers: int = 0,
 ) -> tuple[DataLoader, DataLoader, TokenPool, TokenPool]:
     election_df = load_election_tokens(data_dir)
@@ -53,9 +51,8 @@ def build_dataloaders(
         pool=train_pool,
         mask_prob=mask_prob,
         max_seq_len=max_seq_len,
-        window_half_years=window_half_years,
+        window_years=window_years,
         result_fraction=result_fraction,
-        epoch_size=train_epoch_size,
         is_training=True,
     )
 
@@ -63,9 +60,8 @@ def build_dataloaders(
         pool=val_pool,
         mask_prob=mask_prob,
         max_seq_len=max_seq_len,
-        window_half_years=window_half_years,
+        window_years=window_years,
         result_fraction=result_fraction,
-        epoch_size=val_epoch_size,
         is_training=False,
     )
 

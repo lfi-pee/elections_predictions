@@ -40,6 +40,26 @@ class TokenPool:
             self.latitude = np.full(len(self.dates), 46.2276, dtype=np.float32)
             self.longitude = np.full(len(self.dates), 2.2137, dtype=np.float32)
 
+        # Precompute unique election groups: (election_type, location, date) -> list of result indices
+        self._build_election_groups()
+
+    def _build_election_groups(self) -> None:
+        result_mask = self.is_result
+        result_indices = np.where(result_mask)[0]
+        
+        groups: dict[tuple[int, int, float], list[int]] = {}
+        for idx in result_indices:
+            key = (int(self.election_type[idx]), int(self.location[idx]), float(self.dates[idx]))
+            if key not in groups:
+                groups[key] = []
+            groups[key].append(idx)
+        
+        # Store as list of (anchor_date, result_indices_array) for fast access
+        self.election_groups: list[tuple[float, np.ndarray]] = [
+            (key[2], np.array(indices, dtype=np.int64))
+            for key, indices in groups.items()
+        ]
+
     def __len__(self) -> int:
         return len(self.dates)
 
@@ -55,27 +75,38 @@ class TokenDataset(Dataset):
         pool: TokenPool,
         mask_prob: float = 0.15,
         max_seq_len: int = 1024,
-        window_half_years: float = 0.5,
+        window_years: float = 1.0,
         result_fraction: float = 0.3,
-        epoch_size: int = 10000,
         is_training: bool = True,
     ) -> None:
         self.pool = pool
         self.mask_prob = mask_prob
         self.max_seq_len = max_seq_len
-        self.window_half_years = window_half_years
+        self.window_years = window_years
         self.result_fraction = result_fraction
-        self.epoch_size = epoch_size
         self.is_training = is_training
         self.date_min = float(pool.dates[0])
         self.date_max = float(pool.dates[-1])
+        
+        # Epoch = one pass through every unique election
+        self.num_elections = len(pool.election_groups)
+        self._shuffle_order()
+
+    def _shuffle_order(self) -> None:
+        """Shuffle the election visit order at the start of each epoch."""
+        self._order = list(range(self.num_elections))
+        random.shuffle(self._order)
 
     def __len__(self) -> int:
-        return self.epoch_size
+        return self.num_elections
 
-    def __getitem__(self, _idx: int) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
-        anchor = random.uniform(self.date_min, self.date_max)
-        lo, hi = self.pool.indices_in_window(anchor, self.window_half_years)
+    def __getitem__(self, idx: int) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
+        election_idx = self._order[idx % self.num_elections]
+        anchor_date, anchor_result_indices = self.pool.election_groups[election_idx]
+
+        # Context window: [anchor_date - window_years, anchor_date]
+        lo = bisect.bisect_left(self.pool.dates, anchor_date - self.window_years)
+        hi = bisect.bisect_right(self.pool.dates, anchor_date)
 
         window_idx = np.arange(lo, hi)
         window_is_result = self.pool.is_result[lo:hi]
@@ -97,7 +128,7 @@ class TokenDataset(Dataset):
             sampled.extend(random.sample(window_other.tolist(), n_other))
         
         if not sampled:
-            sampled = [random.randint(0, len(self.pool) - 1)]
+            sampled = anchor_result_indices.tolist()
         else:
             random.shuffle(sampled)
 
@@ -116,9 +147,13 @@ class TokenDataset(Dataset):
         longitude = self.pool.longitude[sampled_idx]
 
         seq_len = len(sampled_idx)
-        masked = np.random.rand(seq_len) < self.mask_prob
-        if not masked.any():
-            masked[random.randint(0, seq_len - 1)] = True
+        
+        is_result_sampled = self.pool.is_result[sampled_idx]
+        masked = (np.random.rand(seq_len) < self.mask_prob) & is_result_sampled
+        
+        if not masked.any() and is_result_sampled.any():
+            result_locs = np.where(is_result_sampled)[0]
+            masked[np.random.choice(result_locs)] = True
 
         true_values = np.clip(values[masked].astype(np.int64), 0, 99)
         

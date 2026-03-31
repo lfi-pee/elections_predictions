@@ -10,24 +10,25 @@ import torch
 from torch.utils.data import Dataset
 
 
-def hash_str_array(arr: np.ndarray, num_buckets: int = 50000) -> np.ndarray:
+def hash_str_array(arr: np.ndarray, num_buckets: int = 50000) -> tuple[np.ndarray, dict[int, str]]:
     def hash_str(s):
         return int(hashlib.md5(str(s).encode("utf-8")).hexdigest(), 16) % num_buckets
     
     codes, uniques = pd.factorize(arr)
     hashed_uniques = np.array([hash_str(str(s)) for s in uniques], dtype=np.int64)
-    return hashed_uniques[codes]
+    lookup = {int(hashed_uniques[i]): str(uniques[i]) for i in range(len(uniques))}
+    return hashed_uniques[codes], lookup
 
 
 class TokenPool:
     def __init__(self, df_sorted: "pd.DataFrame", num_buckets: int = 50000) -> None:
         self.dates = df_sorted["date_float"].values.astype(np.float32)
         
-        self.election_type = hash_str_array(df_sorted["election_type"].values, num_buckets)
-        self.location = hash_str_array(df_sorted["location"].values, num_buckets)
-        self.candidate = hash_str_array(df_sorted["candidate"].values, num_buckets)
-        self.party = hash_str_array(df_sorted["party"].values, num_buckets)
-        self.metric_type = hash_str_array(df_sorted["metric_type"].values, num_buckets)
+        self.election_type, self.hash_to_election_type = hash_str_array(df_sorted["election_type"].values, num_buckets)
+        self.location, _ = hash_str_array(df_sorted["location"].values, num_buckets)
+        self.candidate, self.hash_to_candidate = hash_str_array(df_sorted["candidate"].values, num_buckets)
+        self.party, _ = hash_str_array(df_sorted["party"].values, num_buckets)
+        self.metric_type, self.hash_to_metric_type = hash_str_array(df_sorted["metric_type"].values, num_buckets)
         
         self.value = df_sorted["value"].values.astype(np.float32)
         self.is_result = np.array(df_sorted["metric_type"].values == "Result")
@@ -78,6 +79,8 @@ class TokenDataset(Dataset):
         window_years: float = 1.0,
         result_fraction: float = 0.3,
         is_training: bool = True,
+        start_date: float | None = None,
+        end_date: float | None = None,
     ) -> None:
         self.pool = pool
         self.mask_prob = mask_prob
@@ -88,8 +91,16 @@ class TokenDataset(Dataset):
         self.date_min = float(pool.dates[0])
         self.date_max = float(pool.dates[-1])
         
-        # Epoch = one pass through every unique election
-        self.num_elections = len(pool.election_groups)
+        valid_groups = []
+        for grp in pool.election_groups:
+            if start_date is not None and grp[0] <= start_date:
+                continue
+            if end_date is not None and grp[0] > end_date:
+                continue
+            valid_groups.append(grp)
+            
+        self.election_groups = valid_groups
+        self.num_elections = len(self.election_groups)
         self._shuffle_order()
 
     def _shuffle_order(self) -> None:
@@ -102,7 +113,7 @@ class TokenDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
         election_idx = self._order[idx % self.num_elections]
-        anchor_date, anchor_result_indices = self.pool.election_groups[election_idx]
+        anchor_date, anchor_result_indices = self.election_groups[election_idx]
 
         # Context window: [anchor_date - window_years, anchor_date]
         lo = bisect.bisect_left(self.pool.dates, anchor_date - self.window_years)
@@ -111,31 +122,55 @@ class TokenDataset(Dataset):
         window_idx = np.arange(lo, hi)
         window_is_result = self.pool.is_result[lo:hi]
         
-        window_results = window_idx[window_is_result]
+        window_dates = self.pool.dates[lo:hi]
+        is_target_elec = window_is_result & (window_dates == anchor_date)
+        is_past_result = window_is_result & (window_dates < anchor_date)
+        
+        target_elec_results = window_idx[is_target_elec]
+        past_results = window_idx[is_past_result]
         window_other = window_idx[~window_is_result]
-
-        n_results = min(int(self.max_seq_len * self.result_fraction), len(window_results))
-        n_other = min(self.max_seq_len - n_results, len(window_other))
-
-        if n_results == 0 and len(window_results) > 0:
-            n_results = min(1, len(window_results))
-            n_other = min(self.max_seq_len - n_results, len(window_other))
-
-        sampled = []
-        if n_results > 0:
-            sampled.extend(random.sample(window_results.tolist(), n_results))
+        
+        anchor_set = set(anchor_result_indices.tolist())
+        other_loc_target_results = [i for i in target_elec_results.tolist() if i not in anchor_set]
+        
+        masked_target_idxs = anchor_result_indices.tolist()
+        unmasked_target_idxs = []
+        
+        if random.random() >= 0.75:
+            num_to_reveal = random.choice([1, 2])
+            if random.random() < 0.5:
+                if other_loc_target_results:
+                    n_unmasked = min(num_to_reveal, len(other_loc_target_results))
+                    unmasked_target_idxs = random.sample(other_loc_target_results, n_unmasked)
+            else:
+                if len(masked_target_idxs) > 1:
+                    n_unmasked = min(num_to_reveal, len(masked_target_idxs) - 1)
+                    unmasked_target_idxs = random.sample(masked_target_idxs, n_unmasked)
+                    masked_target_idxs = [x for x in masked_target_idxs if x not in unmasked_target_idxs]
+                    
+        current_sampled = unmasked_target_idxs + masked_target_idxs
+        
+        n_results_allowed = int(self.max_seq_len * self.result_fraction)
+        n_past_allowed = max(0, n_results_allowed - len(current_sampled))
+        n_past = min(n_past_allowed, len(past_results))
+        
+        n_other = min(self.max_seq_len - (len(current_sampled) + n_past), len(window_other))
+        
+        remaining = self.max_seq_len - (len(current_sampled) + n_past + n_other)
+        if remaining > 0 and len(past_results) > n_past:
+            n_past = min(len(past_results), n_past + remaining)
+             
+        sampled = current_sampled.copy()
+        if n_past > 0:
+            sampled.extend(random.sample(past_results.tolist(), n_past))
         if n_other > 0:
             sampled.extend(random.sample(window_other.tolist(), n_other))
-        
-        if not sampled:
-            sampled = anchor_result_indices.tolist()
-        else:
-            random.shuffle(sampled)
-
+            
+        random.shuffle(sampled)
         sampled_idx = np.array(sampled, dtype=np.int64)
 
-        shift = random.uniform(-10.0, 10.0) if self.is_training else 0.0
-        dates = self.pool.dates[sampled_idx] + shift
+        # Relative date: anchored election is exactly at 0.0
+        dates = self.pool.dates[sampled_idx] - anchor_date
         
         election_type = self.pool.election_type[sampled_idx]
         location = self.pool.location[sampled_idx]
@@ -147,10 +182,21 @@ class TokenDataset(Dataset):
         longitude = self.pool.longitude[sampled_idx]
 
         seq_len = len(sampled_idx)
+        masked = np.zeros(seq_len, dtype=bool)
         
+        masked_set = set(masked_target_idxs)
+        unmasked_set = set(unmasked_target_idxs)
+        
+        for i, token_idx in enumerate(sampled_idx):
+            if token_idx in masked_set:
+                masked[i] = True
+            elif token_idx in unmasked_set:
+                masked[i] = False
+            elif self.pool.is_result[token_idx]:
+                if random.random() < self.mask_prob:
+                    masked[i] = True
+                    
         is_result_sampled = self.pool.is_result[sampled_idx]
-        masked = (np.random.rand(seq_len) < self.mask_prob) & is_result_sampled
-        
         if not masked.any() and is_result_sampled.any():
             result_locs = np.where(is_result_sampled)[0]
             masked[np.random.choice(result_locs)] = True

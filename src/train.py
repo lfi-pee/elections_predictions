@@ -1,11 +1,105 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from src.dataset import TokenPool
 from src.model import UniversalMaskedSetTransformer
+
+
+def compute_split_metrics(
+    tokens_dict: dict[str, torch.Tensor],
+    masked_batch: torch.Tensor,
+    outputs: torch.Tensor,
+    targets: torch.Tensor,
+    pool: TokenPool,
+) -> dict[str, tuple[float, int]]:
+    """Compute per-token loss split by election type and polled/unpolled status.
+
+    Returns a dict mapping split names to (loss_sum, count) tuples.
+    """
+    criterion = nn.CrossEntropyLoss(reduction="none")
+    flat_outputs = outputs.view(-1, 100)
+    flat_masked = masked_batch.view(-1)
+    masked_outputs = flat_outputs[flat_masked]
+
+    if len(targets) == 0:
+        return {}
+
+    per_token_loss = criterion(masked_outputs, targets)  # (N,)
+
+    # Gather the election_type and candidate hashes for masked positions
+    flat_election_type = tokens_dict["election_type"].view(-1)[flat_masked]  # (N,)
+    flat_candidate = tokens_dict["candidate"].view(-1)[flat_masked]  # (N,)
+    flat_metric_type = tokens_dict["metric_type"].view(-1)[flat_masked]  # (N,)
+
+    # Determine "polled" status per masked token:
+    # A candidate is "polled" if, within the same batch element, there exists
+    # a non-masked token with the same candidate hash and a metric_type that is NOT "Result".
+    # We work per batch element.
+    B, S = masked_batch.shape
+    flat_batch_idx = torch.arange(B, device=masked_batch.device).unsqueeze(1).expand(B, S).reshape(-1)
+    masked_batch_idx = flat_batch_idx[flat_masked]  # batch index for each masked token
+
+    hash_to_metric = pool.hash_to_metric_type
+    # Build set of (batch_idx, candidate_hash) pairs that have poll data in context
+    # i.e., non-masked tokens whose metric_type != Result hash
+    result_hashes = {h for h, s in hash_to_metric.items() if s == "Result"}
+
+    non_masked = ~masked_batch  # (B, S)
+    flat_non_masked = non_masked.view(-1)
+    ctx_batch_idx = flat_batch_idx[flat_non_masked]
+    ctx_candidate = tokens_dict["candidate"].view(-1)[flat_non_masked]
+    ctx_metric = tokens_dict["metric_type"].view(-1)[flat_non_masked]
+
+    # Filter to poll-type context tokens
+    poll_mask_ctx = torch.tensor(
+        [int(m.item()) not in result_hashes for m in ctx_metric],
+        dtype=torch.bool,
+        device=ctx_metric.device,
+    )
+    poll_ctx_batch = ctx_batch_idx[poll_mask_ctx]
+    poll_ctx_cand = ctx_candidate[poll_mask_ctx]
+
+    polled_set: set[tuple[int, int]] = set()
+    for b, c in zip(poll_ctx_batch.cpu().tolist(), poll_ctx_cand.cpu().tolist()):
+        polled_set.add((b, c))
+
+    # Classify each masked token
+    hash_to_election = pool.hash_to_election_type
+    splits: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
+
+    losses_cpu = per_token_loss.detach().cpu().tolist()
+    et_cpu = flat_election_type.cpu().tolist()
+    cand_cpu = flat_candidate.cpu().tolist()
+    bidx_cpu = masked_batch_idx.cpu().tolist()
+
+    for i in range(len(losses_cpu)):
+        loss_val = losses_cpu[i]
+        etype_hash = et_cpu[i]
+        etype_str = hash_to_election.get(etype_hash, f"unk_{etype_hash}")
+        is_polled = (bidx_cpu[i], cand_cpu[i]) in polled_set
+        poll_str = "polled" if is_polled else "unpolled"
+
+        # By election type
+        key_et = etype_str
+        s, c = splits[key_et]
+        splits[key_et] = (s + loss_val, c + 1)
+
+        # By polled/unpolled
+        s, c = splits[poll_str]
+        splits[poll_str] = (s + loss_val, c + 1)
+
+        # Granular
+        key_gran = f"{etype_str}_{poll_str}"
+        s, c = splits[key_gran]
+        splits[key_gran] = (s + loss_val, c + 1)
+
+    return dict(splits)
 
 
 def train_epoch(
@@ -16,6 +110,8 @@ def train_epoch(
     device: torch.device,
     writer: SummaryWriter,
     epoch: int,
+    train_pool: TokenPool | None = None,
+    val_pool: TokenPool | None = None,
 ) -> float:
     model.train()
     criterion = nn.CrossEntropyLoss()
@@ -62,6 +158,15 @@ def train_epoch(
             writer.add_scalar("Loss/Train/step", avg_train_loss, global_step)
             running_train_loss = 0.0
             
+            # Compute split metrics on this train batch
+            if train_pool is not None:
+                with torch.no_grad():
+                    t_out = model(tokens_dict, masked_batch, padding_mask)
+                batch_splits = compute_split_metrics(tokens_dict, masked_batch, t_out, targets, train_pool)
+                for k, (s, c) in batch_splits.items():
+                    if c > 0:
+                        writer.add_scalar(f"Loss/Train/{k}", s / c, global_step)
+
             # Evaluate a single validation batch
             model.eval()
             try:
@@ -84,6 +189,13 @@ def train_epoch(
                 if len(v_targets) > 0:
                     v_loss = criterion(v_masked_outputs, v_targets)
                     writer.add_scalar("Loss/Val/step", v_loss.item(), global_step)
+
+                    # Split metrics on val batch
+                    if val_pool is not None:
+                        val_batch_splits = compute_split_metrics(v_tokens_dict, v_masked_batch, v_outputs, v_targets, val_pool)
+                        for k, (s, c) in val_batch_splits.items():
+                            if c > 0:
+                                writer.add_scalar(f"Loss/Val/{k}", s / c, global_step)
             
             # Switch back to train mode
             model.train()
@@ -103,11 +215,13 @@ def eval_epoch(
     device: torch.device,
     writer: SummaryWriter,
     epoch: int,
+    val_pool: TokenPool | None = None,
 ) -> float:
     model.eval()
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     num_batches = 0
+    val_splits: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
 
     for tokens_dict, masked_batch, targets, padding_mask in dataloader:
         padding_mask = padding_mask.to(device)
@@ -129,8 +243,21 @@ def eval_epoch(
         total_loss += loss.item()
         num_batches += 1
 
+        if val_pool is not None:
+            batch_splits = compute_split_metrics(tokens_dict, masked_batch, outputs, targets, val_pool)
+            for k, (s, c) in batch_splits.items():
+                prev_s, prev_c = val_splits[k]
+                val_splits[k] = (prev_s + s, prev_c + c)
+
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
     writer.add_scalar("Loss/Val/epoch", avg_loss, epoch)
+
+    if val_pool is not None:
+        for k, (s, c) in val_splits.items():
+            if c > 0:
+                writer.add_scalar(f"Loss/Val/{k}", s / c, epoch)
+                print(f"  Val/{k}: {s / c:.4f} (n={c})", flush=True)
+
     print(f"Epoch Avg Val Loss: {avg_loss:.4f}", flush=True)
     return avg_loss
 
@@ -143,6 +270,8 @@ def train(
     learning_rate: float,
     device: torch.device,
     patience: int = 5,
+    train_pool: TokenPool | None = None,
+    val_pool: TokenPool | None = None,
 ) -> None:
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
@@ -154,8 +283,11 @@ def train(
 
     for epoch in range(max_epochs):
         print(f"Starting epoch {epoch + 1}/{max_epochs}...", flush=True)
-        train_loss = train_epoch(model, train_dataloader, optimizer, val_dataloader, device, writer, epoch)
-        val_loss = eval_epoch(model, val_dataloader, device, writer, epoch)
+        train_loss = train_epoch(
+            model, train_dataloader, optimizer, val_dataloader, device, writer, epoch,
+            train_pool=train_pool, val_pool=val_pool,
+        )
+        val_loss = eval_epoch(model, val_dataloader, device, writer, epoch, val_pool=val_pool)
 
         if val_loss < best_loss - 1e-4:
             best_loss = val_loss
@@ -201,5 +333,7 @@ if __name__ == "__main__":
         learning_rate=3e-4,
         device=device,
         patience=10,
+        train_pool=train_pool,
+        val_pool=val_pool,
     )
     print("Training complete.")

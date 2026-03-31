@@ -23,8 +23,10 @@ class TokenEmbedding(nn.Module):
         self.value_proj = nn.Linear(1, 32)
 
         self.election_emb = StringEmbedding(num_buckets, self.d_identity)
-        self.location_emb = StringEmbedding(num_buckets, self.d_identity)
+        # location_emb removed: raw (lat, lon) via geo_proj provides geographic
+        # signal without memorising rare commune codes
         self.candidate_emb = StringEmbedding(num_buckets, self.d_identity)
+        nn.init.zeros_(self.candidate_emb.embedding.weight)
         self.party_emb = StringEmbedding(num_buckets, self.d_identity)
         self.metric_emb = StringEmbedding(num_buckets, self.d_identity)
 
@@ -35,11 +37,12 @@ class TokenEmbedding(nn.Module):
         self.layer_norm = nn.LayerNorm(d_model)
 
     def _embed_identity(self, tokens_dict: dict[str, torch.Tensor]) -> torch.Tensor:
-        date_tensor = (tokens_dict["dates"].unsqueeze(-1) - 2000.0) / 20.0
+        # Dates are relative to anchored election, typically in [-1.0, 0.0]
+        date_tensor = tokens_dict["dates"].unsqueeze(-1)
         identity = self.date_proj(date_tensor)
         
         identity += self.election_emb(tokens_dict["election_type"])
-        identity += self.location_emb(tokens_dict["location"])
+        # location embedding removed — using continuous geo coords instead
         identity += self.candidate_emb(tokens_dict["candidate"])
         identity += self.party_emb(tokens_dict["party"])
         identity += self.metric_emb(tokens_dict["metric_type"])

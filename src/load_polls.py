@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.nuance_mapping import CITY_TO_CODE_COMMUNE, map_coalition_to_nuance
+
 
 def _parse_date_to_float(date_str: str) -> float:
     parts = date_str.split("-")
@@ -273,7 +275,10 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
 
     for csv_path in sorted(muni_dir.glob("*.csv")):
-        city = _extract_city_from_filename(csv_path.name)
+        city_name = _extract_city_from_filename(csv_path.name)
+        # Use code_commune if known, otherwise fallback to the city name
+        city_location = CITY_TO_CODE_COMMUNE.get(city_name, city_name)
+        
         fname_lower = csv_path.name.lower()
 
         # Determine round from table structure (even-indexed = T1, odd = T2
@@ -313,12 +318,14 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
                 # For municipales polls the column header IS the party/coalition
                 # Use the first component as the primary party for the party field
                 party_label = cand_col.strip()
+                nuance_code = map_coalition_to_nuance(party_label)
+                
                 rows.append({
                     "date_float": np.float32(date_float),
                     "election_type": etype,
-                    "location": city,
+                    "location": city_location,
                     "candidate": cand_col.strip().upper(),
-                    "party": party_label,
+                    "party": nuance_code,
                     "metric_type": f"Poll_{institute}",
                     "value": np.float32(val),
                 })

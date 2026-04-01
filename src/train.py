@@ -102,15 +102,61 @@ def compute_split_metrics(
     return dict(splits)
 
 
+def _eval_one_batch(
+    model: UniversalMaskedSetTransformer,
+    dl_iter,
+    dataloader: DataLoader,
+    device: torch.device,
+    criterion: nn.Module,
+    writer: SummaryWriter,
+    global_step: int,
+    tag: str,
+    pool: TokenPool | None,
+) -> tuple:
+    """Evaluate a single batch from *dataloader* (cycling the iterator).
+
+    Returns (updated_iterator, loss_value_or_None).
+    """
+    try:
+        batch = next(dl_iter)
+    except StopIteration:
+        dl_iter = iter(dataloader)
+        batch = next(dl_iter)
+
+    e_tokens, e_masked, e_targets, e_pad = batch
+    e_pad = e_pad.to(device)
+    e_targets = e_targets.to(device)
+    e_masked = e_masked.to(device)
+    e_tokens = {k: v.to(device) for k, v in e_tokens.items()}
+
+    e_outputs = model(e_tokens, e_masked, e_pad)
+    e_flat = e_outputs.view(-1, 100)[e_masked.view(-1)]
+
+    if len(e_targets) == 0:
+        return dl_iter, None
+
+    e_loss = criterion(e_flat, e_targets)
+    writer.add_scalar(f"Loss/{tag}/step", e_loss.item(), global_step)
+
+    if pool is not None:
+        for k, (s, c) in compute_split_metrics(e_tokens, e_masked, e_outputs, e_targets, pool).items():
+            if c > 0:
+                writer.add_scalar(f"Loss/{tag}/{k}", s / c, global_step)
+
+    return dl_iter, e_loss.item()
+
+
 def train_epoch(
     model: UniversalMaskedSetTransformer,
     dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
+    dev_dataloader: DataLoader,
     val_dataloader: DataLoader,
     device: torch.device,
     writer: SummaryWriter,
     epoch: int,
     train_pool: TokenPool | None = None,
+    dev_pool: TokenPool | None = None,
     val_pool: TokenPool | None = None,
 ) -> float:
     model.train()
@@ -121,7 +167,7 @@ def train_epoch(
     running_train_loss = 0.0
     eval_interval = 10
 
-    # For validation sampling during train
+    dev_iter = iter(dev_dataloader)
     val_iter = iter(val_dataloader)
 
     for tokens_dict, masked_batch, targets, padding_mask in dataloader:
@@ -167,40 +213,22 @@ def train_epoch(
                     if c > 0:
                         writer.add_scalar(f"Loss/Train/{k}", s / c, global_step)
 
-            # Evaluate a single validation batch
+            # Evaluate one dev batch and one val batch
             model.eval()
-            try:
-                v_tokens_dict, v_masked_batch, v_targets, v_padding_mask = next(val_iter)
-            except StopIteration:
-                val_iter = iter(val_dataloader)
-                v_tokens_dict, v_masked_batch, v_targets, v_padding_mask = next(val_iter)
-                
             with torch.no_grad():
-                v_padding_mask = v_padding_mask.to(device)
-                v_targets = v_targets.to(device)
-                v_masked_batch = v_masked_batch.to(device)
-                v_tokens_dict = {k: v.to(device) for k, v in v_tokens_dict.items()}
-
-                v_outputs = model(v_tokens_dict, v_masked_batch, v_padding_mask)
-                v_flat_outputs = v_outputs.view(-1, 100)
-                v_flat_masked = v_masked_batch.view(-1)
-                v_masked_outputs = v_flat_outputs[v_flat_masked]
-                
-                if len(v_targets) > 0:
-                    v_loss = criterion(v_masked_outputs, v_targets)
-                    writer.add_scalar("Loss/Val/step", v_loss.item(), global_step)
-
-                    # Split metrics on val batch
-                    if val_pool is not None:
-                        val_batch_splits = compute_split_metrics(v_tokens_dict, v_masked_batch, v_outputs, v_targets, val_pool)
-                        for k, (s, c) in val_batch_splits.items():
-                            if c > 0:
-                                writer.add_scalar(f"Loss/Val/{k}", s / c, global_step)
-            
-            # Switch back to train mode
+                dev_iter, d_loss = _eval_one_batch(
+                    model, dev_iter, dev_dataloader, device, criterion,
+                    writer, global_step, "Dev", dev_pool,
+                )
+                val_iter, v_loss = _eval_one_batch(
+                    model, val_iter, val_dataloader, device, criterion,
+                    writer, global_step, "Val", val_pool,
+                )
             model.train()
 
-            print(f"Batch {num_batches}/{len(dataloader)} - Train Loss: {avg_train_loss:.4f} - Val Loss: {(v_loss.item() if len(v_targets) > 0 else 0.0):.4f}", flush=True)
+            d_str = f"{d_loss:.4f}" if d_loss is not None else "N/A"
+            v_str = f"{v_loss:.4f}" if v_loss is not None else "N/A"
+            print(f"Batch {num_batches}/{len(dataloader)} - Train: {avg_train_loss:.4f} - Dev: {d_str} - Val: {v_str}", flush=True)
 
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
     writer.add_scalar("Loss/Train/epoch", avg_loss, epoch)
@@ -215,13 +243,15 @@ def eval_epoch(
     device: torch.device,
     writer: SummaryWriter,
     epoch: int,
-    val_pool: TokenPool | None = None,
+    pool: TokenPool | None = None,
+    tag: str = "Dev",
 ) -> float:
+    """Evaluate on a given split.  *tag* controls the TensorBoard prefix."""
     model.eval()
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     num_batches = 0
-    val_splits: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
+    split_accum: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
 
     for tokens_dict, masked_batch, targets, padding_mask in dataloader:
         padding_mask = padding_mask.to(device)
@@ -243,34 +273,36 @@ def eval_epoch(
         total_loss += loss.item()
         num_batches += 1
 
-        if val_pool is not None:
-            batch_splits = compute_split_metrics(tokens_dict, masked_batch, outputs, targets, val_pool)
+        if pool is not None:
+            batch_splits = compute_split_metrics(tokens_dict, masked_batch, outputs, targets, pool)
             for k, (s, c) in batch_splits.items():
-                prev_s, prev_c = val_splits[k]
-                val_splits[k] = (prev_s + s, prev_c + c)
+                prev_s, prev_c = split_accum[k]
+                split_accum[k] = (prev_s + s, prev_c + c)
 
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
-    writer.add_scalar("Loss/Val/epoch", avg_loss, epoch)
+    writer.add_scalar(f"Loss/{tag}/epoch", avg_loss, epoch)
 
-    if val_pool is not None:
-        for k, (s, c) in val_splits.items():
+    if pool is not None:
+        for k, (s, c) in split_accum.items():
             if c > 0:
-                writer.add_scalar(f"Loss/Val/{k}", s / c, epoch)
-                print(f"  Val/{k}: {s / c:.4f} (n={c})", flush=True)
+                writer.add_scalar(f"Loss/{tag}/{k}", s / c, epoch)
+                print(f"  {tag}/{k}: {s / c:.4f} (n={c})", flush=True)
 
-    print(f"Epoch Avg Val Loss: {avg_loss:.4f}", flush=True)
+    print(f"Epoch Avg {tag} Loss: {avg_loss:.4f}", flush=True)
     return avg_loss
 
 
 def train(
     model: UniversalMaskedSetTransformer,
     train_dataloader: DataLoader,
+    dev_dataloader: DataLoader,
     val_dataloader: DataLoader,
     max_epochs: int,
     learning_rate: float,
     device: torch.device,
     patience: int = 5,
     train_pool: TokenPool | None = None,
+    dev_pool: TokenPool | None = None,
     val_pool: TokenPool | None = None,
 ) -> None:
     model.to(device)
@@ -284,20 +316,26 @@ def train(
     for epoch in range(max_epochs):
         print(f"Starting epoch {epoch + 1}/{max_epochs}...", flush=True)
         train_loss = train_epoch(
-            model, train_dataloader, optimizer, val_dataloader, device, writer, epoch,
-            train_pool=train_pool, val_pool=val_pool,
+            model, train_dataloader, optimizer, dev_dataloader, val_dataloader,
+            device, writer, epoch,
+            train_pool=train_pool, dev_pool=dev_pool, val_pool=val_pool,
         )
-        val_loss = eval_epoch(model, val_dataloader, device, writer, epoch, val_pool=val_pool)
 
-        if val_loss < best_loss - 1e-4:
-            best_loss = val_loss
+        # Dev evaluation — used for early stopping
+        dev_loss = eval_epoch(model, dev_dataloader, device, writer, epoch, pool=dev_pool, tag="Dev")
+
+        # Val evaluation — monitoring only (temporal holdout)
+        val_loss = eval_epoch(model, val_dataloader, device, writer, epoch, pool=val_pool, tag="Val")
+
+        if dev_loss < best_loss - 1e-4:
+            best_loss = dev_loss
             patience_counter = 0
-            print(f"New best val loss: {best_loss:.4f}. Saving checkpoint...", flush=True)
+            print(f"New best dev loss: {best_loss:.4f}. Saving checkpoint...", flush=True)
             torch.save(model.state_dict(), "best_model.pth")
         else:
             patience_counter += 1
             print(
-                f"No improvement in val loss. Patience: {patience_counter}/{patience}", flush=True
+                f"No improvement in dev loss. Patience: {patience_counter}/{patience}", flush=True
             )
 
         if patience_counter >= patience:
@@ -319,21 +357,23 @@ if __name__ == "__main__":
     model = UniversalMaskedSetTransformer(d_model=256, nhead=8, num_layers=8)
 
     print("Building dataloaders...")
-    train_dl, val_dl, train_pool, val_pool = build_dataloaders(
+    train_dl, dev_dl, val_dl, train_pool, dev_pool, val_pool = build_dataloaders(
         data_dir=data_dir, batch_size=32, max_seq_len=1024, num_workers=16
     )
 
-    print(f"Train pool size: {len(train_pool)} items, Val pool size: {len(val_pool)} items")
+    print(f"Train pool size: {len(train_pool)} items, Dev pool size: {len(dev_pool)} items, Val pool size: {len(val_pool)} items")
     print("Starting training...")
     train(
         model=model,
         train_dataloader=train_dl,
+        dev_dataloader=dev_dl,
         val_dataloader=val_dl,
         max_epochs=200,
         learning_rate=3e-4,
         device=device,
         patience=10,
         train_pool=train_pool,
+        dev_pool=dev_pool,
         val_pool=val_pool,
     )
     print("Training complete.")

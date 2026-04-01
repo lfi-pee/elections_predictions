@@ -52,12 +52,19 @@ def _aggregate_candidate_tokens(data_dir: Path) -> pd.DataFrame:
             "libelle_abrege_liste",
         ],
     )
+    df["nuance"] = df["nuance"].fillna("")
+    df["nuance"] = df["nuance"].replace("", "NC")
+    df["libelle_abrege_liste"] = df["libelle_abrege_liste"].fillna("")
     commune = df.groupby(
-        ["id_election", "code_commune", "nom", "prenom", "nuance", "libelle_abrege_liste"],
-        as_index=False, dropna=False,
-    )["voix"].sum()
+        ["id_election", "code_commune", "nuance", "libelle_abrege_liste"],
+        as_index=False
+    ).agg(
+        voix=("voix", "sum"),
+        nom=("nom", "first"),
+        prenom=("prenom", "first")
+    )
     total = (
-        df.groupby(["id_election", "code_commune"], as_index=False)["voix"]
+        commune.groupby(["id_election", "code_commune"], as_index=False)["voix"]
         .sum()
         .rename(columns={"voix": "total_voix"})
     )
@@ -143,15 +150,14 @@ def _resolve_candidate_names(commune_df: pd.DataFrame) -> pd.Series:
     # Recompute what's still missing after T2 cross-fill
     still_empty = name.eq("") | name.isna()
 
-    # Step 3: Use libelle_abrege_liste
-    if "libelle_abrege_liste" in commune_df.columns:
-        liste = commune_df["libelle_abrege_liste"].fillna("")
-        name = name.where(~still_empty, liste)
+    # Step 3: Use nom_tete_liste if available
+    if "nom_tete_liste" in commune_df.columns:
+        tete = commune_df["nom_tete_liste"].fillna("").str.strip()
+        name = name.where(~still_empty, tete)
         still_empty = name.eq("") | name.isna()
 
-    # Step 4: Use nuance code as last resort
-    nuance = commune_df["nuance"].fillna("UNKNOWN")
-    name = name.where(~still_empty, nuance)
+    # If completely missing, return UNKNOWN
+    name = name.where(~still_empty, "UNKNOWN")
 
     return name.str.upper()
 

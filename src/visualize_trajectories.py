@@ -41,10 +41,27 @@ def predict_trajectory(pool, model, target_election_id, candidate_name_or_hash, 
         print(f"No target tokens found for {candidate_name_or_hash} in {target_election_id}")
         return None, None, None
         
+    # Find all result tokens for this election (all candidates, all locations)
+    all_election_results_idx = np.where(
+        (np.isclose(pool.dates, target_date, atol=1e-1)) & # loose tolerance for merging
+        (pool.election_type == hashed_target_type) &
+        (pool.is_result == True)
+    )[0]
+    
+    # Group by location to identify communes
+    locs = pool.location[all_election_results_idx]
+    unique_locs = np.unique(locs)
+    
     np.random.seed(42)
     random.seed(42)
-    # We sample up to 200 communes to get a stable national average approximation
-    sample_targets = np.random.choice(target_tokens_idx, min(200, len(target_tokens_idx)), replace=False)
+    # Sample up to 50 communes for reasonable speed
+    sample_locs = np.random.choice(unique_locs, min(50, len(unique_locs)), replace=False)
+    
+    # Full set of indices to predict
+    sample_targets = all_election_results_idx[np.isin(locs, sample_locs)]
+    
+    # We will need to know which of these results corresponds to our candidate of interest
+    is_my_candidate = (pool.candidate[sample_targets] == candidate_hash)
     
     preds_mean = []
     preds_std = []
@@ -108,16 +125,47 @@ def predict_trajectory(pool, model, target_election_id, candidate_name_or_hash, 
         
         with torch.no_grad():
             outputs = model(batched_tokens, masked_batch, padding_mask)
-            flat_outputs = outputs.view(-1, 100)
-            masked_outputs = flat_outputs[masked_batch.view(-1)]
-            preds_probs = nn.functional.softmax(masked_outputs, dim=1)
-            bins = torch.arange(100, dtype=torch.float32, device=device)
-            expected_values = (preds_probs * bins).sum(dim=1).cpu().numpy()
+            # outputs: (1, S, 1) -> (S,)
+            logits = outputs.squeeze(0).squeeze(-1)
             
-        preds_mean.append(expected_values.mean())
-        preds_std.append(expected_values.std())
+            # Group by location (commune) to apply softmax
+            batch_locs = location[0]
+            batch_masked = torch.from_numpy(masked).to(device)
+            
+            # We only care about the masked tokens (our election results)
+            res_logits = logits[batch_masked]
+            res_locs = batch_locs[batch_masked]
+            
+            unique_res_locs = torch.unique(res_locs)
+            
+            candidate_scores = []
+            
+            for l in unique_res_locs:
+                loc_mask = (res_locs == l)
+                loc_logits = res_logits[loc_mask]
+                loc_probs = torch.softmax(loc_logits, dim=0) * 100.0
+                
+                # Find the index of our candidate in this commune
+                # We can use the original indices to check
+                commune_targets_idx = sample_targets[np.isin(pool.location[sample_targets], l.cpu().item())]
+                commune_is_my_cand = (pool.candidate[commune_targets_idx] == candidate_hash)
+                
+                if commune_is_my_cand.any():
+                    # Take the first one (should be only one per commune normally)
+                    score = loc_probs[np.where(commune_is_my_cand)[0][0]]
+                    candidate_scores.append(score.item())
+            
+            expected_values = np.array(candidate_scores)
+            
+        if len(expected_values) > 0:
+            preds_mean.append(expected_values.mean())
+            preds_std.append(expected_values.std())
+        else:
+            preds_mean.append(0.0)
+            preds_std.append(0.0)
         
-    true_mean = pool.value[sample_targets].mean()
+    # True mean for the candidate across the sampled locations
+    true_mean = pool.value[sample_targets[is_my_candidate]].mean()
     
     return np.array(preds_mean), np.array(preds_std), true_mean
 

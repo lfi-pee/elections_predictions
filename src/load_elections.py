@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import unicodedata
 from pathlib import Path
 
 import numpy as np
@@ -49,19 +51,20 @@ def _aggregate_candidate_tokens(data_dir: Path) -> pd.DataFrame:
         data_dir / "elections" / "agregees" / "candidats_results.parquet",
         columns=[
             "id_election", "code_commune", "nom", "prenom", "nuance", "voix",
-            "libelle_abrege_liste",
+            "libelle_abrege_liste", "nom_tete_liste",
         ],
     )
     df["nuance"] = df["nuance"].fillna("")
     df["nuance"] = df["nuance"].replace("", "NC")
     df["libelle_abrege_liste"] = df["libelle_abrege_liste"].fillna("")
+    df["nom_tete_liste"] = df["nom_tete_liste"].fillna("")
     commune = df.groupby(
-        ["id_election", "code_commune", "nuance", "libelle_abrege_liste"],
+        ["id_election", "code_commune", "nom", "prenom", "nuance", "libelle_abrege_liste"],
+        dropna=False,
         as_index=False
     ).agg(
         voix=("voix", "sum"),
-        nom=("nom", "first"),
-        prenom=("prenom", "first")
+        nom_tete_liste=("nom_tete_liste", "first"),
     )
     total = (
         commune.groupby(["id_election", "code_commune"], as_index=False)["voix"]
@@ -70,6 +73,12 @@ def _aggregate_candidate_tokens(data_dir: Path) -> pd.DataFrame:
     )
     commune = commune.merge(total, on=["id_election", "code_commune"])
     commune["ratio"] = commune["voix"] / commune["total_voix"] * 100.0
+    
+    # NEW: Skip uncontested elections (only 1 candidate)
+    counts = commune.groupby(["id_election", "code_commune"]).size().rename("c_count")
+    commune = commune.merge(counts, on=["id_election", "code_commune"])
+    commune = commune[commune["c_count"] > 1].drop(columns="c_count")
+    
     return commune
 
 
@@ -102,8 +111,12 @@ def _resolve_candidate_names(commune_df: pd.DataFrame) -> pd.Series:
       1. prenom + nom (present for 2008-2020, 2026_muni_t2, overseas)
       2. Cross-fill from T2: if a T1 entry has no name but a matching
          (code_commune, libelle_abrege_liste) exists in T2, use T2's name
-      3. libelle_abrege_liste (present for municipales list-based communes)
-      4. nuance code as last resort
+      3. nom_tete_liste (head-of-list name, when available)
+      4. UNKNOWN
+
+    NOTE: libelle_abrege_liste (list name) is intentionally NOT used as a
+    candidate name — it is a list label, not a person.  It is only used as
+    a join key for the T2 cross-fill in step 2.
     """
     # Step 1: Direct name
     name = (commune_df["prenom"].fillna("") + " " + commune_df["nom"].fillna("")).str.strip()
@@ -156,10 +169,34 @@ def _resolve_candidate_names(commune_df: pd.DataFrame) -> pd.Series:
         name = name.where(~still_empty, tete)
         still_empty = name.eq("") | name.isna()
 
-    # If completely missing, return UNKNOWN
-    name = name.where(~still_empty, "UNKNOWN")
+    # If completely missing, return unknown
+    name = name.where(~still_empty, "unknown")
 
-    return name.str.upper()
+    # Normalize: strip accents, remove special chars, lowercase
+    def _normalize(s: str) -> str:
+        # NFKD decomposition then drop combining marks (accents)
+        s = unicodedata.normalize("NFKD", s)
+        s = "".join(c for c in s if not unicodedata.combining(c))
+        # lowercase
+        s = s.lower()
+        # keep only alphanumeric and spaces
+        s = re.sub(r"[^a-z0-9 ]", " ", s)
+        # collapse multiple spaces
+        s = re.sub(r"\s+", " ", s).strip()
+        return s
+
+    name = name.map(_normalize)
+
+    # Force any name that hasn't appeared at least 2 times to unknown
+    counts = name.value_counts()
+    valid_names = set(counts[counts >= 2].index)
+    
+    # We always keep unknown valid so we don't accidentally map it to something else
+    valid_names.add("unknown")
+    
+    name = name.where(name.isin(valid_names), "unknown")
+
+    return name
 
 
 def _build_candidate_arrays(commune_df: pd.DataFrame) -> pd.DataFrame:
@@ -244,6 +281,14 @@ def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
 def load_election_tokens(data_dir: Path) -> pd.DataFrame:
     candidate_commune = _aggregate_candidate_tokens(data_dir)
     context_commune = _aggregate_context_tokens(data_dir)
+
+    # Filter out small communes from Municipales (inscrits < 750)
+    muni_mask = context_commune["id_election"].str.contains("muni")
+    small_muni_mask = muni_mask & (context_commune["inscrits"] < 750)
+    valid_communes = context_commune[~small_muni_mask][["id_election", "code_commune"]]
+
+    candidate_commune = candidate_commune.merge(valid_communes, on=["id_election", "code_commune"])
+    context_commune = context_commune.merge(valid_communes, on=["id_election", "code_commune"])
 
     candidate_df = _build_candidate_arrays(candidate_commune)
     context_df = _build_context_arrays(context_commune)

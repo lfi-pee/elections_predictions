@@ -119,6 +119,10 @@ Located in `data/elections/agregees/`:
 | `municipales_2020_t1_plus_1000.txt` | 2020 T1 | Communes ≥ 1000 hab | [data.gouv.fr](https://static.data.gouv.fr/resources/elections-municipales-2020-resultats/20200525-133704/2020-05-18-resultats-communes-de-1000-et-plus.txt) |
 | `municipales_2020_t2_moins_1000.txt` | 2020 T2 | Communes < 1000 hab | [data.gouv.fr](https://static.data.gouv.fr/resources/municipales-2020-resultats-2nd-tour/20200629-192436/2020-06-29-resultats-t2-communes-de-moins-de-1000-hab.txt) |
 | `municipales_2020_t2_plus_1000.txt` | 2020 T2 | Communes ≥ 1000 hab | [data.gouv.fr](https://static.data.gouv.fr/resources/municipales-2020-resultats-2nd-tour/20200629-192435/2020-06-29-resultats-t2-communes-de-1000-hab-et-plus.txt) |
+| `municipales_2026_candidatures_t1.csv` | 2026 T1 | All candidates per commune (888K rows, 144 MB) | [data.gouv.fr](https://static.data.gouv.fr/resources/elections-municipales-2026-listes-candidates-au-premier-tour/20260313-152615/municipales-2026-candidatures-france-entiere-tour-1-2026-03-13.csv) |
+
+> [!NOTE]
+> **2026 Municipales T1 candidate name enrichment**: The T1 results file on data.gouv.fr does not include candidate names in its wide-format columns (`Nom candidat N` are empty for all communes). The `municipales_2026_candidatures_t1.csv` file was used to extract head-of-list names (`Tête de liste = OUI`) and populate the `nom`/`prenom` fields in `candidats_results.parquet` for the `2026_muni_t1` election. This brought coverage from 0.4% to 99.5% (remaining gaps are Polynésie française communes, retrieved from a separate candidatures file not downloaded here).
 
 ### Européennes
 

@@ -201,7 +201,7 @@ class TokenDataset(Dataset):
             result_locs = np.where(is_result_sampled)[0]
             masked[np.random.choice(result_locs)] = True
 
-        true_values = np.clip(values[masked].astype(np.int64), 0, 99)
+        true_values = values[masked].astype(np.float32)
         
         token_dict = {
             "dates": dates,

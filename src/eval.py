@@ -93,7 +93,7 @@ def evaluate_future_election(
 
     # Identify which tokens are our targets (the ones we need to mask)
     masked = np.isin(sampled_idx, sampled_targets)
-    true_values = np.clip(values[masked].astype(np.int64), 0, 99)
+    true_values = values[masked].astype(np.float32)
 
     seq_len = len(sampled_idx)
     
@@ -122,34 +122,34 @@ def evaluate_future_election(
     print("Evaluating...")
     with torch.no_grad():
         outputs = model(batched_tokens, masked_batch, padding_mask)
-
-        flat_outputs = outputs.view(-1, 100)
-        flat_masked = masked_batch.view(-1)
-        masked_outputs = flat_outputs[flat_masked]
+        # outputs: (1, S, 1) -> (S,)
+        logits = outputs.squeeze(0).squeeze(-1)
         
-        preds_probs = nn.functional.softmax(masked_outputs, dim=1)
+        # We apply softmax ONLY across the candidates of the target election
+        # to ensure they sum to 100%.
+        target_mask_tensor = torch.from_numpy(masked).to(device)
+        target_logits = logits[target_mask_tensor]
         
-        # Calculate expected value or argmax
-        bins = torch.arange(100, dtype=torch.float32, device=device)
-        expected_values = (preds_probs * bins).sum(dim=1).cpu().numpy()
-        argmax_preds = torch.argmax(preds_probs, dim=1).cpu().numpy()
+        # Predicted percentages (0-100)
+        pred_scores = torch.softmax(target_logits, dim=0) * 100.0
+        pred_scores_np = pred_scores.cpu().numpy()
         
         true_values_np = targets.cpu().numpy()
         
-        mae_argmax = mean_absolute_error(true_values_np, argmax_preds)
-        mae_expected = mean_absolute_error(true_values_np, expected_values)
-        
-        rmse_expected = np.sqrt(np.mean((true_values_np - expected_values) ** 2))
+        mae = mean_absolute_error(true_values_np, pred_scores_np)
+        rmse = np.sqrt(np.mean((true_values_np - pred_scores_np) ** 2))
         
         print("\n--- Results ---")
         print(f"Evaluated on {n_targets} target candidate results given {n_context} context tokens.")
-        print(f"MAE (Argmax): {mae_argmax:.2f}")
-        print(f"MAE (Expected Value): {mae_expected:.2f}")
-        print(f"RMSE (Expected Value): {rmse_expected:.2f}")
+        print(f"MAE: {mae:.4f}")
+        print(f"RMSE: {rmse:.4f}")
+        print(f"Sum of predicted scores: {pred_scores_np.sum():.2f}%")
         
         print("\nSample Predictions:")
-        for i in range(min(10, len(true_values_np))):
-            print(f"True: {true_values_np[i]:.1f}% | Predicted: {expected_values[i]:.1f}%")
+        # Sort by true value for better readability
+        sort_idx = np.argsort(-true_values_np)
+        for i in sort_idx[:min(20, len(true_values_np))]:
+            print(f"True: {true_values_np[i]:5.1f}% | Predicted: {pred_scores_np[i]:5.1f}%")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate the model on a future election.")

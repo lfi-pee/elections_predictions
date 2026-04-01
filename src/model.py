@@ -25,7 +25,7 @@ class TokenEmbedding(nn.Module):
         self.election_emb = StringEmbedding(num_buckets, self.d_identity)
         # location_emb removed: raw (lat, lon) via geo_proj provides geographic
         # signal without memorising rare commune codes
-        self.candidate_emb = StringEmbedding(num_buckets, self.d_identity)
+        self.candidate_emb = StringEmbedding(num_buckets, 3)
         nn.init.zeros_(self.candidate_emb.embedding.weight)
         self.party_emb = StringEmbedding(num_buckets, self.d_identity)
         self.metric_emb = StringEmbedding(num_buckets, self.d_identity)
@@ -43,7 +43,8 @@ class TokenEmbedding(nn.Module):
         
         identity += self.election_emb(tokens_dict["election_type"])
         # location embedding removed — using continuous geo coords instead
-        identity += self.candidate_emb(tokens_dict["candidate"])
+        cand_emb_3d = self.candidate_emb(tokens_dict["candidate"])
+        identity += torch.nn.functional.pad(cand_emb_3d, (0, self.d_identity - 3))
         identity += self.party_emb(tokens_dict["party"])
         identity += self.metric_emb(tokens_dict["metric_type"])
 
@@ -105,7 +106,7 @@ class UniversalMaskedSetTransformer(nn.Module):
             norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
-        self.value_head = nn.Linear(d_model, 100)
+        self.value_head = nn.Linear(d_model, 1)
 
     def forward(
         self,

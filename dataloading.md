@@ -38,5 +38,5 @@ The `TokenDataset` operates by casting stochastic temporal windows over the sort
 ## 3. Data Flow & Interface
 
 - **`TokenDataset`**: Maintains the global token pool. Returns a tuple of `(tokens, masked_indices, target_tensor)`.
-- **Masking Routine**: At the dataset level, a boolean mask vector is constructed denoting which token values are hidden (e.g. `15%`). The true continuous values are dynamically binned into `100` discrete classes outputted via the target tensor to feed Cross Entropy classification mechanisms.
+- **Masking Routine**: At the dataset level, a boolean mask vector is constructed denoting which token values are hidden. The model predicts continuous logits which form a probability distribution over the candidates in an election group by evaluating via **KL Divergence**. Only the predictions at masked positions actually incur a KL penalty.
 - **Collate Function (`collate_token_sets`)**: Injects identical length boundary limits to dynamically padded `[PAD]` sequences while propagating valid masking matrices. Returns `(batch_tokens, batch_masks, targets, padding_mask)`.

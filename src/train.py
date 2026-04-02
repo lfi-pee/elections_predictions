@@ -60,8 +60,9 @@ def compute_split_metrics(
             if t_sum > 0:
                 g_targets = g_targets / t_sum
                 log_probs = torch.log_softmax(g_logits, dim=0)
-                # Token contribution to loss: -t * log(p)
-                g_loss = -(g_targets * log_probs)
+                # Token contribution to loss: t * (log(t) - log(p))
+                # Meaning if a prediction is perfectly correct, its loss contribution is 0
+                g_loss = g_targets * (torch.log(g_targets + 1e-9) - log_probs)
                 
                 # Rescatter back to per_token_contrib
                 indices_in_sample = torch.where(sample_res_mask)[0][mask_g]
@@ -178,7 +179,13 @@ def compute_election_loss(
             if t_sum > 0:
                 g_targets = g_targets / t_sum
                 log_probs = torch.log_softmax(g_logits, dim=0)
-                loss_g = -(g_targets * log_probs).sum()
+                
+                # Only compute loss over MASKED tokens, comparing to 0.0 lower bound (KL Divergence format)
+                g_masked = sample_masked[mask_g]
+                tgt_masked = g_targets[g_masked]
+                pred_masked = log_probs[g_masked]
+                
+                loss_g = (tgt_masked * (torch.log(tgt_masked + 1e-9) - pred_masked)).sum()
                 total_loss += loss_g
                 count += 1
             
@@ -214,16 +221,19 @@ def _eval_one_batch(
     e_masked = e_masked.to(device)
     e_tokens = {k: v.to(device) for k, v in e_tokens.items()}
 
-    e_outputs = model(e_tokens, e_masked, e_pad)
+    e_outputs, e_route_info = model(e_tokens, e_masked, e_pad)
     
     if len(e_targets) == 0:
         return dl_iter, None
 
-    e_loss = compute_election_loss(e_tokens, e_outputs, e_masked, pool)
+    # Use routed subset for loss computation
+    sel_tokens = e_route_info["selected_tokens"]
+    sel_masked = e_route_info["selected_masked"]
+    e_loss = compute_election_loss(sel_tokens, e_outputs, sel_masked, pool)
     writer.add_scalar(f"Loss/{tag}/step", e_loss.item(), global_step)
 
     if pool is not None:
-        for k, (s, c) in compute_split_metrics(e_tokens, e_masked, e_outputs, pool).items():
+        for k, (s, c) in compute_split_metrics(sel_tokens, sel_masked, e_outputs, pool).items():
             if c > 0:
                 writer.add_scalar(f"Loss/{tag}/{k}", s / c, global_step)
 
@@ -270,15 +280,21 @@ def train_epoch(
 
         tokens_dict = {k: v.to(device) for k, v in tokens_dict.items()}
 
-        outputs = model(tokens_dict, masked_batch, padding_mask)
+        outputs, route_info = model(tokens_dict, masked_batch, padding_mask)
 
         if len(targets) == 0:
             continue
 
-        loss = compute_election_loss(tokens_dict, outputs, masked_batch, train_pool)
+        # Use routed subset for loss computation
+        sel_tokens = route_info["selected_tokens"]
+        sel_masked = route_info["selected_masked"]
+        loss = compute_election_loss(sel_tokens, outputs, sel_masked, train_pool)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
+
+        # Increment router warm-up counter
+        model._global_step += 1
 
         total_loss += loss.item()
         running_train_loss += loss.item()
@@ -290,12 +306,60 @@ def train_epoch(
             avg_train_10 = running_train_loss / eval_interval
             writer.add_scalar("Loss/Train/step", avg_train_10, global_step)
             running_train_loss = 0.0
+
+            # Log router statistics
+            if not model.is_router_warming_up:
+                raw_scores = route_info["router_scores"]
+                sel_scores = route_info["selected_scores"]
+                
+                # Router Entropy: the key metric.
+                # Low entropy = router confidently selects specific tokens.
+                # High entropy = router treats all tokens as equally relevant (bad).
+                # Computed over the full candidate pool's score distribution.
+                valid_mask = raw_scores > float('-inf')
+                if valid_mask.any():
+                    # Per-sample entropy, then average across batch
+                    B = raw_scores.shape[0]
+                    entropy_sum = 0.0
+                    for b in range(B):
+                        valid_scores_b = raw_scores[b][valid_mask[b]]
+                        if len(valid_scores_b) > 1:
+                            probs = torch.softmax(valid_scores_b, dim=0)
+                            entropy_b = -(probs * torch.log(probs + 1e-10)).sum()
+                            # Normalize by max possible entropy (uniform over N tokens)
+                            max_entropy = torch.log(torch.tensor(float(len(valid_scores_b))))
+                            entropy_sum += (entropy_b / max_entropy).item()
+                    writer.add_scalar("Router/entropy_normalized", entropy_sum / B, global_step)
+                
+                # Selection ratio: top_k / pool_size — how aggressive the filtering is
+                n_valid = valid_mask.sum(dim=1).float().mean().item()
+                writer.add_scalar("Router/pool_size_mean", n_valid, global_step)
+                writer.add_scalar("Router/selection_ratio", sel_scores.shape[1] / max(n_valid, 1), global_step)
+                
+                # Score statistics
+                writer.add_scalar("Router/score_mean", raw_scores[valid_mask].mean().item(), global_step)
+                writer.add_scalar("Router/score_std", raw_scores[valid_mask].std().item(), global_step)
+                
+                # Selected tokens: mean time-delta and geo-distance
+                sel_dates = sel_tokens["dates"]
+                writer.add_scalar("Router/selected_mean_time_delta", sel_dates.abs().mean().item(), global_step)
+                sel_lat = sel_tokens["latitude"]
+                sel_lon = sel_tokens["longitude"]
+                anchor_mask = (sel_dates == 0.0)
+                if anchor_mask.any():
+                    anchor_lat = sel_lat[anchor_mask].mean()
+                    anchor_lon = sel_lon[anchor_mask].mean()
+                    geo_dist = ((sel_lat - anchor_lat)**2 + (sel_lon - anchor_lon)**2).sqrt()
+                    writer.add_scalar("Router/selected_mean_geo_dist", geo_dist.mean().item(), global_step)
+            writer.add_scalar("Router/warmup", float(model.is_router_warming_up), global_step)
             
             # Compute split metrics on this train batch
             if train_pool is not None:
                 with torch.no_grad():
-                    t_out = model(tokens_dict, masked_batch, padding_mask)
-                batch_splits = compute_split_metrics(tokens_dict, masked_batch, t_out, train_pool)
+                    t_out, t_route = model(tokens_dict, masked_batch, padding_mask)
+                t_sel_tokens = t_route["selected_tokens"]
+                t_sel_masked = t_route["selected_masked"]
+                batch_splits = compute_split_metrics(t_sel_tokens, t_sel_masked, t_out, train_pool)
                 for k, (s, c) in batch_splits.items():
                     if c > 0:
                         writer.add_scalar(f"Loss/Train/{k}", s / c, global_step)
@@ -362,17 +426,19 @@ def eval_epoch(
         masked_batch = masked_batch.to(device)
         tokens_dict = {k: v.to(device) for k, v in tokens_dict.items()}
 
-        outputs = model(tokens_dict, masked_batch, padding_mask)
+        outputs, route_info = model(tokens_dict, masked_batch, padding_mask)
 
         if len(targets) == 0:
             continue
 
-        loss = compute_election_loss(tokens_dict, outputs, masked_batch, pool)
+        sel_tokens = route_info["selected_tokens"]
+        sel_masked = route_info["selected_masked"]
+        loss = compute_election_loss(sel_tokens, outputs, sel_masked, pool)
         total_loss += loss.item()
         num_batches += 1
 
         if pool is not None:
-            batch_splits = compute_split_metrics(tokens_dict, masked_batch, outputs, pool)
+            batch_splits = compute_split_metrics(sel_tokens, sel_masked, outputs, pool)
             for k, (s, c) in batch_splits.items():
                 prev_s, prev_c = split_accum[k]
                 split_accum[k] = (prev_s + s, prev_c + c)
@@ -452,11 +518,16 @@ if __name__ == "__main__":
 
     print(f"Using device: {device}")
 
-    model = UniversalMaskedSetTransformer(d_model=256, nhead=8, num_layers=8)
+    model = UniversalMaskedSetTransformer(
+        d_model=256, nhead=8, num_layers=8,
+        d_router=64, top_k=32, router_warmup_steps=500,
+    )
 
     print("Building dataloaders...")
     train_dl, dev_dl, val_dl, train_pool, dev_pool, val_pool = build_dataloaders(
-        data_dir=data_dir, batch_size=32, max_seq_len=1024, num_workers=16
+        data_dir=data_dir, batch_size=32, max_seq_len=1024,
+        candidate_pool_size=4096, eval_pool_size=32768,
+        num_workers=16, eval_num_workers=4,
     )
 
     print(f"Train pool size: {len(train_pool)} items, Dev pool size: {len(dev_pool)} items, Val pool size: {len(val_pool)} items")

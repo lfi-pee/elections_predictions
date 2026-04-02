@@ -136,30 +136,51 @@ class TokenDataset(Dataset):
         masked_target_idxs = anchor_result_indices.tolist()
         unmasked_target_idxs = []
         
-        if random.random() >= 0.75:
-            num_to_reveal = random.choice([1, 2])
-            if random.random() < 0.5:
-                if other_loc_target_results:
-                    n_unmasked = min(num_to_reveal, len(other_loc_target_results))
-                    unmasked_target_idxs = random.sample(other_loc_target_results, n_unmasked)
-            else:
-                if len(masked_target_idxs) > 1:
-                    n_unmasked = min(num_to_reveal, len(masked_target_idxs) - 1)
-                    unmasked_target_idxs = random.sample(masked_target_idxs, n_unmasked)
+        masked_target_idxs = anchor_result_indices.tolist()
+        unmasked_target_idxs = []
+
+        if random.random() < 0.75:
+            # 1. 75% of samples: one election's location only (no other locations at the same election)
+            # 1a. 75% of those: all candidate scores are masked
+            # 1b. 25% of those: one or two (if >2 candidates) candidate scores are unmasked
+            if random.random() < 0.25:
+                num_to_reveal = 0
+                if len(masked_target_idxs) > 2:
+                    num_to_reveal = random.choice([1, 2])
+                elif len(masked_target_idxs) == 2:
+                    num_to_reveal = 1
+                
+                if num_to_reveal > 0:
+                    unmasked_target_idxs = random.sample(masked_target_idxs, num_to_reveal)
                     masked_target_idxs = [x for x in masked_target_idxs if x not in unmasked_target_idxs]
-                    
-        current_sampled = unmasked_target_idxs + masked_target_idxs
+        else:
+            # 2. 25% of samples: results from the same election at another location in the context
+            # at most 5 single candidates results at random other places
+            if other_loc_target_results:
+                n_other_loc = min(5, len(other_loc_target_results))
+                other_loc_sampled = random.sample(other_loc_target_results, n_other_loc)
+                unmasked_target_idxs.extend(other_loc_sampled)
+                
+        current_sampled = masked_target_idxs + unmasked_target_idxs
         
-        n_results_allowed = int(self.max_seq_len * self.result_fraction)
-        n_past_allowed = max(0, n_results_allowed - len(current_sampled))
-        n_past = min(n_past_allowed, len(past_results))
-        
-        n_other = min(self.max_seq_len - (len(current_sampled) + n_past), len(window_other))
-        
-        remaining = self.max_seq_len - (len(current_sampled) + n_past + n_other)
-        if remaining > 0 and len(past_results) > n_past:
-            n_past = min(len(past_results), n_past + remaining)
-             
+        # 3. Past elections context and polling data should be 50/50
+        remaining_budget = self.max_seq_len - len(current_sampled)
+        if remaining_budget > 0:
+            target_past = remaining_budget // 2
+            target_other = remaining_budget - target_past
+            
+            n_past = min(target_past, len(past_results))
+            n_other = min(target_other, len(window_other))
+            
+            # Fill remaining space if one category falls short
+            if n_past < target_past:
+                n_other = min(len(window_other), n_other + (target_past - n_past))
+            elif n_other < target_other:
+                n_past = min(len(past_results), n_past + (target_other - n_other))
+        else:
+            n_past = 0
+            n_other = 0
+            
         sampled = current_sampled.copy()
         if n_past > 0:
             sampled.extend(random.sample(past_results.tolist(), n_past))
@@ -192,13 +213,6 @@ class TokenDataset(Dataset):
                 masked[i] = True
             elif token_idx in unmasked_set:
                 masked[i] = False
-            elif self.pool.is_result[token_idx]:
-                # Only randomly mask context results during training.
-                # During eval, only the anchor election targets are masked
-                # so the loss purely measures prediction quality.
-                if self.is_training and random.random() < self.mask_prob:
-                    masked[i] = True
-                    
         is_result_sampled = self.pool.is_result[sampled_idx]
         if not masked.any() and is_result_sampled.any():
             result_locs = np.where(is_result_sampled)[0]

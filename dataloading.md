@@ -29,8 +29,11 @@ The `TokenDataset` operates by casting stochastic temporal windows over the sort
 ### Step-by-Step Sample Construction (`__getitem__`)
 1. **Temporal Anchoring**: A random anchor point in time is uniformly selected across the entire dataset’s life span (e.g., a timestamp float between ~1999.0 and ~2026.0).
 2. **Context Windowing**: Using binary search (`bisect`), all tokens whose timestamps fall within a configurable `window_half_years` (e.g., `±0.5` years) are extracted. This pool crosses all communes, polling entities, and abstract contexts dynamically.
-3. **Sub-Sampling & Stratification**: The matching temporal token universe is then sub-sampled to strict sizes (`max_seq_len`, e.g., 1024 tokens). The algorithm enforces that at least a minimum fraction (`result_fraction`) of these tokens belong to the `Result` metric class to assure challenging targets for the prediction mask. 
-4. **Temporal Invariant Shift**: During training, a uniform random temporal shift (e.g., `[-10.0, +10.0]` years) is applied across all dates within the sampled sequence simultaneously. This forces the model to encode inter-token temporal distances relative to each other instead of memorizing an absolute date reference frame.
+3. **Sub-Sampling & Target Masking**: The logic applies specific rules to simulate predictive scenarios uniformly across all subsets:
+   - **75% of samples**: Focus purely on predicting a single election location without cross-location leakage. Among these, **75%** have all anchor candidates fully masked (for full prediction), while **25%** have 1 or 2 candidates revealed to learn conditional outcome scoring.
+   - **25% of samples**: Inject context from the exact same election at another location (up to 5 candidate results maximum).
+4. **Context Stratification**: The remaining `max_seq_len` token slots are filled by perfectly balancing **50% past election context** and **50% polling/other context** parameters. If one pool falls short, the other uses the remaining budget.
+5. **Temporal Invariant Shift**: During training, a uniform random temporal shift (e.g., `[-10.0, +10.0]` years) is applied across all dates within the sampled sequence simultaneously. This forces the model to encode inter-token temporal distances relative to each other instead of memorizing an absolute date reference frame.
 
 ## 3. Data Flow & Interface
 

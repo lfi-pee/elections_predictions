@@ -193,7 +193,10 @@ class TokenDataset(Dataset):
             elif token_idx in unmasked_set:
                 masked[i] = False
             elif self.pool.is_result[token_idx]:
-                if random.random() < self.mask_prob:
+                # Only randomly mask context results during training.
+                # During eval, only the anchor election targets are masked
+                # so the loss purely measures prediction quality.
+                if self.is_training and random.random() < self.mask_prob:
                     masked[i] = True
                     
         is_result_sampled = self.pool.is_result[sampled_idx]

@@ -74,23 +74,25 @@ def load_all_tokens(data_dir: Path) -> TokenPool:
 
 def build_dataloaders(
     data_dir: Path,
-    split_date: float = 2025.2916,
+    val_min_date: float = 2025.2916,
+    val_election_filter: str = "Municipales",
     dev_fraction: float = 0.05,
     batch_size: int = 32,
     mask_prob: float = 0.15,
     max_seq_len: int = 1024,
-    window_years: float = 1.0,
+    window_years: float = 2.0,
     result_fraction: float = 0.3,
     num_workers: int = 0,
     dev_seed: int = 42,
 ) -> tuple[DataLoader, DataLoader, DataLoader, TokenPool, TokenPool, TokenPool]:
     """Build train / dev / val dataloaders.
 
-    - **train** and **dev** share the same temporal range (≤ split_date).
-      Dev is a purely random hold-out of election groups so its distribution
-      matches train exactly.  Both use the full pre-split pool as context.
-    - **val** is the temporal hold-out (> split_date) and uses the full pool
-      for context history.
+    - **val** targets are exclusively 2026 municipales results.
+    - **train** targets include ALL other elections (no temporal restriction).
+    - Both train and val use the full data pool for context, except that
+      2026 municipales Result tokens are removed from train's pool to
+      prevent leakage.
+    - window_years=2.0 so val muni can see 2024 Europeennes/Legislatives.
     """
     import random as _random
 
@@ -104,24 +106,46 @@ def build_dataloaders(
     combined.sort_values("date_float", inplace=True)
     combined.reset_index(drop=True, inplace=True)
 
-    train_df = combined[combined["date_float"] <= split_date].copy().reset_index(drop=True)
+    # Identify val-only result tokens: 2026 municipales results
+    is_val_result = (
+        combined["election_type"].str.contains(val_election_filter)
+        & (combined["date_float"] > val_min_date)
+        & (combined["metric_type"] == "Result")
+    )
+    print(f"  Val-only result tokens (2026 muni): {is_val_result.sum()} "
+          f"out of {len(combined)} total", flush=True)
 
-    # Full pools for context windows
+    # Train pool: everything EXCEPT 2026 muni results (no leakage)
+    train_base = combined[~is_val_result].copy().reset_index(drop=True)
+    train_pool = TokenPool(train_base)
+
+    # Full pool: everything (val can see all data for context)
     full_pool = TokenPool(combined)
-    train_pool = TokenPool(train_df)
 
-    # --- Split election groups into train / dev (random) ---
-    all_groups = list(train_pool.election_groups)
+    # --- Split train election groups into train / dev (random) ---
+    all_train_groups = list(train_pool.election_groups)
     rng = _random.Random(dev_seed)
-    rng.shuffle(all_groups)
-    n_dev = max(1, int(len(all_groups) * dev_fraction))
-    dev_groups = all_groups[:n_dev]
-    train_groups_only = all_groups[n_dev:]
+    rng.shuffle(all_train_groups)
+    n_dev = max(1, int(len(all_train_groups) * dev_fraction))
+    dev_groups = all_train_groups[:n_dev]
+    train_groups_only = all_train_groups[n_dev:]
 
-    print(f"  Election groups: {len(all_groups)} total  →  "
+    print(f"  Train election groups: {len(all_train_groups)} total  →  "
           f"{len(train_groups_only)} train / {len(dev_groups)} dev", flush=True)
 
-    # Train dataset: same pool, but only visit train election groups
+    # --- Val: only 2026 municipales election groups from full pool ---
+    val_groups = []
+    for grp in full_pool.election_groups:
+        anchor_date, result_indices = grp
+        if anchor_date > val_min_date:
+            et_hash = int(full_pool.election_type[result_indices[0]])
+            et_str = full_pool.hash_to_election_type.get(et_hash, "")
+            if val_election_filter in et_str:
+                val_groups.append(grp)
+    print(f"  Val election groups (2026 {val_election_filter}): "
+          f"{len(val_groups)}", flush=True)
+
+    # Train dataset: train_pool, visit only train election groups
     train_dataset = TokenDataset(
         pool=train_pool,
         mask_prob=mask_prob,
@@ -130,12 +154,11 @@ def build_dataloaders(
         result_fraction=result_fraction,
         is_training=True,
     )
-    # Override election groups to exclude dev ones
     train_dataset.election_groups = train_groups_only
     train_dataset.num_elections = len(train_groups_only)
     train_dataset._shuffle_order()
 
-    # Dev dataset: same pool, but only visit dev election groups
+    # Dev dataset: train_pool, visit only dev election groups
     dev_dataset = TokenDataset(
         pool=train_pool,
         mask_prob=mask_prob,
@@ -148,7 +171,7 @@ def build_dataloaders(
     dev_dataset.num_elections = len(dev_groups)
     dev_dataset._shuffle_order()
 
-    # Val dataset: temporal hold-out (unchanged)
+    # Val dataset: full_pool, visit only 2026 muni election groups
     val_dataset = TokenDataset(
         pool=full_pool,
         mask_prob=mask_prob,
@@ -156,8 +179,10 @@ def build_dataloaders(
         window_years=window_years,
         result_fraction=result_fraction,
         is_training=False,
-        start_date=split_date,
     )
+    val_dataset.election_groups = val_groups
+    val_dataset.num_elections = len(val_groups)
+    val_dataset._shuffle_order()
 
     train_dl = DataLoader(
         train_dataset,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 
 import torch
@@ -7,8 +8,63 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from src.dataset import TokenPool
+from src.dataset import TokenPool, PoolCache
 from src.model import UniversalMaskedSetTransformer
+
+
+class EMAModel:
+    """Exponential Moving Average of model parameters."""
+
+    def __init__(self, model: nn.Module, decay: float = 0.999) -> None:
+        self.decay = decay
+        self.shadow: dict[str, torch.Tensor] = {}
+        for k, v in model.state_dict().items():
+            self.shadow[k] = v.clone().detach()
+
+    @torch.no_grad()
+    def update(self, model: nn.Module) -> None:
+        for k, v in model.state_dict().items():
+            if k in self.shadow:
+                self.shadow[k].mul_(self.decay).add_(v.detach(), alpha=1 - self.decay)
+
+    def apply(self, model: nn.Module) -> dict[str, torch.Tensor]:
+        """Swap model weights with EMA weights. Returns original state."""
+        original = {k: v.clone() for k, v in model.state_dict().items()}
+        model.load_state_dict(self.shadow)
+        return original
+
+
+def compute_router_entropy_loss(
+    selected_scores: torch.Tensor,
+    selected_masked: torch.Tensor,
+    selected_padding: torch.Tensor,
+    target_entropy: float = 0.4,
+) -> torch.Tensor:
+    """Penalize router entropy deviation from a target band.
+    
+    Now computed over the selected context tokens' live scores.
+    """
+    B, K = selected_masked.shape
+    device = selected_scores.device
+
+    invalid = selected_masked | selected_padding
+
+    entropy_losses = []
+    for b in range(B):
+        valid = ~invalid[b]
+        n_valid = valid.sum()
+        if n_valid < 2:
+            continue
+        scores_b = selected_scores[b][valid]
+        probs = torch.softmax(scores_b, dim=0)
+        entropy = -(probs * torch.log(probs + 1e-10)).sum()
+        max_entropy = torch.log(n_valid.float())
+        norm_entropy = entropy / max_entropy
+        entropy_losses.append((norm_entropy - target_entropy) ** 2)
+
+    if not entropy_losses:
+        return torch.tensor(0.0, device=device, requires_grad=True)
+    return torch.stack(entropy_losses).mean()
 
 
 def compute_split_metrics(
@@ -16,17 +72,12 @@ def compute_split_metrics(
     masked_batch: torch.Tensor,
     outputs: torch.Tensor,
     pool: TokenPool,
-) -> dict[str, tuple[float, int]]:
-    """Compute per-token loss split by election type and polled/unpolled status.
-    
-    For the new 1D output, we compute the contribution of each token to the 
-    election-level cross-entropy loss: -target * log(pred).
-    """
+) -> dict[str, dict[str, float]]:
+    """Compute per-token loss, MAE, and accuracy split by election type."""
     B, S, _ = outputs.shape
     logits = outputs.squeeze(-1)
     values = tokens_dict["values"]
     
-    # Identify Result tokens
     result_hashes = {h for h, s in pool.hash_to_metric_type.items() if s == "Result"}
     metric_type = tokens_dict["metric_type"]
     
@@ -34,16 +85,15 @@ def compute_split_metrics(
     for h in result_hashes:
         is_result |= (metric_type == h)
 
-    # Per-token loss calculation (normalized within election)
-    # We need to compute log_softmax per election group
-    per_token_contrib = torch.zeros((B, S), device=outputs.device)
+    per_token_loss = torch.zeros((B, S), device=outputs.device)
+    per_token_mae = torch.zeros((B, S), device=outputs.device)
+    per_token_acc = torch.zeros((B, S), device=outputs.device)
     
     for b in range(B):
         sample_res_mask = is_result[b]
         if not sample_res_mask.any():
             continue
             
-        # Grouping logic (same as in loss)
         et = tokens_dict["election_type"][b, sample_res_mask]
         loc = tokens_dict["location"][b, sample_res_mask]
         dt = tokens_dict["dates"][b, sample_res_mask]
@@ -60,23 +110,25 @@ def compute_split_metrics(
             if t_sum > 0:
                 g_targets = g_targets / t_sum
                 log_probs = torch.log_softmax(g_logits, dim=0)
-                # Token contribution to loss: t * (log(t) - log(p))
-                # Meaning if a prediction is perfectly correct, its loss contribution is 0
                 g_loss = g_targets * (torch.log(g_targets + 1e-9) - log_probs)
                 
-                # Rescatter back to per_token_contrib
+                pred_probs = torch.softmax(g_logits, dim=0)
+                g_mae = torch.abs(g_targets - pred_probs)
+                g_acc = torch.full_like(g_targets, 1.0 if g_targets.argmax() == pred_probs.argmax() else 0.0)
+                
                 indices_in_sample = torch.where(sample_res_mask)[0][mask_g]
-                per_token_contrib[b, indices_in_sample] = g_loss
+                per_token_loss[b, indices_in_sample] = g_loss
+                per_token_mae[b, indices_in_sample] = g_mae
+                per_token_acc[b, indices_in_sample] = g_acc
 
     flat_masked = masked_batch.view(-1)
-    masked_losses = per_token_contrib.view(-1)[flat_masked]
+    masked_losses = per_token_loss.view(-1)[flat_masked]
+    masked_mae = per_token_mae.view(-1)[flat_masked]
+    masked_acc = per_token_acc.view(-1)[flat_masked]
     
-    # Gather metadata for masked positions
     flat_election_type = tokens_dict["election_type"].view(-1)[flat_masked]
     flat_candidate = tokens_dict["candidate"].view(-1)[flat_masked]
-    flat_metric_type = tokens_dict["metric_type"].view(-1)[flat_masked]
 
-    # Determination of polled status
     B, S = masked_batch.shape
     flat_batch_idx = torch.arange(B, device=masked_batch.device).unsqueeze(1).expand(B, S).reshape(-1)
     masked_batch_idx = flat_batch_idx[flat_masked]
@@ -100,33 +152,31 @@ def compute_split_metrics(
         polled_set.add((b, c))
 
     hash_to_election = pool.hash_to_election_type
-    splits: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
+    splits: dict[str, dict[str, float]] = defaultdict(lambda: {"loss": 0.0, "mae": 0.0, "acc": 0.0, "count": 0})
 
     losses_cpu = masked_losses.detach().cpu().tolist()
+    mae_cpu = masked_mae.detach().cpu().tolist()
+    acc_cpu = masked_acc.detach().cpu().tolist()
     et_cpu = flat_election_type.cpu().tolist()
     cand_cpu = flat_candidate.cpu().tolist()
     bidx_cpu = masked_batch_idx.cpu().tolist()
 
     for i in range(len(losses_cpu)):
         loss_val = losses_cpu[i]
+        mae_val = mae_cpu[i]
+        acc_val = acc_cpu[i]
         etype_hash = et_cpu[i]
         etype_str = hash_to_election.get(etype_hash, f"unk_{etype_hash}")
         is_polled = (bidx_cpu[i], cand_cpu[i]) in polled_set
         poll_str = "polled" if is_polled else "unpolled"
 
-        # By election type
-        key_et = etype_str
-        s, c = splits[key_et]
-        splits[key_et] = (s + loss_val, c + 1)
-
-        # By polled/unpolled
-        s, c = splits[poll_str]
-        splits[poll_str] = (s + loss_val, c + 1)
-
-        # Granular
         key_gran = f"{etype_str}_{poll_str}"
-        s, c = splits[key_gran]
-        splits[key_gran] = (s + loss_val, c + 1)
+        
+        for key in [etype_str, poll_str, key_gran]:
+            splits[key]["loss"] += loss_val
+            splits[key]["mae"] += mae_val
+            splits[key]["acc"] += acc_val
+            splits[key]["count"] += 1
 
     return dict(splits)
 
@@ -136,8 +186,8 @@ def compute_election_loss(
     outputs: torch.Tensor,
     masked_batch: torch.Tensor,
     pool: TokenPool,
-) -> torch.Tensor:
-    """Group tokens by election and compute softmax cross-entropy loss."""
+) -> tuple[torch.Tensor, float, float]:
+    """Group tokens by election and compute softmax cross-entropy loss, MAE, and Accuracy."""
     B, S, _ = outputs.shape
     logits = outputs.squeeze(-1)
     values = tokens_dict["values"]
@@ -149,6 +199,8 @@ def compute_election_loss(
         is_result |= (metric_type == h)
         
     total_loss = 0.0
+    total_mae = 0.0
+    total_acc = 0.0
     count = 0
     
     for b in range(B):
@@ -180,18 +232,24 @@ def compute_election_loss(
                 g_targets = g_targets / t_sum
                 log_probs = torch.log_softmax(g_logits, dim=0)
                 
-                # Only compute loss over MASKED tokens, comparing to 0.0 lower bound (KL Divergence format)
                 g_masked = sample_masked[mask_g]
                 tgt_masked = g_targets[g_masked]
                 pred_masked = log_probs[g_masked]
                 
                 loss_g = (tgt_masked * (torch.log(tgt_masked + 1e-9) - pred_masked)).sum()
                 total_loss += loss_g
+                
+                pred_probs = torch.softmax(g_logits, dim=0)
+                mae_g = torch.abs(g_targets[g_masked] - pred_probs[g_masked]).mean().item()
+                acc_g = 1.0 if g_targets.argmax() == pred_probs.argmax() else 0.0
+                
+                total_mae += mae_g
+                total_acc += acc_g
                 count += 1
             
     if count == 0:
-        return torch.tensor(0.0, device=outputs.device, requires_grad=True)
-    return total_loss / count
+        return torch.tensor(0.0, device=outputs.device, requires_grad=True), 0.0, 0.0
+    return total_loss / count, total_mae / count, total_acc / count
 
 
 def _eval_one_batch(
@@ -199,43 +257,45 @@ def _eval_one_batch(
     dl_iter,
     dataloader: DataLoader,
     device: torch.device,
-    criterion: nn.Module,
+    pool_cache: PoolCache,
     writer: SummaryWriter,
     global_step: int,
     tag: str,
     pool: TokenPool | None,
 ) -> tuple:
-    """Evaluate a single batch from *dataloader* (cycling the iterator).
-
-    Returns (updated_iterator, loss_value_or_None).
-    """
+    """Evaluate a single batch from dataloader (cycling the iterator)."""
     try:
         batch = next(dl_iter)
     except StopIteration:
         dl_iter = iter(dataloader)
         batch = next(dl_iter)
 
-    e_tokens, e_masked, e_targets, e_pad = batch
-    e_pad = e_pad.to(device)
-    e_targets = e_targets.to(device)
-    e_masked = e_masked.to(device)
-    e_tokens = {k: v.to(device) for k, v in e_tokens.items()}
+    anchor_dates, target_indices, target_masked, target_padding = batch
+    anchor_dates = anchor_dates.to(device)
+    target_indices = target_indices.to(device)
+    target_masked = target_masked.to(device)
+    target_padding = target_padding.to(device)
 
-    e_outputs, e_route_info = model(e_tokens, e_masked, e_pad)
-    
-    if len(e_targets) == 0:
+    if not target_masked.any():
         return dl_iter, None
 
-    # Use routed subset for loss computation
-    sel_tokens = e_route_info["selected_tokens"]
-    sel_masked = e_route_info["selected_masked"]
-    e_loss = compute_election_loss(sel_tokens, e_outputs, sel_masked, pool)
+    outputs, route_info = model(
+        anchor_dates, target_indices, target_masked, target_padding, pool_cache
+    )
+
+    sel_tokens = route_info["selected_tokens"]
+    sel_masked = route_info["selected_masked"]
+    e_loss, e_mae, e_acc = compute_election_loss(sel_tokens, outputs, sel_masked, pool)
     writer.add_scalar(f"Loss/{tag}/step", e_loss.item(), global_step)
+    writer.add_scalar(f"Metrics/{tag}/MAE_step", e_mae, global_step)
+    writer.add_scalar(f"Metrics/{tag}/Accuracy_step", e_acc, global_step)
 
     if pool is not None:
-        for k, (s, c) in compute_split_metrics(sel_tokens, sel_masked, e_outputs, pool).items():
-            if c > 0:
-                writer.add_scalar(f"Loss/{tag}/{k}", s / c, global_step)
+        for k, metrics in compute_split_metrics(sel_tokens, sel_masked, outputs, pool).items():
+            if metrics["count"] > 0:
+                writer.add_scalar(f"Loss/{tag}/{k}", metrics["loss"] / metrics["count"], global_step)
+                writer.add_scalar(f"Metrics/{tag}/MAE_{k}", metrics["mae"] / metrics["count"], global_step)
+                writer.add_scalar(f"Metrics/{tag}/Accuracy_{k}", metrics["acc"] / metrics["count"], global_step)
 
     return dl_iter, e_loss.item()
 
@@ -247,14 +307,17 @@ def train_epoch(
     dev_dataloader: DataLoader,
     val_dataloader: DataLoader,
     device: torch.device,
+    pool_cache: PoolCache,
     writer: SummaryWriter,
     epoch: int,
-    train_pool: TokenPool | None = None,
-    dev_pool: TokenPool | None = None,
-    val_pool: TokenPool | None = None,
+    pool: TokenPool | None = None,
+    scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+    ema: EMAModel | None = None,
+    entropy_lambda: float = 0.05,
+    target_entropy: float = 0.4,
+    key_cache_rebuild_interval: int = 100,
 ) -> float:
     model.train()
-    criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     num_batches = 0
     
@@ -271,29 +334,45 @@ def train_epoch(
     dev_iter = iter(dev_dataloader)
     val_iter = iter(val_dataloader)
 
-    for tokens_dict, masked_batch, targets, padding_mask in dataloader:
-        optimizer.zero_grad()
+    for batch in dataloader:
+        anchor_dates, target_indices, target_masked, target_padding = batch
+        anchor_dates = anchor_dates.to(device)
+        target_indices = target_indices.to(device)
+        target_masked = target_masked.to(device)
+        target_padding = target_padding.to(device)
 
-        padding_mask = padding_mask.to(device)
-        targets = targets.to(device)
-        masked_batch = masked_batch.to(device)
-
-        tokens_dict = {k: v.to(device) for k, v in tokens_dict.items()}
-
-        outputs, route_info = model(tokens_dict, masked_batch, padding_mask)
-
-        if len(targets) == 0:
+        if not target_masked.any():
             continue
 
-        # Use routed subset for loss computation
+        optimizer.zero_grad()
+
+        outputs, route_info = model(
+            anchor_dates, target_indices, target_masked, target_padding, pool_cache
+        )
+
         sel_tokens = route_info["selected_tokens"]
         sel_masked = route_info["selected_masked"]
-        loss = compute_election_loss(sel_tokens, outputs, sel_masked, train_pool)
+        sel_padding = route_info["selected_padding"]
+        loss, mae, acc = compute_election_loss(sel_tokens, outputs, sel_masked, pool)
+
+        # Router entropy regularization
+        entropy_loss_val = 0.0
+        if not model.is_router_warming_up:
+            entropy_loss = compute_router_entropy_loss(
+                route_info["selected_scores"], sel_masked, sel_padding,
+                target_entropy=target_entropy,
+            )
+            loss = loss + entropy_lambda * entropy_loss
+            entropy_loss_val = entropy_loss.item()
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
+        if ema is not None:
+            ema.update(model)
 
-        # Increment router warm-up counter
         model._global_step += 1
 
         total_loss += loss.item()
@@ -302,6 +381,14 @@ def train_epoch(
         num_batches += 1
         global_step = epoch * len(dataloader) + num_batches
         
+        # Rebuild key cache periodically
+        if num_batches % key_cache_rebuild_interval == 0:
+            t0 = time.time()
+            model.rebuild_key_cache(pool_cache)
+            rebuild_time = time.time() - t0
+            writer.add_scalar("Router/cache_rebuild_seconds", rebuild_time, global_step)
+            print(f"  Key cache rebuilt in {rebuild_time:.1f}s", flush=True)
+
         if num_batches % eval_interval == 0:
             avg_train_10 = running_train_loss / eval_interval
             writer.add_scalar("Loss/Train/step", avg_train_10, global_step)
@@ -309,38 +396,9 @@ def train_epoch(
 
             # Log router statistics
             if not model.is_router_warming_up:
-                raw_scores = route_info["router_scores"]
                 sel_scores = route_info["selected_scores"]
                 
-                # Router Entropy: the key metric.
-                # Low entropy = router confidently selects specific tokens.
-                # High entropy = router treats all tokens as equally relevant (bad).
-                # Computed over the full candidate pool's score distribution.
-                valid_mask = raw_scores > float('-inf')
-                if valid_mask.any():
-                    # Per-sample entropy, then average across batch
-                    B = raw_scores.shape[0]
-                    entropy_sum = 0.0
-                    for b in range(B):
-                        valid_scores_b = raw_scores[b][valid_mask[b]]
-                        if len(valid_scores_b) > 1:
-                            probs = torch.softmax(valid_scores_b, dim=0)
-                            entropy_b = -(probs * torch.log(probs + 1e-10)).sum()
-                            # Normalize by max possible entropy (uniform over N tokens)
-                            max_entropy = torch.log(torch.tensor(float(len(valid_scores_b))))
-                            entropy_sum += (entropy_b / max_entropy).item()
-                    writer.add_scalar("Router/entropy_normalized", entropy_sum / B, global_step)
-                
-                # Selection ratio: top_k / pool_size — how aggressive the filtering is
-                n_valid = valid_mask.sum(dim=1).float().mean().item()
-                writer.add_scalar("Router/pool_size_mean", n_valid, global_step)
-                writer.add_scalar("Router/selection_ratio", sel_scores.shape[1] / max(n_valid, 1), global_step)
-                
-                # Score statistics
-                writer.add_scalar("Router/score_mean", raw_scores[valid_mask].mean().item(), global_step)
-                writer.add_scalar("Router/score_std", raw_scores[valid_mask].std().item(), global_step)
-                
-                # Selected tokens: mean time-delta and geo-distance
+                # Selected tokens stats
                 sel_dates = sel_tokens["dates"]
                 writer.add_scalar("Router/selected_mean_time_delta", sel_dates.abs().mean().item(), global_step)
                 sel_lat = sel_tokens["latitude"]
@@ -350,30 +408,38 @@ def train_epoch(
                     anchor_lat = sel_lat[anchor_mask].mean()
                     anchor_lon = sel_lon[anchor_mask].mean()
                     geo_dist = ((sel_lat - anchor_lat)**2 + (sel_lon - anchor_lon)**2).sqrt()
-                    writer.add_scalar("Router/selected_mean_geo_dist", geo_dist.mean().item(), global_step)
+                    writer.add_scalar("Router/selected_mean_geo_dist_km", (geo_dist.mean() * 111.0).item(), global_step)
+                writer.add_scalar("Router/temperature", model.router.temperature.item(), global_step)
+                writer.add_scalar("Router/entropy_reg_loss", entropy_loss_val, global_step)
             writer.add_scalar("Router/warmup", float(model.is_router_warming_up), global_step)
+            if scheduler is not None:
+                writer.add_scalar("LR/step", scheduler.get_last_lr()[0], global_step)
             
-            # Compute split metrics on this train batch
-            if train_pool is not None:
+            # Split metrics on this train batch
+            if pool is not None:
                 with torch.no_grad():
-                    t_out, t_route = model(tokens_dict, masked_batch, padding_mask)
+                    t_out, t_route = model(
+                        anchor_dates, target_indices, target_masked, target_padding, pool_cache
+                    )
                 t_sel_tokens = t_route["selected_tokens"]
                 t_sel_masked = t_route["selected_masked"]
-                batch_splits = compute_split_metrics(t_sel_tokens, t_sel_masked, t_out, train_pool)
-                for k, (s, c) in batch_splits.items():
-                    if c > 0:
-                        writer.add_scalar(f"Loss/Train/{k}", s / c, global_step)
+                batch_splits = compute_split_metrics(t_sel_tokens, t_sel_masked, t_out, pool)
+                for k, metrics in batch_splits.items():
+                    if metrics["count"] > 0:
+                        writer.add_scalar(f"Loss/Train/{k}", metrics["loss"] / metrics["count"], global_step)
+                        writer.add_scalar(f"Metrics/Train/MAE_{k}", metrics["mae"] / metrics["count"], global_step)
+                        writer.add_scalar(f"Metrics/Train/Accuracy_{k}", metrics["acc"] / metrics["count"], global_step)
 
             # Evaluate one dev batch and one val batch
             model.eval()
             with torch.no_grad():
                 dev_iter, d_loss = _eval_one_batch(
-                    model, dev_iter, dev_dataloader, device, criterion,
-                    writer, global_step, "Dev", dev_pool,
+                    model, dev_iter, dev_dataloader, device, pool_cache,
+                    writer, global_step, "Dev", pool,
                 )
                 val_iter, v_loss = _eval_one_batch(
-                    model, val_iter, val_dataloader, device, criterion,
-                    writer, global_step, "Val", val_pool,
+                    model, val_iter, val_dataloader, device, pool_cache,
+                    writer, global_step, "Val", pool,
                 )
             model.train()
 
@@ -397,6 +463,22 @@ def train_epoch(
             print_dev_count = 0
             print_val_count = 0
 
+        if num_batches % 1000 == 0:
+            ckpt_path = f"checkpoint_epoch{epoch}_step{num_batches}.pth"
+            print(f"Saving checkpoint to {ckpt_path}...", flush=True)
+            ckpt_data = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "epoch": epoch,
+                "step": num_batches,
+                "global_step": model._global_step,
+            }
+            if scheduler is not None:
+                ckpt_data["scheduler"] = scheduler.state_dict()
+            if ema is not None:
+                ckpt_data["ema"] = ema.shadow
+            torch.save(ckpt_data, ckpt_path)
+
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
     writer.add_scalar("Loss/Train/epoch", avg_loss, epoch)
     print(f"Epoch Avg Train Loss: {avg_loss:.4f}", flush=True)
@@ -408,49 +490,57 @@ def eval_epoch(
     model: UniversalMaskedSetTransformer,
     dataloader: DataLoader,
     device: torch.device,
+    pool_cache: PoolCache,
     writer: SummaryWriter,
     epoch: int,
     pool: TokenPool | None = None,
     tag: str = "Dev",
 ) -> float:
-    """Evaluate on a given split.  *tag* controls the TensorBoard prefix."""
+    """Evaluate on a given split."""
     model.eval()
-    criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     num_batches = 0
-    split_accum: dict[str, tuple[float, int]] = defaultdict(lambda: (0.0, 0))
+    split_accum: dict[str, dict[str, float]] = defaultdict(lambda: {"loss": 0.0, "mae": 0.0, "acc": 0.0, "count": 0})
 
-    for tokens_dict, masked_batch, targets, padding_mask in dataloader:
-        padding_mask = padding_mask.to(device)
-        targets = targets.to(device)
-        masked_batch = masked_batch.to(device)
-        tokens_dict = {k: v.to(device) for k, v in tokens_dict.items()}
+    for batch in dataloader:
+        anchor_dates, target_indices, target_masked, target_padding = batch
+        anchor_dates = anchor_dates.to(device)
+        target_indices = target_indices.to(device)
+        target_masked = target_masked.to(device)
+        target_padding = target_padding.to(device)
 
-        outputs, route_info = model(tokens_dict, masked_batch, padding_mask)
-
-        if len(targets) == 0:
+        if not target_masked.any():
             continue
+
+        outputs, route_info = model(
+            anchor_dates, target_indices, target_masked, target_padding, pool_cache
+        )
 
         sel_tokens = route_info["selected_tokens"]
         sel_masked = route_info["selected_masked"]
-        loss = compute_election_loss(sel_tokens, outputs, sel_masked, pool)
+        loss, mae, acc = compute_election_loss(sel_tokens, outputs, sel_masked, pool)
         total_loss += loss.item()
         num_batches += 1
 
         if pool is not None:
             batch_splits = compute_split_metrics(sel_tokens, sel_masked, outputs, pool)
-            for k, (s, c) in batch_splits.items():
-                prev_s, prev_c = split_accum[k]
-                split_accum[k] = (prev_s + s, prev_c + c)
+            for k, metrics in batch_splits.items():
+                split_accum[k]["loss"] += metrics["loss"]
+                split_accum[k]["mae"] += metrics["mae"]
+                split_accum[k]["acc"] += metrics["acc"]
+                split_accum[k]["count"] += metrics["count"]
 
     avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
     writer.add_scalar(f"Loss/{tag}/epoch", avg_loss, epoch)
 
     if pool is not None:
-        for k, (s, c) in split_accum.items():
-            if c > 0:
-                writer.add_scalar(f"Loss/{tag}/{k}", s / c, epoch)
-                print(f"  {tag}/{k}: {s / c:.4f} (n={c})", flush=True)
+        for k, metrics in split_accum.items():
+            if metrics["count"] > 0:
+                c = metrics["count"]
+                writer.add_scalar(f"Loss/{tag}/{k}", metrics["loss"] / c, epoch)
+                writer.add_scalar(f"Metrics/{tag}/MAE_{k}", metrics["mae"] / c, epoch)
+                writer.add_scalar(f"Metrics/{tag}/Accuracy_{k}", metrics["acc"] / c, epoch)
+                print(f"  {tag}/{k} | Loss: {metrics['loss'] / c:.4f} | MAE: {metrics['mae'] / c:.4f} | Acc: {metrics['acc'] / c:.4f} (n={c})", flush=True)
 
     print(f"Epoch Avg {tag} Loss: {avg_loss:.4f}", flush=True)
     return avg_loss
@@ -464,43 +554,60 @@ def train(
     max_epochs: int,
     learning_rate: float,
     device: torch.device,
+    pool: TokenPool,
+    pool_cache: PoolCache,
     patience: int = 5,
-    train_pool: TokenPool | None = None,
-    dev_pool: TokenPool | None = None,
-    val_pool: TokenPool | None = None,
 ) -> None:
     model.to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=learning_rate,
+        fused=torch.cuda.is_available(), weight_decay=0.01,
+    )
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=5000, T_mult=2, eta_min=1e-5,
+    )
+
+    ema = EMAModel(model, decay=0.999)
+
+    # Build initial key cache
+    print("Building initial key cache...", flush=True)
+    t0 = time.time()
+    model.rebuild_key_cache(pool_cache)
+    print(f"Key cache built in {time.time() - t0:.1f}s "
+          f"({pool_cache.key_cache.shape}, {pool_cache.key_cache.dtype})", flush=True)
 
     best_loss = float("inf")
     patience_counter = 0
 
-    writer = SummaryWriter(log_dir="runs/elections_experiment")
+    from datetime import datetime
+    run_name = f"runs/elections_experiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    writer = SummaryWriter(log_dir=run_name)
 
     for epoch in range(max_epochs):
         print(f"Starting epoch {epoch + 1}/{max_epochs}...", flush=True)
         train_loss = train_epoch(
             model, train_dataloader, optimizer, dev_dataloader, val_dataloader,
-            device, writer, epoch,
-            train_pool=train_pool, dev_pool=dev_pool, val_pool=val_pool,
+            device, pool_cache, writer, epoch,
+            pool=pool, scheduler=scheduler, ema=ema,
         )
 
-        # Dev evaluation — used for early stopping
-        dev_loss = eval_epoch(model, dev_dataloader, device, writer, epoch, pool=dev_pool, tag="Dev")
-
-        # Val evaluation — monitoring only (temporal holdout)
-        val_loss = eval_epoch(model, val_dataloader, device, writer, epoch, pool=val_pool, tag="Val")
+        # Evaluate using EMA weights
+        original_state = ema.apply(model)
+        model.rebuild_key_cache(pool_cache)  # Rebuild with EMA weights for eval
+        dev_loss = eval_epoch(model, dev_dataloader, device, pool_cache, writer, epoch, pool=pool, tag="Dev")
+        val_loss = eval_epoch(model, val_dataloader, device, pool_cache, writer, epoch, pool=pool, tag="Val")
+        model.load_state_dict(original_state)
+        model.rebuild_key_cache(pool_cache)  # Rebuild with live weights
 
         if dev_loss < best_loss - 1e-4:
             best_loss = dev_loss
             patience_counter = 0
-            print(f"New best dev loss: {best_loss:.4f}. Saving checkpoint...", flush=True)
-            torch.save(model.state_dict(), "best_model.pth")
+            print(f"New best dev loss: {best_loss:.4f}. Saving EMA checkpoint...", flush=True)
+            torch.save(ema.shadow, "best_model.pth")
         else:
             patience_counter += 1
-            print(
-                f"No improvement in dev loss. Patience: {patience_counter}/{patience}", flush=True
-            )
+            print(f"No improvement in dev loss. Patience: {patience_counter}/{patience}", flush=True)
 
         if patience_counter >= patience:
             print(f"Early stopping at epoch {epoch + 1}!", flush=True)
@@ -519,18 +626,18 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     model = UniversalMaskedSetTransformer(
-        d_model=256, nhead=8, num_layers=8,
-        d_router=64, top_k=32, router_warmup_steps=500,
+        d_model=128, nhead=4, num_layers=4,
+        d_router=64, top_k=256, router_warmup_steps=500,
     )
 
     print("Building dataloaders...")
-    train_dl, dev_dl, val_dl, train_pool, dev_pool, val_pool = build_dataloaders(
-        data_dir=data_dir, batch_size=32, max_seq_len=1024,
-        candidate_pool_size=4096, eval_pool_size=32768,
-        num_workers=16, eval_num_workers=4,
+    train_dl, dev_dl, val_dl, pool, pool_cache = build_dataloaders(
+        data_dir=data_dir, batch_size=32,
+        num_workers=32, eval_num_workers=8,
+        device=device,
     )
 
-    print(f"Train pool size: {len(train_pool)} items, Dev pool size: {len(dev_pool)} items, Val pool size: {len(val_pool)} items")
+    print(f"Pool size: {len(pool)} items")
     print("Starting training...")
     train(
         model=model,
@@ -538,11 +645,10 @@ if __name__ == "__main__":
         dev_dataloader=dev_dl,
         val_dataloader=val_dl,
         max_epochs=200,
-        learning_rate=3e-4,
+        learning_rate=1e-3,
         device=device,
+        pool=pool,
+        pool_cache=pool_cache,
         patience=10,
-        train_pool=train_pool,
-        dev_pool=dev_pool,
-        val_pool=val_pool,
     )
     print("Training complete.")

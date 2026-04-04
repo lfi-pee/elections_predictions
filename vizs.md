@@ -19,7 +19,7 @@ Use the best checkpoint and eval it with real data.
 ## 1b. The "Tracked Candidate" Trajectory (Data-Rich Prediction)
 
 *   **Concept:** Demonstrating that even when direct polling *is* available, our model outperforms a simple poll average by contextualizing the noisy polls within the broader political environment.
-*   **Visualization:** **Signal vs. Noise Smoothing Line Chart**
+*   **Visualization:** **Signal vs. Noise Smoothing Line Chart** (implemented in `src/visualize_trajectories.py`)
     *   **X-axis:** Time (months out from the election).
     *   **Y-axis:** Expected Vote Percentage.
     *   **Visual:** Display scattered data points for individual published polls. Our model's prediction is a smooth, stable line that intelligently cuts through the noise, naturally dampening outlier polls (because it knows structurally they don't make sense) and adjusting gracefully based on other macroscopic tokens.
@@ -56,13 +56,13 @@ Use the best checkpoint and eval it with real data.
 
 ## 5. The Risk & Volatility Matrix 
 
-*   **Concept:** Capitalizing on the fact that the model uses Self-Supervised Learning to predict a **100-bin probability distribution**, rather than just outputting a single point estimate. It natively calculates probabilistic risk.
-*   **Visualization:** **Ridge Plot (Joyplot) of Probability Distributions**
+*   **Concept:** Even though the model outputs a single softmax-normalized vote share (not a full probability distribution per candidate), we can estimate uncertainty by running **Monte Carlo context perturbations**: varying which context tokens the router selects (via temperature scaling or subsampling the top-K) and observing the variance of predictions across runs.
+*   **Visualization:** **Ridge Plot (Joyplot) of Prediction Variance**
     *   **X-axis:** Expected Vote Percentage (0-100%).
     *   **Y-axis:** Snapshots in time (6 months out, 3 months out, 1 week out).
-    *   **Visual:** At 6 months out, the shape is a wide, flat bell curve (high uncertainty). As you approach election day and add recent tokens, the curve shifts and spikes vertically into a sharp needle.
-*   **Baseline Comparison:** A standard polling average provides a single point estimate (e.g., "24%") perhaps with a static, generic +/- 3% margin of error. Visually overlay this rigid, static error bar onto our dynamically shifting, mathematically precise distribution curves.
-*   **The Pitch:** *"A standard average gives you a single number and a boilerplate margin of error. We show you the exact mathematical shape of your risk. A wide curve means the race is volatile and worth investing ad spend; a sharp spike means the electorate is locked in."*
+    *   **Visual:** At 6 months out, the distribution of Monte Carlo predictions is wide (high context-sensitivity). As election day approaches and more direct data becomes available, the distribution narrows into a sharp peak.
+*   **Baseline Comparison:** A standard polling average provides a single point estimate with a static +/- 3% margin of error. Our Monte Carlo envelope dynamically adapts to the actual information landscape.
+*   **The Pitch:** *"A standard average gives you a single number and a boilerplate margin of error. We show you how stable our prediction actually is given the available data. A wide spread means the race is volatile and worth investing; a narrow peak means the electorate is locked in."*
 
 ## 6. Election Cross-Pollination Transferability
 

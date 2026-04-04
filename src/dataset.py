@@ -21,15 +21,26 @@ def hash_str_array(arr: np.ndarray, num_buckets: int = 50000) -> tuple[np.ndarra
 
 
 class TokenPool:
+    """In-memory token pool sorted by availability_date for causality.
+
+    - ``dates`` (availability_date): when a data point was *published* and
+      therefore usable.  The pool is sorted on this column so that
+      ``searchsorted`` can efficiently mask future tokens.
+    - ``reference_dates`` (date_float): the date the data *describes*.
+      This is what the model receives as its temporal input.
+    """
+
     def __init__(self, df_sorted: "pd.DataFrame", num_buckets: int = 50000) -> None:
-        self.dates = df_sorted["date_float"].values.astype(np.float32)
-        
+        # Pool is sorted by availability_date (causality ordering)
+        self.dates = df_sorted["availability_date"].values.astype(np.float32)
+        self.reference_dates = df_sorted["date_float"].values.astype(np.float32)
+
         self.election_type, self.hash_to_election_type = hash_str_array(df_sorted["election_type"].values, num_buckets)
         self.location, _ = hash_str_array(df_sorted["location"].values, num_buckets)
         self.candidate, self.hash_to_candidate = hash_str_array(df_sorted["candidate"].values, num_buckets)
         self.party, _ = hash_str_array(df_sorted["party"].values, num_buckets)
         self.metric_type, self.hash_to_metric_type = hash_str_array(df_sorted["metric_type"].values, num_buckets)
-        
+
         self.value = df_sorted["value"].values.astype(np.float32)
         self.is_result = np.array(df_sorted["metric_type"].values == "Result")
 
@@ -47,15 +58,16 @@ class TokenPool:
     def _build_election_groups(self) -> None:
         result_mask = self.is_result
         result_indices = np.where(result_mask)[0]
-        
+
         groups: dict[tuple[int, int, float], list[int]] = {}
         for idx in result_indices:
-            key = (int(self.election_type[idx]), int(self.location[idx]), float(self.dates[idx]))
+            # Group key uses reference_date (the actual election date)
+            key = (int(self.election_type[idx]), int(self.location[idx]), float(self.reference_dates[idx]))
             if key not in groups:
                 groups[key] = []
             groups[key].append(idx)
-        
-        # Store as list of (anchor_date, result_indices_array) for fast access
+
+        # anchor_date is the reference_date (actual election date)
         self.election_groups: list[tuple[float, np.ndarray]] = [
             (key[2], np.array(indices, dtype=np.int64))
             for key, indices in groups.items()
@@ -70,26 +82,90 @@ class TokenPool:
         return lo, hi
 
 
-class TokenDataset(Dataset):
+class PoolCache:
+    """GPU cache of the full token pool for full-pool routing.
+    
+    Holds all token features as GPU tensors and the pre-computed key cache.
+    The key cache is rebuilt periodically by the model to reflect updated weights.
+    """
+
     def __init__(
         self,
         pool: TokenPool,
-        mask_prob: float = 0.15,
-        max_seq_len: int = 1024,
-        window_years: float = 1.0,
-        result_fraction: float = 0.3,
+        device: torch.device,
+        val_only_mask: np.ndarray | None = None,
+    ) -> None:
+        self.device = device
+        self.N = len(pool)
+
+        # Causality dates (availability_date) — used for searchsorted masking
+        self.dates = torch.from_numpy(pool.dates).to(device)
+        # Reference dates (date_float) — used as model temporal input
+        self.reference_dates = torch.from_numpy(pool.reference_dates).to(device)
+
+        self.election_type = torch.from_numpy(pool.election_type).to(device)
+        self.location = torch.from_numpy(pool.location).to(device)
+        self.candidate = torch.from_numpy(pool.candidate).to(device)
+        self.party = torch.from_numpy(pool.party).to(device)
+        self.metric_type = torch.from_numpy(pool.metric_type).to(device)
+        self.values = torch.from_numpy(pool.value).to(device)
+        self.latitude = torch.from_numpy(pool.latitude).to(device)
+        self.longitude = torch.from_numpy(pool.longitude).to(device)
+
+        # Mask for val-only tokens (True = suppress during training)
+        if val_only_mask is not None:
+            self.val_only_mask = torch.from_numpy(val_only_mask.astype(bool)).to(device)
+        else:
+            self.val_only_mask = None
+
+        # Pre-computed key cache — set by model.rebuild_key_cache()
+        self.key_cache: torch.Tensor | None = None  # (N, d_router) float16
+
+    def gather_tokens(self, indices: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Gather token features for selected indices.
+
+        The ``"dates"`` entry returns **reference_dates** (what the data
+        describes), not availability_dates.  The model should see the
+        true temporal coordinate, while causality enforcement is handled
+        separately via ``self.dates`` (availability).
+
+        Args:
+            indices: (B, K) or (K,) — indices into the pool
+        Returns:
+            dict of (B, K) or (K,) tensors
+        """
+        return {
+            "dates": self.reference_dates[indices],
+            "election_type": self.election_type[indices],
+            "location": self.location[indices],
+            "candidate": self.candidate[indices],
+            "party": self.party[indices],
+            "metric_type": self.metric_type[indices],
+            "values": self.values[indices],
+            "latitude": self.latitude[indices],
+            "longitude": self.longitude[indices],
+        }
+
+
+class TokenDataset(Dataset):
+    """Simplified dataset that returns only target election group info.
+    
+    Context selection is handled by the full-pool router in the model,
+    not by the dataset. The dataset only decides:
+    1. Which election group to predict (the target)
+    2. Which tokens in that group are masked vs revealed
+    3. Whether to include other-location results from the same election
+    """
+
+    def __init__(
+        self,
+        pool: TokenPool,
         is_training: bool = True,
         start_date: float | None = None,
         end_date: float | None = None,
     ) -> None:
         self.pool = pool
-        self.mask_prob = mask_prob
-        self.max_seq_len = max_seq_len
-        self.window_years = window_years
-        self.result_fraction = result_fraction
         self.is_training = is_training
-        self.date_min = float(pool.dates[0])
-        self.date_max = float(pool.dates[-1])
         
         valid_groups = []
         for grp in pool.election_groups:
@@ -111,38 +187,16 @@ class TokenDataset(Dataset):
     def __len__(self) -> int:
         return self.num_elections
 
-    def __getitem__(self, idx: int) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int) -> dict[str, np.ndarray]:
         election_idx = self._order[idx % self.num_elections]
         anchor_date, anchor_result_indices = self.election_groups[election_idx]
 
-        # Context window: [anchor_date - window_years, anchor_date]
-        lo = bisect.bisect_left(self.pool.dates, anchor_date - self.window_years)
-        hi = bisect.bisect_right(self.pool.dates, anchor_date)
-
-        window_idx = np.arange(lo, hi)
-        window_is_result = self.pool.is_result[lo:hi]
-        
-        window_dates = self.pool.dates[lo:hi]
-        is_target_elec = window_is_result & (window_dates == anchor_date)
-        is_past_result = window_is_result & (window_dates < anchor_date)
-        
-        target_elec_results = window_idx[is_target_elec]
-        past_results = window_idx[is_past_result]
-        window_other = window_idx[~window_is_result]
-        
-        anchor_set = set(anchor_result_indices.tolist())
-        other_loc_target_results = [i for i in target_elec_results.tolist() if i not in anchor_set]
-        
-        masked_target_idxs = anchor_result_indices.tolist()
-        unmasked_target_idxs = []
-        
         masked_target_idxs = anchor_result_indices.tolist()
         unmasked_target_idxs = []
 
         if random.random() < 0.75:
-            # 1. 75% of samples: one election's location only (no other locations at the same election)
-            # 1a. 75% of those: all candidate scores are masked
-            # 1b. 25% of those: one or two (if >2 candidates) candidate scores are unmasked
+            # 75%: single location only
+            # 25% of those: partial reveal (1-2 candidates unmasked)
             if random.random() < 0.25:
                 num_to_reveal = 0
                 if len(masked_target_idxs) > 2:
@@ -154,138 +208,71 @@ class TokenDataset(Dataset):
                     unmasked_target_idxs = random.sample(masked_target_idxs, num_to_reveal)
                     masked_target_idxs = [x for x in masked_target_idxs if x not in unmasked_target_idxs]
         else:
-            # 2. 25% of samples: results from the same election at another location in the context
-            # at most 5 single candidates results at random other places
-            if other_loc_target_results:
-                n_other_loc = min(5, len(other_loc_target_results))
-                other_loc_sampled = random.sample(other_loc_target_results, n_other_loc)
-                unmasked_target_idxs.extend(other_loc_sampled)
-                
-        current_sampled = masked_target_idxs + unmasked_target_idxs
-        
-        # 3. Past elections context and polling data should be 50/50
-        remaining_budget = self.max_seq_len - len(current_sampled)
-        if remaining_budget > 0:
-            target_past = remaining_budget // 2
-            target_other = remaining_budget - target_past
-            
-            n_past = min(target_past, len(past_results))
-            n_other = min(target_other, len(window_other))
-            
-            # Fill remaining space if one category falls short
-            if n_past < target_past:
-                n_other = min(len(window_other), n_other + (target_past - n_past))
-            elif n_other < target_other:
-                n_past = min(len(past_results), n_past + (target_other - n_other))
-        else:
-            n_past = 0
-            n_other = 0
-            
-        sampled = current_sampled.copy()
-        if n_past > 0:
-            sampled.extend(random.sample(past_results.tolist(), n_past))
-        if n_other > 0:
-            sampled.extend(random.sample(window_other.tolist(), n_other))
-            
-        random.shuffle(sampled)
-        sampled_idx = np.array(sampled, dtype=np.int64)
+            # 25%: include other-location results from the same election date
+            lo_same = bisect.bisect_left(self.pool.dates, anchor_date - 1e-6)
+            hi_same = bisect.bisect_right(self.pool.dates, anchor_date + 1e-6)
+            same_date_mask = self.pool.is_result[lo_same:hi_same]
+            same_date_results = np.arange(lo_same, hi_same)[same_date_mask]
+            anchor_set = set(anchor_result_indices.tolist())
+            other_loc = [i for i in same_date_results.tolist() if i not in anchor_set]
+            if other_loc:
+                n_other = min(5, len(other_loc))
+                unmasked_target_idxs.extend(random.sample(other_loc, n_other))
 
-        # Relative date: anchored election is exactly at 0.0
-        dates = self.pool.dates[sampled_idx] - anchor_date
-        
-        election_type = self.pool.election_type[sampled_idx]
-        location = self.pool.location[sampled_idx]
-        candidate = self.pool.candidate[sampled_idx]
-        party = self.pool.party[sampled_idx]
-        metric_type = self.pool.metric_type[sampled_idx]
-        values = self.pool.value[sampled_idx]
-        latitude = self.pool.latitude[sampled_idx]
-        longitude = self.pool.longitude[sampled_idx]
-
-        seq_len = len(sampled_idx)
-        masked = np.zeros(seq_len, dtype=bool)
-        
-        masked_set = set(masked_target_idxs)
-        unmasked_set = set(unmasked_target_idxs)
-        
-        for i, token_idx in enumerate(sampled_idx):
-            if token_idx in masked_set:
-                masked[i] = True
-            elif token_idx in unmasked_set:
-                masked[i] = False
-        is_result_sampled = self.pool.is_result[sampled_idx]
-        if not masked.any() and is_result_sampled.any():
-            result_locs = np.where(is_result_sampled)[0]
-            masked[np.random.choice(result_locs)] = True
-
-        true_values = values[masked].astype(np.float32)
-        
-        token_dict = {
-            "dates": dates,
-            "election_type": election_type,
-            "location": location,
-            "candidate": candidate,
-            "party": party,
-            "metric_type": metric_type,
-            "values": values,
-            "latitude": latitude,
-            "longitude": longitude,
+        return {
+            "anchor_date": np.float32(anchor_date),
+            "masked_pool_indices": np.array(masked_target_idxs, dtype=np.int64),
+            "unmasked_pool_indices": np.array(unmasked_target_idxs, dtype=np.int64),
         }
-        return token_dict, masked, true_values
 
 
 def collate_token_sets(
-    batch: list[tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]],
-) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor, torch.Tensor]:
-    if not batch:
-        return {}, torch.empty((0, 0), dtype=torch.bool), torch.empty(0, dtype=torch.long), torch.empty((0, 0), dtype=torch.bool)
+    batch: list[dict[str, np.ndarray]],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Collate target election info into batched tensors.
+    
+    Returns:
+        anchor_dates: (B,) absolute dates of target elections
+        target_indices: (B, T_max) pool indices for target tokens (masked + unmasked)
+        target_masked: (B, T_max) True for masked positions
+        target_padding: (B, T_max) True for padding positions
+    """
+    B = len(batch)
+    if B == 0:
+        return (
+            torch.empty(0, dtype=torch.float32),
+            torch.empty((0, 0), dtype=torch.long),
+            torch.empty((0, 0), dtype=torch.bool),
+            torch.empty((0, 0), dtype=torch.bool),
+        )
 
-    max_len = max(len(b[1]) for b in batch)
-    batch_size = len(batch)
-    
-    dates = torch.zeros((batch_size, max_len), dtype=torch.float32)
-    election_type = torch.zeros((batch_size, max_len), dtype=torch.long)
-    location = torch.zeros((batch_size, max_len), dtype=torch.long)
-    candidate = torch.zeros((batch_size, max_len), dtype=torch.long)
-    party = torch.zeros((batch_size, max_len), dtype=torch.long)
-    metric_type = torch.zeros((batch_size, max_len), dtype=torch.long)
-    values = torch.zeros((batch_size, max_len), dtype=torch.float32)
-    latitude = torch.zeros((batch_size, max_len), dtype=torch.float32)
-    longitude = torch.zeros((batch_size, max_len), dtype=torch.float32)
-    
-    masked_batch = torch.zeros((batch_size, max_len), dtype=torch.bool)
-    padding_mask = torch.ones((batch_size, max_len), dtype=torch.bool)
+    anchor_dates = torch.tensor([b["anchor_date"] for b in batch], dtype=torch.float32)
 
-    targets = []
-    
-    for i, (token_dict, masked, target) in enumerate(batch):
-        seq_len = len(masked)
-        
-        dates[i, :seq_len] = torch.from_numpy(token_dict["dates"])
-        election_type[i, :seq_len] = torch.from_numpy(token_dict["election_type"])
-        location[i, :seq_len] = torch.from_numpy(token_dict["location"])
-        candidate[i, :seq_len] = torch.from_numpy(token_dict["candidate"])
-        party[i, :seq_len] = torch.from_numpy(token_dict["party"])
-        metric_type[i, :seq_len] = torch.from_numpy(token_dict["metric_type"])
-        values[i, :seq_len] = torch.from_numpy(token_dict["values"])
-        latitude[i, :seq_len] = torch.from_numpy(token_dict["latitude"])
-        longitude[i, :seq_len] = torch.from_numpy(token_dict["longitude"])
-        
-        masked_batch[i, :seq_len] = torch.from_numpy(masked)
-        padding_mask[i, :seq_len] = False
-        
-        targets.append(torch.from_numpy(target))
+    # Combine masked and unmasked into target arrays
+    all_indices = []
+    all_is_masked = []
+    for b in batch:
+        mi = b["masked_pool_indices"]
+        ui = b["unmasked_pool_indices"]
+        if len(ui) > 0:
+            indices = np.concatenate([mi, ui])
+            is_masked = np.concatenate([np.ones(len(mi), dtype=bool), np.zeros(len(ui), dtype=bool)])
+        else:
+            indices = mi
+            is_masked = np.ones(len(mi), dtype=bool)
+        all_indices.append(indices)
+        all_is_masked.append(is_masked)
 
-    batched_tokens = {
-        "dates": dates,
-        "election_type": election_type,
-        "location": location,
-        "candidate": candidate,
-        "party": party,
-        "metric_type": metric_type,
-        "values": values,
-        "latitude": latitude,
-        "longitude": longitude,
-    }
-    
-    return batched_tokens, masked_batch, torch.cat(targets) if targets else torch.empty(0, dtype=torch.long), padding_mask
+    max_T = max(len(x) for x in all_indices)
+
+    target_indices = torch.zeros(B, max_T, dtype=torch.long)
+    target_masked = torch.zeros(B, max_T, dtype=torch.bool)
+    target_padding = torch.ones(B, max_T, dtype=torch.bool)
+
+    for i in range(B):
+        n = len(all_indices[i])
+        target_indices[i, :n] = torch.from_numpy(all_indices[i])
+        target_masked[i, :n] = torch.from_numpy(all_is_masked[i])
+        target_padding[i, :n] = False
+
+    return anchor_dates, target_indices, target_masked, target_padding

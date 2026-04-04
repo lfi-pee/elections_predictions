@@ -1,38 +1,54 @@
-# Evaluation Script (`eval.py`)
+# Evaluation Script (`src/eval.py`)
 
-The evaluation script is designed to measure how well the `UniversalMaskedSetTransformer` model can predict a "future" scenario by strictly conditioning it on a predefined contextual past.
-
-Because the model architecture is omni-directional and stateless, doing evaluation requires intentionally masking information and restricting the context window instead of iterating across a sequence layout.
+The evaluation script measures how well the `UniversalMaskedSetTransformer` can predict election outcomes by conditioning on all available historical context via the full-pool router.
 
 ## How it Works
 
-1. **Target Identification**
-   The script specifies a single "target" election as the ultimate goal (by default, `2024_legi_t1` corresponding to the 1st Round of the 2024 Legislative Elections). It determines the exact continuous `date_float` for that election.
+1. **Data Loading & PoolCache**
+   The script loads all tokens into a unified `TokenPool` and builds a `PoolCache` on GPU, identical to the training pipeline. This gives the model access to the entire 16.8M token universe.
 
-2. **Temporal Context Framing** 
-   To mimic predicting the future, the script scopes the universe of data down to a restricted window. It grabs all available data tokens (polls, past election results, context items like abstention) from `target_date - 1.0` year to the `target_date` strictly prior.
+2. **Key Cache Construction**
+   The model's `rebuild_key_cache()` is called to pre-compute L2-normalized key projections for the full pool, enabling the router to score all tokens.
 
-3. **Masking the Targets**
-   The true result tokens for the specific targeted election are extracted from the dataset. These tokens are placed in the sequence with their numeric `<value>` explicitly hidden via the `[MASK]` token.
+3. **Target Identification**
+   The script identifies target election groups (e.g., all 2026 Municipales communes). For each group, the target tokens are provided with their values `[MASK]`ed.
 
-4. **Omni-Directional Inference**
-   The context tokens (unmasked) and target tokens (masked but maintaining identity and structural information like location/candidate) are shuffled together into a set and passed through the `UniversalMaskedSetTransformer`.
+4. **Full-Pool Routing**
+   For each batch, the model's router:
+   - Computes an anchor query from the masked target identity embeddings
+   - Scores the entire pool via matmul against the key cache
+   - Masks future tokens and selects the top-K most relevant context
+   - No manual context windowing or size limits
 
 5. **Prediction & Scoring**
-   The Self-Supervised Learning (SSL) task requires predicting the 100-bin classification probability distribution for the masked target values.
-   - **Argmax**: Simply selects the discrete 1% bin with the highest confidence probability.
-   - **Expected Value**: Multiplies the distribution by the 0-100 values to get a continuously smooth expected percentage.
+   The model outputs a scalar logit per token. Logits within the same election group are passed through `softmax` to produce a vote share distribution. Metrics:
+   - **KL Divergence**: Primary loss metric (matches training objective)
+   - **MAE**: Mean Absolute Error between predicted and true vote share per candidate
+   - **Winner Accuracy**: Whether the predicted winner (argmax of softmax) matches the true winner
 
-   Finally, the predictions are compared uniformly against the true ground percentages, outputting the continuous **Mean Absolute Error (MAE)** and **RMSE**. 
+   Metrics are broken down by:
+   - Election type (Presidentielle, Legislatives, Municipales, etc.)
+   - Polled vs unpolled candidates
+   - Combined granularity (e.g., `Municipales_unpolled`)
+
+6. **EMA Weights**
+   Evaluation uses the Exponential Moving Average (EMA) of model weights for stable, smoothed predictions.
 
 ## Usage
 
 ```bash
-python3 src/eval.py [options]
+cd /home/veesion/elections_predictions
+python3 -m src.eval [options]
 ```
 
-**Options:**
-- `--model`: Path to trained checkpoint (default: `best_model.pth`).
-- `--target`: The string ID for the targeted evaluation election (default: `2024_legi_t1`). 
-- `--context`: The size of the context window looking backwards in continuous half-years (default: `0.5`, equating to 1 full year).
-- `--seq-len`: The combined sequence length limit (default: `1024`). The evaluation explicitly caps target elements to 25% of the frame limit to ensure adequate contextual backing.
+**Key parameters:**
+- `--model`: Path to trained checkpoint (default: `best_model.pth` — contains EMA weights)
+- Model architecture must match: `d_model=128, nhead=4, num_layers=4, d_router=64, top_k=256`
+
+## Relation to Training Eval
+
+During training, evaluation happens at two levels:
+1. **Per-step**: Every 10 steps, one dev batch and one val batch are evaluated and logged to TensorBoard
+2. **Per-epoch**: Full dev and val set evaluation using EMA weights, with per-split metric breakdown
+
+The standalone `eval.py` is for detailed post-training analysis with configurable targets.

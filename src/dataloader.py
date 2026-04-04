@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import torch
 from torch.utils.data import DataLoader
 
-from src.dataset import TokenDataset, TokenPool, collate_token_sets
+from src.dataset import TokenDataset, TokenPool, PoolCache, collate_token_sets
 from src.load_elections import load_election_tokens
 from src.load_polls import load_poll_tokens
+from src.load_demographics import load_demographic_tokens
 
 
 def _resolve_poll_candidates(election_df: pd.DataFrame, poll_df: pd.DataFrame) -> pd.DataFrame:
@@ -59,15 +62,24 @@ def _resolve_poll_candidates(election_df: pd.DataFrame, poll_df: pd.DataFrame) -
     return resolved_polls
 
 
+def _ensure_availability_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure availability_date column exists, defaulting to date_float."""
+    if "availability_date" not in df.columns:
+        df["availability_date"] = df["date_float"]
+    return df
+
+
 def load_all_tokens(data_dir: Path) -> TokenPool:
     election_df = load_election_tokens(data_dir)
     poll_df = load_poll_tokens(data_dir)
     poll_df = _resolve_poll_candidates(election_df, poll_df)
+    demo_df = load_demographic_tokens(data_dir)
 
-    frames = [f for f in [election_df, poll_df] if len(f) > 0]
+    frames = [f for f in [election_df, poll_df, demo_df] if len(f) > 0]
     combined = pd.concat(frames, ignore_index=True)
     combined.dropna(subset=["value"], inplace=True)
-    combined.sort_values("date_float", inplace=True)
+    combined = _ensure_availability_date(combined)
+    combined.sort_values("availability_date", inplace=True)
     combined.reset_index(drop=True, inplace=True)
     return TokenPool(combined)
 
@@ -78,32 +90,31 @@ def build_dataloaders(
     val_election_filter: str = "Municipales",
     dev_fraction: float = 0.05,
     batch_size: int = 32,
-    mask_prob: float = 0.15,
-    max_seq_len: int = 1024,
-    window_years: float = 2.0,
-    result_fraction: float = 0.3,
     num_workers: int = 0,
+    eval_num_workers: int = 0,
     dev_seed: int = 42,
-) -> tuple[DataLoader, DataLoader, DataLoader, TokenPool, TokenPool, TokenPool]:
-    """Build train / dev / val dataloaders.
+    device: torch.device | None = None,
+) -> tuple[DataLoader, DataLoader, DataLoader, TokenPool, PoolCache]:
+    """Build train / dev / val dataloaders and a single PoolCache.
 
-    - **val** targets are exclusively 2026 municipales results.
-    - **train** targets include ALL other elections (no temporal restriction).
-    - Both train and val use the full data pool for context, except that
-      2026 municipales Result tokens are removed from train's pool to
-      prevent leakage.
-    - window_years=2.0 so val muni can see 2024 Europeennes/Legislatives.
+    Uses ONE unified pool for all splits. Val-only tokens (2026 muni results)
+    are marked with a mask so the router can suppress them during training.
     """
     import random as _random
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     election_df = load_election_tokens(data_dir)
     poll_df = load_poll_tokens(data_dir)
     poll_df = _resolve_poll_candidates(election_df, poll_df)
+    demo_df = load_demographic_tokens(data_dir)
 
-    frames = [f for f in [election_df, poll_df] if len(f) > 0]
+    frames = [f for f in [election_df, poll_df, demo_df] if len(f) > 0]
     combined = pd.concat(frames, ignore_index=True)
     combined.dropna(subset=["value"], inplace=True)
-    combined.sort_values("date_float", inplace=True)
+    combined = _ensure_availability_date(combined)
+    combined.sort_values("availability_date", inplace=True)
     combined.reset_index(drop=True, inplace=True)
 
     # Identify val-only result tokens: 2026 municipales results
@@ -112,74 +123,55 @@ def build_dataloaders(
         & (combined["date_float"] > val_min_date)
         & (combined["metric_type"] == "Result")
     )
-    print(f"  Val-only result tokens (2026 muni): {is_val_result.sum()} "
+    val_only_mask = is_val_result.values
+    print(f"  Val-only result tokens (2026 muni): {val_only_mask.sum()} "
           f"out of {len(combined)} total", flush=True)
 
-    # Train pool: everything EXCEPT 2026 muni results (no leakage)
-    train_base = combined[~is_val_result].copy().reset_index(drop=True)
-    train_pool = TokenPool(train_base)
+    # Build unified pool from ALL data
+    pool = TokenPool(combined)
 
-    # Full pool: everything (val can see all data for context)
-    full_pool = TokenPool(combined)
+    # Build PoolCache on GPU
+    print(f"  Building PoolCache on {device}...", flush=True)
+    pool_cache = PoolCache(pool, device, val_only_mask=val_only_mask)
 
-    # --- Split train election groups into train / dev (random) ---
-    all_train_groups = list(train_pool.election_groups)
-    rng = _random.Random(dev_seed)
-    rng.shuffle(all_train_groups)
-    n_dev = max(1, int(len(all_train_groups) * dev_fraction))
-    dev_groups = all_train_groups[:n_dev]
-    train_groups_only = all_train_groups[n_dev:]
-
-    print(f"  Train election groups: {len(all_train_groups)} total  →  "
-          f"{len(train_groups_only)} train / {len(dev_groups)} dev", flush=True)
-
-    # --- Val: only 2026 municipales election groups from full pool ---
+    # --- Split election groups into train / dev / val ---
+    # Val groups: 2026 municipales result groups
     val_groups = []
-    for grp in full_pool.election_groups:
+    train_all_groups = []
+    val_result_indices = set(np.where(val_only_mask)[0].tolist())
+
+    for grp in pool.election_groups:
         anchor_date, result_indices = grp
-        if anchor_date > val_min_date:
-            et_hash = int(full_pool.election_type[result_indices[0]])
-            et_str = full_pool.hash_to_election_type.get(et_hash, "")
-            if val_election_filter in et_str:
-                val_groups.append(grp)
+        # Check if any result index is val-only
+        if any(int(i) in val_result_indices for i in result_indices):
+            val_groups.append(grp)
+        else:
+            train_all_groups.append(grp)
+
+    # Split train into train / dev
+    rng = _random.Random(dev_seed)
+    rng.shuffle(train_all_groups)
+    n_dev = max(1, int(len(train_all_groups) * dev_fraction))
+    dev_groups = train_all_groups[:n_dev]
+    train_groups = train_all_groups[n_dev:]
+
+    print(f"  Train election groups: {len(train_all_groups)} total  →  "
+          f"{len(train_groups)} train / {len(dev_groups)} dev", flush=True)
     print(f"  Val election groups (2026 {val_election_filter}): "
           f"{len(val_groups)}", flush=True)
 
-    # Train dataset: train_pool, visit only train election groups
-    train_dataset = TokenDataset(
-        pool=train_pool,
-        mask_prob=mask_prob,
-        max_seq_len=max_seq_len,
-        window_years=window_years,
-        result_fraction=result_fraction,
-        is_training=True,
-    )
-    train_dataset.election_groups = train_groups_only
-    train_dataset.num_elections = len(train_groups_only)
+    # Build datasets (simplified — no pool_size, no window)
+    train_dataset = TokenDataset(pool=pool, is_training=True)
+    train_dataset.election_groups = train_groups
+    train_dataset.num_elections = len(train_groups)
     train_dataset._shuffle_order()
 
-    # Dev dataset: train_pool, visit only dev election groups
-    dev_dataset = TokenDataset(
-        pool=train_pool,
-        mask_prob=mask_prob,
-        max_seq_len=max_seq_len,
-        window_years=window_years,
-        result_fraction=result_fraction,
-        is_training=False,
-    )
+    dev_dataset = TokenDataset(pool=pool, is_training=False)
     dev_dataset.election_groups = dev_groups
     dev_dataset.num_elections = len(dev_groups)
     dev_dataset._shuffle_order()
 
-    # Val dataset: full_pool, visit only 2026 muni election groups
-    val_dataset = TokenDataset(
-        pool=full_pool,
-        mask_prob=mask_prob,
-        max_seq_len=max_seq_len,
-        window_years=window_years,
-        result_fraction=result_fraction,
-        is_training=False,
-    )
+    val_dataset = TokenDataset(pool=pool, is_training=False)
     val_dataset.election_groups = val_groups
     val_dataset.num_elections = len(val_groups)
     val_dataset._shuffle_order()
@@ -196,7 +188,7 @@ def build_dataloaders(
         dev_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=eval_num_workers,
         collate_fn=collate_token_sets,
     )
 
@@ -204,8 +196,8 @@ def build_dataloaders(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=eval_num_workers,
         collate_fn=collate_token_sets,
     )
 
-    return train_dl, dev_dl, val_dl, train_pool, train_pool, full_pool
+    return train_dl, dev_dl, val_dl, pool, pool_cache

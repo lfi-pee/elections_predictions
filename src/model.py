@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from src.dataset import PoolCache
 
 
 class StringEmbedding(nn.Module):
@@ -24,8 +27,6 @@ class TokenEmbedding(nn.Module):
         self.value_proj = nn.Linear(1, 32)
 
         self.election_emb = StringEmbedding(num_buckets, self.d_identity)
-        # location_emb removed: raw (lat, lon) via geo_proj provides geographic
-        # signal without memorising rare commune codes
         self.candidate_emb = StringEmbedding(num_buckets, 3)
         nn.init.zeros_(self.candidate_emb.embedding.weight)
         self.party_emb = StringEmbedding(num_buckets, self.d_identity)
@@ -38,22 +39,20 @@ class TokenEmbedding(nn.Module):
         self.layer_norm = nn.LayerNorm(d_model)
 
     def _embed_identity(self, tokens_dict: dict[str, torch.Tensor]) -> torch.Tensor:
-        # Dates are relative to anchored election, typically in [-1.0, 0.0]
         date_tensor = tokens_dict["dates"].unsqueeze(-1)
         identity = self.date_proj(date_tensor)
         
-        identity += self.election_emb(tokens_dict["election_type"])
-        # location embedding removed — using continuous geo coords instead
+        identity = identity + self.election_emb(tokens_dict["election_type"])
         cand_emb_3d = self.candidate_emb(tokens_dict["candidate"])
-        identity += torch.nn.functional.pad(cand_emb_3d, (0, self.d_identity - 3))
-        identity += self.party_emb(tokens_dict["party"])
-        identity += self.metric_emb(tokens_dict["metric_type"])
+        identity = identity + torch.nn.functional.pad(cand_emb_3d, (0, self.d_identity - 3))
+        identity = identity + self.party_emb(tokens_dict["party"])
+        identity = identity + self.metric_emb(tokens_dict["metric_type"])
 
         # Geo: normalize lat/lon centered on France, then project
         lat = (tokens_dict["latitude"].unsqueeze(-1) - 46.5) / 5.0
         lon = (tokens_dict["longitude"].unsqueeze(-1) - 2.5) / 5.0
         geo_tensor = torch.cat([lat, lon], dim=-1)
-        identity += self.geo_proj(geo_tensor)
+        identity = identity + self.geo_proj(geo_tensor)
 
         return identity
 
@@ -88,109 +87,130 @@ class TokenEmbedding(nn.Module):
 
 
 class LearnableRouter(nn.Module):
-    """Top-K token router using identity-only embeddings.
+    """Full-pool token router using pre-computed key cache.
     
-    Scores each candidate context token against a pooled target-anchor query,
-    selects the top_k most relevant tokens, and multiplies their embeddings
-    by normalized relevance scores to create a differentiable gradient path.
-    
-    Masked (target) tokens are always force-included in the output.
+    Scores the ENTIRE token pool against a target-anchor query using
+    a pre-computed key cache, then selects the top_k most relevant tokens.
+    This eliminates the random-sampling bottleneck and enables the model
+    to discover relevant context across the full dataset, including
+    geographically distant "twin" locations.
     """
 
-    def __init__(self, d_model: int, d_router: int = 64, top_k: int = 32) -> None:
+    def __init__(self, d_model: int, d_router: int = 64, top_k: int = 256) -> None:
         super().__init__()
-        d_identity = d_model - 32  # match TokenEmbedding's identity dim
+        d_identity = d_model - 32
         self.d_router = d_router
         self.top_k = top_k
 
-        # Projections for scoring: identity embeddings → router space
         self.query_proj = nn.Linear(d_identity, d_router)
         self.key_proj = nn.Linear(d_identity, d_router)
+        self.temperature = nn.Parameter(torch.ones(1))
 
-    def forward(
+    @torch.no_grad()
+    def build_key_cache(
         self,
-        identity_embeddings: torch.Tensor,
-        masked_indices: torch.Tensor,
-        padding_mask: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Route tokens based on identity similarity to target tokens.
+        token_embedding: TokenEmbedding,
+        pool_cache: PoolCache,
+        chunk_size: int = 100_000,
+    ) -> None:
+        """Pre-compute L2-normalized key projections for the entire pool.
+        
+        Stores result as float16 on GPU in pool_cache.key_cache.
+        """
+        N = pool_cache.N
+        device = pool_cache.device
+        keys = torch.empty(N, self.d_router, dtype=torch.float16, device=device)
+
+        for start in range(0, N, chunk_size):
+            end = min(start + chunk_size, N)
+            # Build tokens_dict for the chunk (unsqueeze for batch dim)
+            chunk_tokens = {
+                "dates": pool_cache.dates[start:end].unsqueeze(0),
+                "election_type": pool_cache.election_type[start:end].unsqueeze(0),
+                "location": pool_cache.location[start:end].unsqueeze(0),
+                "candidate": pool_cache.candidate[start:end].unsqueeze(0),
+                "party": pool_cache.party[start:end].unsqueeze(0),
+                "metric_type": pool_cache.metric_type[start:end].unsqueeze(0),
+                "latitude": pool_cache.latitude[start:end].unsqueeze(0),
+                "longitude": pool_cache.longitude[start:end].unsqueeze(0),
+            }
+            identity = token_embedding._embed_identity(chunk_tokens).squeeze(0)  # (chunk, d_identity)
+            k = self.key_proj(identity)
+            k = F.normalize(k, dim=-1)
+            keys[start:end] = k.half()
+
+        pool_cache.key_cache = keys
+
+    def score_and_select(
+        self,
+        anchor_query: torch.Tensor,
+        pool_cache: PoolCache,
+        anchor_dates: torch.Tensor,
+        target_indices: torch.Tensor,
+        target_padding: torch.Tensor,
+        is_training: bool = True,
+        n_targets_per_sample: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Score full pool and select top-K context tokens.
         
         Args:
-            identity_embeddings: (B, N, d_identity) — identity-only embeddings for all candidate tokens
-            masked_indices: (B, N) — True for target tokens to predict
-            padding_mask: (B, N) — True for padding positions
+            anchor_query: (B, d_router) L2-normalized query
+            pool_cache: PoolCache with key_cache set
+            anchor_dates: (B,) absolute target dates
+            target_indices: (B, T) pool indices of target tokens
+            target_padding: (B, T) True for padding in target batch
+            is_training: if True, suppress val-only tokens
+            n_targets_per_sample: (B,) actual number of target tokens per sample
             
         Returns:
-            selected_indices: (B, K) — indices of selected tokens in the original sequence
-            scores: (B, K) — normalized relevance scores for selected tokens
-            router_stats: (B, N) — raw scores for all tokens (for logging)
+            context_indices: (B, K_ctx) selected context pool indices
+            context_scores: (B, K_ctx) raw cosine scores for selected context
         """
-        B, N, D = identity_embeddings.shape
-        device = identity_embeddings.device
+        B = anchor_query.shape[0]
+        device = anchor_query.device
 
-        # Step B: Build target anchor query by pooling masked token embeddings
-        # (B, N, d_router)
-        keys = self.key_proj(identity_embeddings)
-        queries_all = self.query_proj(identity_embeddings)
+        # Brute-force matmul against full key cache: (B, d) × (d, N) → (B, N)
+        raw_scores = torch.mm(
+            anchor_query.half(), pool_cache.key_cache.T
+        ).float()
+        raw_scores = raw_scores / self.temperature.clamp(min=0.01)
 
-        # Pool masked token embeddings into anchor query: (B, d_router)
-        mask_expanded = masked_indices.unsqueeze(-1).float()  # (B, N, 1)
-        mask_count = mask_expanded.sum(dim=1).clamp(min=1.0)  # (B, 1)
-        anchor_query = (queries_all * mask_expanded).sum(dim=1) / mask_count  # (B, d_router)
+        # Mask future tokens: pool is sorted by date, use searchsorted
+        cutoffs = torch.searchsorted(pool_cache.dates, anchor_dates)  # (B,)
+        for b in range(B):
+            raw_scores[b, cutoffs[b]:] = float("-inf")
 
-        # Step C: Score all tokens via dot-product
-        # (B, N) = (B, 1, d_router) @ (B, d_router, N) → (B, 1, N) → (B, N)
-        raw_scores = torch.bmm(anchor_query.unsqueeze(1), keys.transpose(1, 2)).squeeze(1)
-        raw_scores = raw_scores / (self.d_router ** 0.5)
+        # Mask val-only tokens during training
+        if is_training and pool_cache.val_only_mask is not None:
+            raw_scores[:, pool_cache.val_only_mask] = float("-inf")
 
-        # Mask out padding positions with -inf
-        if padding_mask is not None:
-            raw_scores = raw_scores.masked_fill(padding_mask, float("-inf"))
+        # Mask target tokens (they'll be force-included separately)
+        for b in range(B):
+            valid_t = target_indices[b][~target_padding[b]]
+            raw_scores[b, valid_t] = float("-inf")
 
-        # Force-include masked (target) tokens by giving them +inf score
-        # so they always appear in top-k
-        force_scores = raw_scores.clone()
-        force_scores = force_scores.masked_fill(masked_indices, float("inf"))
-
-        # Step D: Top-K selection
-        # K = min(top_k, number of non-padding tokens)
-        if padding_mask is not None:
-            valid_counts = (~padding_mask).sum(dim=1)  # (B,)
-            actual_k = min(self.top_k, int(valid_counts.min().item()))
+        # Select top-K context tokens
+        # Budget: top_k minus the number of target tokens per sample
+        # Use the minimum budget across the batch for uniform tensor shape
+        if n_targets_per_sample is not None:
+            max_targets = int(n_targets_per_sample.max().item())
         else:
-            actual_k = min(self.top_k, N)
+            max_targets = int((~target_padding).sum(dim=1).max().item())
         
-        # Ensure we have at least as many slots as masked tokens
-        n_masked_max = int(masked_indices.sum(dim=1).max().item())
-        actual_k = max(actual_k, n_masked_max)
-        actual_k = min(actual_k, N)
+        k_ctx = max(1, self.top_k - max_targets)
+        
+        _, context_indices = torch.topk(raw_scores, k_ctx, dim=1)  # (B, k_ctx)
+        context_scores = torch.gather(raw_scores, 1, context_indices)  # (B, k_ctx)
 
-        _, topk_indices = torch.topk(force_scores, actual_k, dim=1)  # (B, K)
-
-        # Step E: Compute normalized scores for gradient flow
-        # Gather the raw (non-forced) scores for the selected tokens
-        selected_raw_scores = torch.gather(raw_scores, 1, topk_indices)  # (B, K)
-        
-        # For masked positions in the selection, use a neutral score (0 pre-softmax)
-        selected_masked = torch.gather(masked_indices, 1, topk_indices)  # (B, K)
-        selected_raw_scores = selected_raw_scores.masked_fill(selected_masked, 0.0)
-        
-        # Softmax over context tokens for gradient weighting  
-        normalized_scores = torch.softmax(selected_raw_scores, dim=1)  # (B, K)
-        
-        # Masked tokens get score 1.0 (unweighted pass-through)
-        normalized_scores = torch.where(selected_masked, torch.ones_like(normalized_scores), normalized_scores)
-
-        return topk_indices, normalized_scores, raw_scores
+        return context_indices, context_scores
 
 
 class UniversalMaskedSetTransformer(nn.Module):
-    """
-    Universal Masked Set Transformer (UMST) with Learnable Token Router.
+    """Universal Masked Set Transformer with Full-Pool Router.
     
-    Takes an arbitrary set of DataTokens (candidate pool), routes them through
-    a learned scorer to select the top-K most relevant context tokens, then
-    predicts the missing values using global set self-attention on the selected subset.
+    Scores the entire token pool (16M+) using a pre-computed key cache
+    to find the most relevant context tokens, then predicts masked values
+    using self-attention on the selected subset.
     """
 
     def __init__(
@@ -199,7 +219,7 @@ class UniversalMaskedSetTransformer(nn.Module):
         nhead: int = 4,
         num_layers: int = 4,
         d_router: int = 64,
-        top_k: int = 32,
+        top_k: int = 256,
         router_warmup_steps: int = 500,
     ) -> None:
         super().__init__()
@@ -223,120 +243,124 @@ class UniversalMaskedSetTransformer(nn.Module):
     def is_router_warming_up(self) -> bool:
         return self._global_step < self.router_warmup_steps
 
-    def _gather_tokens_dict(
-        self,
-        tokens_dict: dict[str, torch.Tensor],
-        indices: torch.Tensor,
-    ) -> dict[str, torch.Tensor]:
-        """Gather a subset of tokens_dict using indices (B, K)."""
-        gathered = {}
-        for k, v in tokens_dict.items():
-            if v.dim() == 2:  # (B, N)
-                gathered[k] = torch.gather(v, 1, indices)
-            else:
-                gathered[k] = v
-        return gathered
+    @torch.no_grad()
+    def rebuild_key_cache(self, pool_cache: PoolCache) -> None:
+        """Rebuild the key cache from current model weights."""
+        self.router.build_key_cache(self.token_embedding, pool_cache)
 
     def forward(
         self,
-        tokens_dict: dict[str, torch.Tensor],
-        masked_indices: torch.Tensor,
-        padding_mask: torch.Tensor | None = None,
+        anchor_dates: torch.Tensor,
+        target_indices: torch.Tensor,
+        target_masked: torch.Tensor,
+        target_padding: torch.Tensor,
+        pool_cache: PoolCache,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        """Forward pass with routing.
+        """Forward pass with full-pool routing.
         
+        Args:
+            anchor_dates: (B,) absolute date of each target election
+            target_indices: (B, T) pool indices for target tokens
+            target_masked: (B, T) True for masked target positions
+            target_padding: (B, T) True for padding positions
+            pool_cache: PoolCache with pre-computed key_cache
+            
         Returns:
-            predictions: (B, K, 1) — value predictions for selected tokens
-            route_info: dict with:
-                - 'selected_indices': (B, K) indices into original sequence
-                - 'selected_masked': (B, K) mask for the selected subset
-                - 'selected_tokens': gathered tokens_dict for the selected subset
-                - 'router_scores': (B, N) raw router scores for all tokens
-                - 'selected_scores': (B, K) normalized scores for selected tokens
+            predictions: (B, K, 1) value predictions for all selected tokens
+            route_info: dict with routing metadata
         """
-        B, N = masked_indices.shape
+        B, T = target_indices.shape
+        device = target_indices.device
+        n_targets = (~target_padding).sum(dim=1)  # (B,) actual target count
 
-        # Step A: Compute identity-only embeddings for routing
-        identity_emb = self.token_embedding._embed_identity(tokens_dict)  # (B, N, d_identity)
+        # --- Step 1: Compute anchor query from target identity embeddings ---
+        # Use ABSOLUTE dates for routing (matches key cache)
+        target_tokens_abs = pool_cache.gather_tokens(target_indices)
+        target_identity = self.token_embedding._embed_identity(target_tokens_abs)  # (B, T, d_identity)
+        
+        # Pool masked-target embeddings into anchor query
+        queries = self.router.query_proj(target_identity)  # (B, T, d_router)
+        mask_for_query = (target_masked & ~target_padding).unsqueeze(-1).float()
+        mask_count = mask_for_query.sum(dim=1).clamp(min=1.0)
+        anchor_query = (queries * mask_for_query).sum(dim=1) / mask_count  # (B, d_router)
+        anchor_query = F.normalize(anchor_query, dim=-1)
 
-        # During warm-up: use random selection instead of learned routing
+        # --- Step 2: Select context from the full pool ---
         if self.training and self.is_router_warming_up:
-            # Random selection matching router's top_k, but always include masked tokens
-            top_k = self.router.top_k
-            device = masked_indices.device
-            
-            all_indices = []
+            # Warm-up: random context selection
+            k_ctx = max(1, self.router.top_k - int(n_targets.max().item()))
+            N = pool_cache.N
+            context_indices_list = []
             for b in range(B):
-                if padding_mask is not None:
-                    valid = (~padding_mask[b]).nonzero(as_tuple=True)[0]
+                cutoff = int(torch.searchsorted(pool_cache.dates, anchor_dates[b]).item())
+                cutoff = max(cutoff, 1)  # At least 1 token available
+                if cutoff < k_ctx:
+                    # Not enough past tokens: sample with replacement
+                    perm = torch.randint(0, cutoff, (k_ctx,), device=device)
                 else:
-                    valid = torch.arange(N, device=device)
-                
-                masked_pos = masked_indices[b].nonzero(as_tuple=True)[0]
-                n_masked = len(masked_pos)
-                
-                # Context slots (non-masked valid tokens)
-                context_mask = torch.ones(len(valid), dtype=torch.bool, device=device)
-                for mp in masked_pos:
-                    context_mask[valid == mp] = False
-                context_pool = valid[context_mask]
-                
-                n_context = min(top_k - n_masked, len(context_pool))
-                if n_context > 0:
-                    perm = torch.randperm(len(context_pool), device=device)[:n_context]
-                    context_selected = context_pool[perm]
-                else:
-                    context_selected = torch.tensor([], dtype=torch.long, device=device)
-                
-                selected = torch.cat([masked_pos, context_selected])
-                # Pad if needed
-                if len(selected) < top_k:
-                    pad_len = top_k - len(selected)
-                    selected = torch.cat([selected, selected[:pad_len].clone()])
-                selected = selected[:top_k]
-                all_indices.append(selected)
-            
-            selected_indices = torch.stack(all_indices)  # (B, K)
-            normalized_scores = torch.ones(B, top_k, device=device)
-            raw_scores = torch.zeros(B, N, device=device)
+                    perm = torch.randperm(cutoff, device=device)[:k_ctx]
+                context_indices_list.append(perm)
+            context_indices = torch.stack(context_indices_list)  # (B, k_ctx)
+            context_scores = torch.zeros(B, k_ctx, device=device)
+            raw_full_scores = torch.zeros(B, N, device=device)
         else:
-            # Learned routing
-            selected_indices, normalized_scores, raw_scores = self.router(
-                identity_emb, masked_indices, padding_mask
+            context_indices, context_scores = self.router.score_and_select(
+                anchor_query, pool_cache, anchor_dates,
+                target_indices, target_padding,
+                is_training=self.training,
+                n_targets_per_sample=n_targets,
             )
+            raw_full_scores = None  # We don't store full (B, N) for memory
 
-        K = selected_indices.shape[1]
+        K_ctx = context_indices.shape[1]
 
-        # Gather the selected subset of tokens_dict
-        selected_tokens = self._gather_tokens_dict(tokens_dict, selected_indices)
-        selected_masked = torch.gather(masked_indices, 1, selected_indices)  # (B, K)
+        # --- Step 3: Combine targets + context ---
+        selected_pool_indices = torch.cat([target_indices, context_indices], dim=1)  # (B, T + K_ctx)
+        selected_masked = torch.cat([
+            target_masked,
+            torch.zeros(B, K_ctx, dtype=torch.bool, device=device),
+        ], dim=1)
+        selected_padding = torch.cat([
+            target_padding,
+            torch.zeros(B, K_ctx, dtype=torch.bool, device=device),
+        ], dim=1)
 
-        # Build padding mask for selected tokens (should be all-valid after routing)
-        if padding_mask is not None:
-            selected_padding = torch.gather(padding_mask, 1, selected_indices)
-        else:
-            selected_padding = None
+        # --- Step 4: Gather tokens and make dates RELATIVE for transformer ---
+        selected_tokens = pool_cache.gather_tokens(selected_pool_indices)
+        selected_tokens["dates"] = selected_tokens["dates"] - anchor_dates.unsqueeze(1)
 
-        # Full embedding (identity + value) on the selected subset
-        x = self.token_embedding(selected_tokens, selected_masked)  # (B, K, d_model)
+        # --- Step 5: Full embedding (identity + value with masking) ---
+        x = self.token_embedding(selected_tokens, selected_masked)  # (B, T+K_ctx, d_model)
 
-        # Step E: Apply relevance score weighting for gradient flow
-        # In a generic set transformer, multiplying by normalized scores suppresses context tokens too much.
-        # We use a Straight-Through Estimator (STE) trick to pass gradients to the normalized_scores
-        # without changing the magnitude of x in the forward pass.
+        # --- Step 6: Multiplicative STE for router gradient flow ---
         if not self.is_router_warming_up:
-            x = x + (normalized_scores.unsqueeze(-1) - normalized_scores.detach().unsqueeze(-1))
+            # Re-score the selected context tokens for gradient flow
+            # (query is fresh → gradient flows through query_proj)
+            sel_identity = self.token_embedding._embed_identity(selected_tokens)
+            sel_keys = self.router.key_proj(sel_identity)  # (B, T+K_ctx, d_router)
+            sel_keys = F.normalize(sel_keys, dim=-1)
+            anchor_q_expanded = anchor_query.unsqueeze(1)  # (B, 1, d_router)
+            live_scores = (anchor_q_expanded * sel_keys).sum(dim=-1)  # (B, T+K_ctx)
+            live_scores = live_scores / self.router.temperature.clamp(min=0.01)
 
-        # Main transformer on the K selected tokens
+            # Softmax over context tokens only
+            ctx_logits = live_scores.masked_fill(selected_masked | selected_padding, float('-inf'))
+            ctx_probs = torch.softmax(ctx_logits, dim=1)
+            n_ctx = (~selected_masked & ~selected_padding).sum(dim=1, keepdim=True).clamp(min=1).float()
+            ctx_scale = (ctx_probs * n_ctx).clamp(min=0.1)
+            scale = torch.where(selected_masked | selected_padding, torch.ones_like(ctx_scale), ctx_scale)
+            x = x * scale.unsqueeze(-1)
+
+        # --- Step 7: Transformer ---
         out = self.transformer(x, src_key_padding_mask=selected_padding)
-        predictions = self.value_head(out)  # (B, K, 1)
+        predictions = self.value_head(out)  # (B, T+K_ctx, 1)
 
         route_info = {
-            "selected_indices": selected_indices,
+            "selected_indices": selected_pool_indices,
             "selected_masked": selected_masked,
             "selected_tokens": selected_tokens,
-            "router_scores": raw_scores,
-            "selected_scores": normalized_scores,
+            "selected_scores": context_scores,
+            "selected_padding": selected_padding,
         }
 
         return predictions, route_info

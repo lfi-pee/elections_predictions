@@ -42,9 +42,10 @@ def compute_router_entropy_loss(
 ) -> torch.Tensor:
     """Penalize router entropy deviation from a target band.
     
-    Now computed over the selected context tokens' live scores.
+    Computed over the context (non-masked, non-padded) positions' live scores.
+    selected_scores, selected_masked, selected_padding all share shape (B, T+K_ctx).
     """
-    B, K = selected_masked.shape
+    B = selected_scores.shape[0]
     device = selected_scores.device
 
     invalid = selected_masked | selected_padding
@@ -55,7 +56,7 @@ def compute_router_entropy_loss(
         n_valid = valid.sum()
         if n_valid < 2:
             continue
-        scores_b = selected_scores[b][valid]
+        scores_b = selected_scores[b][valid].clamp(-30.0, 30.0)
         probs = torch.softmax(scores_b, dim=0)
         entropy = -(probs * torch.log(probs + 1e-10)).sum()
         max_entropy = torch.log(n_valid.float())
@@ -109,10 +110,12 @@ def compute_split_metrics(
             t_sum = g_targets.sum()
             if t_sum > 0:
                 g_targets = g_targets / t_sum
-                log_probs = torch.log_softmax(g_logits, dim=0)
-                g_loss = g_targets * (torch.log(g_targets + 1e-9) - log_probs)
+                g_logits_clamped = g_logits.clamp(-30.0, 30.0)
+                log_probs = torch.log_softmax(g_logits_clamped, dim=0)
+                g_targets_clamped = g_targets.clamp(min=1e-6)
+                g_loss = g_targets_clamped * (torch.log(g_targets_clamped) - log_probs)
                 
-                pred_probs = torch.softmax(g_logits, dim=0)
+                pred_probs = torch.softmax(g_logits_clamped, dim=0)
                 g_mae = torch.abs(g_targets - pred_probs)
                 g_acc = torch.full_like(g_targets, 1.0 if g_targets.argmax() == pred_probs.argmax() else 0.0)
                 
@@ -230,16 +233,22 @@ def compute_election_loss(
             t_sum = g_targets.sum()
             if t_sum > 0:
                 g_targets = g_targets / t_sum
-                log_probs = torch.log_softmax(g_logits, dim=0)
+                # Clamp logits to prevent overflow in log_softmax
+                g_logits_clamped = g_logits.clamp(-30.0, 30.0)
+                log_probs = torch.log_softmax(g_logits_clamped, dim=0)
                 
                 g_masked = sample_masked[mask_g]
                 tgt_masked = g_targets[g_masked]
                 pred_masked = log_probs[g_masked]
                 
-                loss_g = (tgt_masked * (torch.log(tgt_masked + 1e-9) - pred_masked)).sum()
+                # Clamp targets away from 0 to avoid log(0) explosion
+                tgt_clamped = tgt_masked.clamp(min=1e-6)
+                loss_g = (tgt_clamped * (torch.log(tgt_clamped) - pred_masked)).sum()
+                # Clamp per-group loss to prevent single outlier from destabilizing
+                loss_g = loss_g.clamp(max=10.0)
                 total_loss += loss_g
                 
-                pred_probs = torch.softmax(g_logits, dim=0)
+                pred_probs = torch.softmax(g_logits_clamped, dim=0)
                 mae_g = torch.abs(g_targets[g_masked] - pred_probs[g_masked]).mean().item()
                 acc_g = 1.0 if g_targets.argmax() == pred_probs.argmax() else 0.0
                 
@@ -316,6 +325,7 @@ def train_epoch(
     entropy_lambda: float = 0.05,
     target_entropy: float = 0.4,
     key_cache_rebuild_interval: int = 100,
+    run_name: str = ".",
 ) -> float:
     model.train()
     total_loss = 0.0
@@ -364,6 +374,13 @@ def train_epoch(
             )
             loss = loss + entropy_lambda * entropy_loss
             entropy_loss_val = entropy_loss.item()
+
+        if not torch.isfinite(loss):
+            print(f"  WARNING: Non-finite loss at step {model._global_step}, skipping batch", flush=True)
+            optimizer.zero_grad()
+            model._global_step += 1
+            num_batches += 1
+            continue
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -464,7 +481,7 @@ def train_epoch(
             print_val_count = 0
 
         if num_batches % 1000 == 0:
-            ckpt_path = f"checkpoint_epoch{epoch}_step{num_batches}.pth"
+            ckpt_path = f"{run_name}/checkpoint_epoch{epoch}_step{num_batches}.pth"
             print(f"Saving checkpoint to {ckpt_path}...", flush=True)
             ckpt_data = {
                 "model": model.state_dict(),
@@ -561,7 +578,7 @@ def train(
     model.to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=learning_rate,
-        fused=torch.cuda.is_available(), weight_decay=0.01,
+        fused=torch.cuda.is_available(), weight_decay=0.1,
     )
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
@@ -580,8 +597,10 @@ def train(
     best_loss = float("inf")
     patience_counter = 0
 
+    import os
     from datetime import datetime
     run_name = f"runs/elections_experiment_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    os.makedirs(run_name, exist_ok=True)
     writer = SummaryWriter(log_dir=run_name)
 
     for epoch in range(max_epochs):
@@ -589,7 +608,7 @@ def train(
         train_loss = train_epoch(
             model, train_dataloader, optimizer, dev_dataloader, val_dataloader,
             device, pool_cache, writer, epoch,
-            pool=pool, scheduler=scheduler, ema=ema,
+            pool=pool, scheduler=scheduler, ema=ema, run_name=run_name,
         )
 
         # Evaluate using EMA weights
@@ -603,8 +622,9 @@ def train(
         if dev_loss < best_loss - 1e-4:
             best_loss = dev_loss
             patience_counter = 0
-            print(f"New best dev loss: {best_loss:.4f}. Saving EMA checkpoint...", flush=True)
-            torch.save(ema.shadow, "best_model.pth")
+            best_path = f"{run_name}/best_model.pth"
+            print(f"New best dev loss: {best_loss:.4f}. Saving EMA checkpoint to {best_path}...", flush=True)
+            torch.save(ema.shadow, best_path)
         else:
             patience_counter += 1
             print(f"No improvement in dev loss. Patience: {patience_counter}/{patience}", flush=True)
@@ -626,14 +646,14 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     model = UniversalMaskedSetTransformer(
-        d_model=128, nhead=4, num_layers=4,
-        d_router=64, top_k=256, router_warmup_steps=500,
+        d_model=48, nhead=4, num_layers=2,
+        d_router=16, top_k=256, router_warmup_steps=500,
     )
 
     print("Building dataloaders...")
     train_dl, dev_dl, val_dl, pool, pool_cache = build_dataloaders(
         data_dir=data_dir, batch_size=32,
-        num_workers=32, eval_num_workers=8,
+        num_workers=4, eval_num_workers=2,
         device=device,
     )
 

@@ -67,8 +67,8 @@ def evaluate_future_election(
 
     print("Loading model...")
     model = UniversalMaskedSetTransformer(
-        d_model=128, nhead=4, num_layers=4,
-        d_router=64, top_k=256, router_warmup_steps=0,
+        d_model=48, nhead=4, num_layers=2,
+        d_router=16, top_k=256, router_warmup_steps=0,
     )
     
     # Handle both old and new checkpoint formats

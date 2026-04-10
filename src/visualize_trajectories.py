@@ -1,6 +1,8 @@
 import os
+import re
 import random
 import hashlib
+import unicodedata
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,172 +17,177 @@ from src.dataset import hash_str_array, PoolCache
 from src.load_elections import parse_election_id
 from src.model import UniversalMaskedSetTransformer
 
+
+def _normalize_name(s: str) -> str:
+    """Normalize candidate name the same way load_elections does."""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 def get_hash(name_or_hash):
     if isinstance(name_or_hash, str):
-        return hash_str_array(np.array([name_or_hash.upper()]))[0]
+        normalized = _normalize_name(name_or_hash)
+        hashed, _ = hash_str_array(np.array([normalized]))
+        return hashed[0]
     return name_or_hash
 
 def get_commune_weights(data_dir: Path):
-    print("Loading commune weights from general_results.parquet...")
+    """Load inscrits weights keyed by (id_election, location_hash).
+
+    Now uses BV-level location keys (code_commune_code_bv) matching the
+    token pool's location format.
+    """
+    print("Loading BV weights from general_results.parquet...")
     df = pd.read_parquet(
         data_dir / "elections" / "agregees" / "general_results.parquet",
-        columns=["id_election", "code_commune", "inscrits"]
+        columns=["id_election", "code_commune", "code_bv", "inscrits"]
     )
+    df["location"] = df["code_commune"] + "_" + df["code_bv"]
     def hash_loc(s):
         return int(hashlib.md5(str(s).encode("utf-8")).hexdigest(), 16) % 50000
-    
-    uniques = df["code_commune"].unique()
+
+    uniques = df["location"].unique()
     hash_map = {x: hash_loc(x) for x in uniques}
-    df["loc_hash"] = df["code_commune"].map(hash_map)
+    df["loc_hash"] = df["location"].map(hash_map)
     return df.groupby(["id_election", "loc_hash"])["inscrits"].sum().to_dict()
 
 plt.style.use('dark_background')
 sns.set_palette("husl")
 
 def predict_trajectory(pool, model, target_election_id, candidate_name_or_hash, device, t_months, weights_dict, pool_cache=None, exclude_polls=False):
+    """Predict vote share trajectory by running inference per-location.
+
+    Each location is a separate forward pass (B=1), exactly matching training
+    where each sample is one election group (election_type, location, date).
+    This ensures the router has full context budget (~240 tokens) instead of
+    being starved by packing all locations into one pass.
+    """
     target_date, target_type = parse_election_id(target_election_id)
-    hashed_target_type = hash_str_array(np.array([target_type]))[0]
+    hashed_target_type, _ = hash_str_array(np.array([target_type]))
+    hashed_target_type = hashed_target_type[0]
     candidate_hash = get_hash(candidate_name_or_hash)
-    
-    target_tokens_idx = np.where(
-        (np.isclose(pool.dates, target_date, atol=1e-3)) &
+
+    # Find all result tokens for this election across all locations
+    all_results_idx = np.where(
+        (np.isclose(pool.reference_dates, target_date, atol=1e-1)) &
         (pool.election_type == hashed_target_type) &
-        (pool.candidate == candidate_hash) &
         (pool.is_result == True)
     )[0]
-    
-    if len(target_tokens_idx) == 0:
+
+    if len(all_results_idx) == 0:
         return {"france_mean": None}
-        
-    all_election_results_idx = np.where(
-        (np.isclose(pool.dates, target_date, atol=1e-1)) & 
-        (pool.election_type == hashed_target_type) &
-        (pool.is_result == True)
-    )[0]
-    
-    locs = pool.location[all_election_results_idx]
+
+    locs = pool.location[all_results_idx]
     unique_locs = np.unique(locs)
-    
+
     np.random.seed(42)
     random.seed(42)
     sample_locs = np.random.choice(unique_locs, min(50, len(unique_locs)), replace=False)
-    
-    sample_targets = all_election_results_idx[np.isin(locs, sample_locs)]
-    
+
+    # Build per-location election groups (matching training structure exactly)
+    loc_groups = []
+    for loc in sample_locs:
+        loc_mask = (locs == loc)
+        loc_indices = all_results_idx[loc_mask]
+        cand_in_loc = (pool.candidate[loc_indices] == candidate_hash)
+        if not cand_in_loc.any():
+            continue
+        cand_pos = int(np.where(cand_in_loc)[0][0])
+        loc_groups.append({
+            "loc": int(loc),
+            "indices": loc_indices,
+            "cand_pos": cand_pos,
+            "n_candidates": len(loc_indices),
+            "true_value": float(pool.value[loc_indices[cand_pos]]),
+        })
+
+    if len(loc_groups) == 0:
+        return {"france_mean": None}
+
     preds_france_mean = []
     preds_std = []
-    preds_matrix = []
-    
+    preds_matrix = []  # (n_timesteps, n_locs)
+
     for t in t_months:
         anchor_date = target_date + t / 12.0
-        
-        # Build target batch for the model's new API
-        anchor_dates_t = torch.tensor([anchor_date], dtype=torch.float32).to(device)
-        target_indices_t = torch.from_numpy(sample_targets).unsqueeze(0).to(device)  # (1, T)
-        target_masked_t = torch.ones(1, len(sample_targets), dtype=torch.bool).to(device)
-        target_padding_t = torch.zeros(1, len(sample_targets), dtype=torch.bool).to(device)
-        
-        with torch.no_grad():
-            outputs, route_info = model(
-                anchor_dates_t, target_indices_t, target_masked_t, target_padding_t, pool_cache
-            )
-            logits = outputs.squeeze(0).squeeze(-1)
-            
-            sel_masked = route_info["selected_masked"].squeeze(0)
-            sel_locs = route_info["selected_tokens"]["location"].squeeze(0)
-            
-            res_logits = logits[sel_masked]
-            res_locs = sel_locs[sel_masked]
-            unique_res_locs = torch.unique(res_locs)
-            
-            candidate_scores = {}
-            for l in unique_res_locs:
-                loc_mask = (res_locs == l)
-                loc_logits = res_logits[loc_mask]
-                loc_probs = torch.softmax(loc_logits, dim=0) * 100.0
-                
-                commune_targets_idx = sample_targets[np.isin(pool.location[sample_targets], l.cpu().item())]
-                commune_is_my_cand = (pool.candidate[commune_targets_idx] == candidate_hash)
-                
-                if commune_is_my_cand.any():
-                    score = loc_probs[np.where(commune_is_my_cand)[0][0]]
-                    candidate_scores[l.item()] = score.item()
-            
-            step_preds = []
-            step_weights = []
-            for loc in sample_locs:
-                if loc in candidate_scores:
-                    step_preds.append(candidate_scores[loc])
-                    w = weights_dict.get((target_election_id, loc), 1.0)
-                    step_weights.append(w)
-                else:
-                    step_preds.append(np.nan)
-                    step_weights.append(0.0)
-                    
-            preds_matrix.append(step_preds)
-            
-            valid = ~np.isnan(step_preds)
-            if valid.any():
-                v_preds = np.array(step_preds)[valid]
-                v_weights = np.array(step_weights)[valid]
-                wm = np.average(v_preds, weights=v_weights) if v_weights.sum() > 0 else v_preds.mean()
-                preds_france_mean.append(wm)
-                preds_std.append(v_preds.std())
-            else:
-                preds_france_mean.append(0.0)
-                preds_std.append(0.0)
-                
-    true_scores = []
-    true_weights = []
-    for loc in sample_locs:
-        idx = sample_targets[(pool.location[sample_targets] == loc) & (pool.candidate[sample_targets] == candidate_hash)]
-        if len(idx) > 0:
-            true_scores.append(pool.value[idx[0]])
-            w = weights_dict.get((target_election_id, loc), 1.0)
-            true_weights.append(w)
-        else:
-            true_scores.append(np.nan)
-            true_weights.append(0.0)
-            
-    v = ~np.isnan(true_scores)
-    if v.any():
-        v_true = np.array(true_scores)[v]
-        v_w = np.array(true_weights)[v]
-        true_france = np.average(v_true, weights=v_w) if v_w.sum() > 0 else v_true.mean()
-    else:
-        true_france = 0.0
-        
+        step_preds = []
+        step_weights = []
+
+        # One forward pass per location — matches training exactly
+        for lg in loc_groups:
+            indices = lg["indices"]
+            n_tok = lg["n_candidates"]
+
+            anchor_dates_t = torch.tensor([anchor_date], dtype=torch.float32).to(device)
+            target_indices_t = torch.from_numpy(indices).unsqueeze(0).long().to(device)
+            target_masked_t = torch.ones(1, n_tok, dtype=torch.bool).to(device)
+            target_padding_t = torch.zeros(1, n_tok, dtype=torch.bool).to(device)
+
+            with torch.no_grad():
+                outputs, route_info = model(
+                    anchor_dates_t, target_indices_t, target_masked_t, target_padding_t, pool_cache
+                )
+                # Targets are the first n_tok positions in the selected sequence
+                target_logits = outputs[0, :n_tok, 0]
+                probs = torch.softmax(target_logits, dim=0) * 100.0
+                pred_share = probs[lg["cand_pos"]].item()
+
+            step_preds.append(pred_share)
+            w = weights_dict.get((target_election_id, lg["loc"]), 1.0)
+            step_weights.append(w)
+
+        preds_matrix.append(step_preds)
+
+        v_preds = np.array(step_preds)
+        v_weights = np.array(step_weights)
+        wm = np.average(v_preds, weights=v_weights) if v_weights.sum() > 0 else v_preds.mean()
+        preds_france_mean.append(wm)
+        preds_std.append(v_preds.std())
+
+    # True values (no NaNs — locations without the candidate were already filtered)
+    true_scores = [lg["true_value"] for lg in loc_groups]
+    true_weights = [weights_dict.get((target_election_id, lg["loc"]), 1.0) for lg in loc_groups]
+    v_true = np.array(true_scores)
+    v_w = np.array(true_weights)
+    true_france = np.average(v_true, weights=v_w) if v_w.sum() > 0 else v_true.mean()
+
     return {
         "france_mean": np.array(preds_france_mean),
         "uncertainty": np.array(preds_std),
         "france_true": true_france,
         "commune_preds": np.array(preds_matrix),
-        "commune_trues": np.array(true_scores)
+        "commune_trues": np.array(true_scores),
     }
 
 def get_actual_polls(pool, target_election_id, candidate_name_or_hash):
     target_date, target_type = parse_election_id(target_election_id)
-    hashed_target_type = hash_str_array(np.array([target_type]))[0]
+    hashed_target_type, _ = hash_str_array(np.array([target_type]))
+    hashed_target_type = hashed_target_type[0]
     candidate_hash = get_hash(candidate_name_or_hash)
     poll_idx = np.where(
         (pool.candidate == candidate_hash) & 
         (~pool.is_result) & 
         (pool.election_type == hashed_target_type) & 
-        (pool.dates >= target_date - 1.0) &
-        (pool.dates <= target_date)
+        (pool.reference_dates >= target_date - 1.0) &
+        (pool.reference_dates <= target_date)
     )[0]
-    poll_times = (pool.dates[poll_idx] - target_date) * 12.0
+    poll_times = (pool.reference_dates[poll_idx] - target_date) * 12.0
     poll_values = pool.value[poll_idx]
     sort_idx = np.argsort(poll_times)
     return poll_times[sort_idx], poll_values[sort_idx]
 
 def get_party_prior_score(pool, target_election_id, candidate_name_or_hash, weights_dict):
     target_date, target_type = parse_election_id(target_election_id)
-    hashed_target_type = hash_str_array(np.array([target_type]))[0]
+    hashed_target_type, _ = hash_str_array(np.array([target_type]))
+    hashed_target_type = hashed_target_type[0]
     candidate_hash = get_hash(candidate_name_or_hash)
     
     target_tokens_idx = np.where(
-        (np.isclose(pool.dates, target_date, atol=1e-3)) &
+        (np.isclose(pool.reference_dates, target_date, atol=1e-3)) &
         (pool.election_type == hashed_target_type) &
         (pool.candidate == candidate_hash) &
         (pool.is_result == True)
@@ -192,7 +199,7 @@ def get_party_prior_score(pool, target_election_id, candidate_name_or_hash, weig
     past_results_idx = np.where(
         (pool.party == party_hash) &
         (pool.is_result == True) &
-        (pool.dates < target_date)
+        (pool.reference_dates < target_date)
     )[0]
     
     if len(past_results_idx) > 0:
@@ -255,11 +262,12 @@ def plot_1a_ghost_candidate(pool, model, device, candidate, election_id, split_l
 
 def plot_1a_ghost_error_distribution(pool, model, device, election_id, split_label, weights_dict, save_dir=".", pool_cache=None):
     target_date, target_type = parse_election_id(election_id)
-    hashed_target_type = hash_str_array(np.array([target_type]))[0]
+    hashed_target_type, _ = hash_str_array(np.array([target_type]))
+    hashed_target_type = hashed_target_type[0]
     year = election_id.split("_")[0]
     
     results_idx = np.where(
-        (np.isclose(pool.dates, target_date, atol=1e-3)) &
+        (np.isclose(pool.reference_dates, target_date, atol=1e-3)) &
         (pool.election_type == hashed_target_type) &
         (pool.is_result == True)
     )[0]
@@ -268,12 +276,12 @@ def plot_1a_ghost_error_distribution(pool, model, device, election_id, split_lab
     polls_idx = np.where(
         (pool.election_type == hashed_target_type) &
         (pool.is_result == False) &
-        (pool.dates <= target_date)
+        (pool.reference_dates <= target_date)
     )[0]
     polled_candidates = np.unique(pool.candidate[polls_idx])
     ghost_candidates = np.setdiff1d(unique_candidates, polled_candidates)
     
-    past_results_idx = np.where((pool.is_result == True) & (pool.dates < target_date))[0]
+    past_results_idx = np.where((pool.is_result == True) & (pool.reference_dates < target_date))[0]
     parties_with_priors = np.unique(pool.party[past_results_idx])
     cand_to_party = {c: p for c, p in zip(pool.candidate[results_idx], pool.party[results_idx])}
     
@@ -403,14 +411,15 @@ SPLIT_CONFIGS = {
 
 def _find_val_ghost_candidate(pool, election_id):
     target_date, target_type = parse_election_id(election_id)
-    hashed_target_type = hash_str_array(np.array([target_type]))[0]
-    results_idx = np.where((np.isclose(pool.dates, target_date, atol=1e-3)) & (pool.election_type == hashed_target_type) & (pool.is_result == True))[0]
+    hashed_target_type, _ = hash_str_array(np.array([target_type]))
+    hashed_target_type = hashed_target_type[0]
+    results_idx = np.where((np.isclose(pool.reference_dates, target_date, atol=1e-3)) & (pool.election_type == hashed_target_type) & (pool.is_result == True))[0]
     if len(results_idx) == 0: return None
     unique_cands = np.unique(pool.candidate[results_idx])
-    polls_idx = np.where((pool.election_type == hashed_target_type) & (~pool.is_result) & (pool.dates <= target_date))[0]
+    polls_idx = np.where((pool.election_type == hashed_target_type) & (~pool.is_result) & (pool.reference_dates <= target_date))[0]
     polled = np.unique(pool.candidate[polls_idx])
     ghost = np.setdiff1d(unique_cands, polled)
-    past_idx = np.where((pool.is_result == True) & (pool.dates < target_date))[0]
+    past_idx = np.where((pool.is_result == True) & (pool.reference_dates < target_date))[0]
     parties_with_priors = np.unique(pool.party[past_idx])
     cand_to_party = {c: p for c, p in zip(pool.candidate[results_idx], pool.party[results_idx])}
     valid = [c for c in ghost if cand_to_party.get(c) in parties_with_priors]
@@ -428,9 +437,10 @@ if __name__ == "__main__":
     weights_dict = get_commune_weights(data_dir)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = UniversalMaskedSetTransformer(d_model=128, nhead=4, num_layers=4, d_router=64, top_k=256, router_warmup_steps=0)
+    model = UniversalMaskedSetTransformer(d_model=48, nhead=4, num_layers=2, d_router=16, top_k=256, router_warmup_steps=0)
     
-    ckpt_files = glob.glob("checkpoint_epoch*_step*.pth")
+    ckpt_files = glob.glob("runs/*/*.pth")
+    if not ckpt_files: ckpt_files = glob.glob("checkpoint_epoch*_step*.pth")
     if not ckpt_files: ckpt_files = glob.glob("best_model.pth")
     if ckpt_files:
         latest_ckpt = max(ckpt_files, key=os.path.getmtime)

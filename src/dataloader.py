@@ -19,7 +19,11 @@ def _resolve_poll_candidates(election_df: pd.DataFrame, poll_df: pd.DataFrame) -
     For municipales, election result nuance codes are often coalition-level
     (e.g. LUG, LUD, LUXD) while poll party codes are individual-party level
     (e.g. LFI, LREM, LLR).  We expand each result nuance through
-    NUANCE_EQUIVALENCES to build a (location, poll_party) → candidate lookup.
+    NUANCE_EQUIVALENCES to build a (commune_code, poll_party) → candidate lookup.
+
+    Election locations are BV-level ('01004_0002') while poll locations are
+    commune-level ('75056') or city names. The lookup extracts the commune
+    code from BV locations.
     """
     from src.nuance_mapping import expand_nuance_group
 
@@ -30,13 +34,21 @@ def _resolve_poll_candidates(election_df: pd.DataFrame, poll_df: pd.DataFrame) -
         subset=["location", "party", "candidate"]
     )
 
-    # Build direct lookup (location, party) -> candidate name
+    # Extract commune code from BV locations (e.g. "01004_0002" → "01004")
+    commune_codes = results["location"].str.split("_").str[0]
+
+    # Build direct lookup (commune_code, party) → candidate name
+    lookup_df = pd.DataFrame({
+        "commune_code": commune_codes.values,
+        "party": results["party"].values,
+        "candidate": results["candidate"].values,
+    })
     lookup: dict[tuple[str, str], str] = (
-        results.groupby(["location", "party"])["candidate"].first().to_dict()
+        lookup_df.groupby(["commune_code", "party"])["candidate"].first().to_dict()
     )
 
     # Build expanded lookup for municipales: expand coalition nuances
-    # so that (location, individual_poll_party) -> candidate
+    # so that (commune_code, individual_poll_party) → candidate
     expanded_lookup: dict[tuple[str, str], str] = {}
     for (loc, nuance), cand in lookup.items():
         for alt_party in expand_nuance_group(nuance):

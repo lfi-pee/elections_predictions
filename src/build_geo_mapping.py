@@ -229,7 +229,15 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
             lon = np.mean(region_lons[region])
         records.append({"location": region, "latitude": lat, "longitude": lon})
 
-    # 4. Cantons & Circonscriptions from candidats_results.parquet
+    # 4. Bureaux de vote — exact BV coordinates from bv_coords.parquet
+    bv_path = data_dir / "geo" / "bv_coords.parquet"
+    if bv_path.exists():
+        bv_df = pd.read_parquet(bv_path, columns=["id_brut_miom", "latitude", "longitude"])
+        bv_records = bv_df.rename(columns={"id_brut_miom": "location"}).to_dict("records")
+        records.extend(bv_records)
+        print(f"  Added {len(bv_records)} BV-level coordinates from bv_coords.parquet")
+
+    # 5. Cantons & Circonscriptions from candidats_results.parquet
     cand_path = data_dir / "elections" / "agregees" / "candidats_results.parquet"
     if cand_path.exists():
         try:
@@ -262,7 +270,7 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
                     lon = g["longitude"].mean()
                     records.append({"location": f"{dept}_circo_{circo}", "latitude": lat, "longitude": lon})
 
-    # 5. National
+    # 6. National
     records.append({
         "location": "National",
         "latitude": FRANCE_CENTER_LAT,
@@ -285,10 +293,33 @@ def _resolve_historical_communes(
     """Find election commune codes missing from the geo lookup and resolve them.
 
     Resolution strategies (in priority order):
-    1. chefLieu mapping — use the successor commune's coordinates
-    2. Département centroid — use the weighted centroid of the département
-    3. France center — for ZZ codes (overseas voters) and truly unknown codes
+    1. Geocoded historical commune coords (from geocode_bv.py)
+    2. Geocoded ZZ consular city coords (from geocode_bv.py)
+    3. chefLieu mapping — use the successor commune's coordinates
+    4. Département centroid — use the weighted centroid of the département
+    5. France center — for truly unknown codes
     """
+    geo_dir = data_dir / "geo"
+
+    # Load geocoded coordinates from geocode_bv.py outputs
+    hist_coords: dict[str, tuple[float, float]] = {}
+    hist_path = geo_dir / "historical_commune_coords.parquet"
+    if hist_path.exists():
+        df_hist = pd.read_parquet(hist_path)
+        hist_coords = dict(
+            zip(df_hist["code_commune"], zip(df_hist["latitude"], df_hist["longitude"]))
+        )
+        print(f"  Loaded {len(hist_coords)} geocoded historical commune coords")
+
+    zz_coords: dict[str, tuple[float, float]] = {}
+    zz_path = geo_dir / "zz_consular_coords.parquet"
+    if zz_path.exists():
+        df_zz = pd.read_parquet(zz_path)
+        zz_coords = dict(
+            zip(df_zz["code_commune"], zip(df_zz["latitude"], df_zz["longitude"]))
+        )
+        print(f"  Loaded {len(zz_coords)} geocoded ZZ consular coords")
+
     # Collect all commune codes appearing in election data
     cand_path = data_dir / "elections" / "agregees" / "candidats_results.parquet"
     gen_path = data_dir / "elections" / "agregees" / "general_results.parquet"
@@ -315,12 +346,28 @@ def _resolve_historical_communes(
     )
 
     new_records: list[dict] = []
+    resolved_hist = 0
+    resolved_zz = 0
     resolved_chef = 0
     resolved_dept = 0
     resolved_national = 0
 
     for code in sorted(unmatched):
-        # Strategy 1: chefLieu mapping
+        # Strategy 1: Geocoded historical commune coords
+        if code in hist_coords:
+            lat, lon = hist_coords[code]
+            new_records.append({"location": code, "latitude": lat, "longitude": lon})
+            resolved_hist += 1
+            continue
+
+        # Strategy 2: Geocoded ZZ consular city coords
+        if code in zz_coords:
+            lat, lon = zz_coords[code]
+            new_records.append({"location": code, "latitude": lat, "longitude": lon})
+            resolved_zz += 1
+            continue
+
+        # Strategy 3: chefLieu mapping
         successor = historical_mapping.get(code)
         if successor and successor in coord_lookup:
             lat, lon = coord_lookup[successor]
@@ -328,7 +375,7 @@ def _resolve_historical_communes(
             resolved_chef += 1
             continue
 
-        # Strategy 2: Département centroid
+        # Strategy 4: Département centroid
         if not code.startswith("ZZ"):
             dept = _extract_dept_from_commune(code)
             if dept in dept_coords:
@@ -337,17 +384,19 @@ def _resolve_historical_communes(
                 resolved_dept += 1
                 continue
 
-        # Strategy 3: overseas/unknown — use distinct coords for ZZ codes
+        # Strategy 5: France center — last resort
         new_records.append({
             "location": code,
-            "latitude": OVERSEAS_LAT,
-            "longitude": OVERSEAS_LON,
+            "latitude": FRANCE_CENTER_LAT,
+            "longitude": FRANCE_CENTER_LON,
         })
         resolved_national += 1
 
+    print(f"    Resolved via geocoded historical: {resolved_hist}")
+    print(f"    Resolved via geocoded ZZ consular: {resolved_zz}")
     print(f"    Resolved via successor commune: {resolved_chef}")
     print(f"    Resolved via département centroid: {resolved_dept}")
-    print(f"    Resolved to France center (overseas/unknown): {resolved_national}")
+    print(f"    Resolved to France center (unknown): {resolved_national}")
 
     if new_records:
         extra = pd.DataFrame(new_records)

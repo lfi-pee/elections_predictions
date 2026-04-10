@@ -18,61 +18,88 @@ class StringEmbedding(nn.Module):
 
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, d_model: int = 128, num_buckets: int = 50000) -> None:
+    """Token embedding using sinusoidal features + small categorical embeddings.
+
+    Identity = Concat(date_sin, lat_sin, lon_sin, election_emb, candidate_emb, party_emb, metric_emb)
+             = 4 + 4 + 4 + 3 + 3 + 3 + 3 = 24 dims
+    Value    = Linear(1 → 24) or learned [MASK]
+    Total    = 48 dims
+    """
+
+    D_EMB = 3        # embedding dim for each categorical
+    D_IDENTITY = 24  # 3x4 continuous + 4×3 categorical
+    D_VALUE = 24
+
+    def __init__(self, d_model: int = 48, num_buckets: int = 50000) -> None:
         super().__init__()
+        assert d_model == self.D_IDENTITY + self.D_VALUE, (
+            f"d_model must be {self.D_IDENTITY + self.D_VALUE}, got {d_model}"
+        )
         self.d_model = d_model
-        self.d_identity = d_model - 32
+        self.d_identity = self.D_IDENTITY
 
-        self.date_proj = nn.Linear(1, self.d_identity)
-        self.value_proj = nn.Linear(1, 32)
+        self.value_proj = nn.Linear(1, self.D_VALUE)
 
-        self.election_emb = StringEmbedding(num_buckets, self.d_identity)
-        self.candidate_emb = StringEmbedding(num_buckets, 3)
-        nn.init.zeros_(self.candidate_emb.embedding.weight)
-        self.party_emb = StringEmbedding(num_buckets, self.d_identity)
-        self.metric_emb = StringEmbedding(num_buckets, self.d_identity)
+        self.election_emb = StringEmbedding(num_buckets, self.D_EMB)
+        self.candidate_emb = StringEmbedding(num_buckets, self.D_EMB)
+        nn.init.normal_(self.candidate_emb.embedding.weight, mean=0.0, std=0.02)
+        self.party_emb = StringEmbedding(num_buckets, self.D_EMB)
+        self.metric_emb = StringEmbedding(num_buckets, self.D_EMB)
 
-        # Geo-coordinate projection: (lat, lon) → identity space
-        self.geo_proj = nn.Linear(2, self.d_identity)
-
-        self.mask_token = nn.Parameter(torch.randn(32))
+        self.mask_token = nn.Parameter(torch.randn(self.D_VALUE))
         self.layer_norm = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(0.3)
 
     def _embed_identity(self, tokens_dict: dict[str, torch.Tensor]) -> torch.Tensor:
-        date_tensor = tokens_dict["dates"].unsqueeze(-1)
-        identity = self.date_proj(date_tensor)
-        
-        identity = identity + self.election_emb(tokens_dict["election_type"])
-        cand_emb_3d = self.candidate_emb(tokens_dict["candidate"])
-        identity = identity + torch.nn.functional.pad(cand_emb_3d, (0, self.d_identity - 3))
-        identity = identity + self.party_emb(tokens_dict["party"])
-        identity = identity + self.metric_emb(tokens_dict["metric_type"])
+        # Sinusoidal continuous features
+        date = tokens_dict["dates"].unsqueeze(-1)                        # (..., 1)
+        omega_1 = 2.0 * torch.pi / 40.0
+        omega_2 = 2.0 * torch.pi / 8.0
+        date_sin = torch.cat([
+            torch.sin(omega_1 * date), torch.cos(omega_1 * date),
+            torch.sin(omega_2 * date), torch.cos(omega_2 * date)
+        ], dim=-1)
 
-        # Geo: normalize lat/lon centered on France, then project
-        lat = (tokens_dict["latitude"].unsqueeze(-1) - 46.5) / 5.0
-        lon = (tokens_dict["longitude"].unsqueeze(-1) - 2.5) / 5.0
-        geo_tensor = torch.cat([lat, lon], dim=-1)
-        identity = identity + self.geo_proj(geo_tensor)
+        lat = (tokens_dict["latitude"].unsqueeze(-1) - 46.5) / 5.0      # (..., 1)
+        lat_sin = torch.cat([
+            torch.sin(torch.pi * lat), torch.cos(torch.pi * lat),
+            torch.sin(2 * torch.pi * lat), torch.cos(2 * torch.pi * lat)
+        ], dim=-1)
 
+        lon = (tokens_dict["longitude"].unsqueeze(-1) - 2.5) / 5.0      # (..., 1)
+        lon_sin = torch.cat([
+            torch.sin(torch.pi * lon), torch.cos(torch.pi * lon),
+            torch.sin(2 * torch.pi * lon), torch.cos(2 * torch.pi * lon)
+        ], dim=-1)
+
+        # Small categorical embeddings
+        elec = self.election_emb(tokens_dict["election_type"])           # (..., 3)
+        cand = self.candidate_emb(tokens_dict["candidate"])              # (..., 3)
+        party = self.party_emb(tokens_dict["party"])                     # (..., 3)
+        metric = self.metric_emb(tokens_dict["metric_type"])             # (..., 3)
+
+        identity = torch.cat(
+            [date_sin, lat_sin, lon_sin, elec, cand, party, metric], dim=-1
+        )  # (..., 24)
         return identity
 
     def _embed_value(
         self, tokens_dict: dict[str, torch.Tensor], masked_indices: torch.Tensor
     ) -> torch.Tensor:
         val_tensor = tokens_dict["values"].unsqueeze(-1)
-        
+
         val_tensor_masked = torch.where(
-            masked_indices.unsqueeze(-1), 
-            torch.zeros_like(val_tensor), 
-            val_tensor
+            masked_indices.unsqueeze(-1),
+            torch.zeros_like(val_tensor),
+            val_tensor,
         )
         val_embedded = self.value_proj(val_tensor_masked)
 
         mask_expanded = masked_indices.unsqueeze(-1)
         val_embedded = torch.where(
-            mask_expanded, 
-            self.mask_token.view(1, 1, -1).expand_as(val_embedded), 
-            val_embedded
+            mask_expanded,
+            self.mask_token.view(1, 1, -1).expand_as(val_embedded),
+            val_embedded,
         )
         return val_embedded
 
@@ -83,7 +110,7 @@ class TokenEmbedding(nn.Module):
         val_embedded = self._embed_value(tokens_dict, masked_indices)
 
         combined = torch.cat([identity, val_embedded], dim=-1)
-        return self.layer_norm(combined)
+        return self.dropout(self.layer_norm(combined))
 
 
 class LearnableRouter(nn.Module):
@@ -96,14 +123,22 @@ class LearnableRouter(nn.Module):
     geographically distant "twin" locations.
     """
 
-    def __init__(self, d_model: int, d_router: int = 64, top_k: int = 256) -> None:
+    def __init__(self, d_model: int, d_router: int = 16, top_k: int = 256) -> None:
         super().__init__()
-        d_identity = d_model - 32
+        d_identity = d_model - TokenEmbedding.D_VALUE
         self.d_router = d_router
         self.top_k = top_k
 
-        self.query_proj = nn.Linear(d_identity, d_router)
-        self.key_proj = nn.Linear(d_identity, d_router)
+        self.query_proj = nn.Sequential(
+            nn.Linear(d_identity, 32),
+            nn.GELU(),
+            nn.Linear(32, d_router)
+        )
+        self.key_proj = nn.Sequential(
+            nn.Linear(d_identity, 32),
+            nn.GELU(),
+            nn.Linear(32, d_router)
+        )
         self.temperature = nn.Parameter(torch.ones(1))
 
     @torch.no_grad()
@@ -173,7 +208,7 @@ class LearnableRouter(nn.Module):
         raw_scores = torch.mm(
             anchor_query.half(), pool_cache.key_cache.T
         ).float()
-        raw_scores = raw_scores / self.temperature.clamp(min=0.01)
+        raw_scores = raw_scores / self.temperature.clamp(min=0.1)
 
         # Mask future tokens: pool is sorted by date, use searchsorted
         cutoffs = torch.searchsorted(pool_cache.dates, anchor_dates)  # (B,)
@@ -215,10 +250,10 @@ class UniversalMaskedSetTransformer(nn.Module):
 
     def __init__(
         self,
-        d_model: int = 128,
+        d_model: int = 48,
         nhead: int = 4,
-        num_layers: int = 4,
-        d_router: int = 64,
+        num_layers: int = 2,
+        d_router: int = 16,
         top_k: int = 256,
         router_warmup_steps: int = 500,
     ) -> None:
@@ -232,7 +267,7 @@ class UniversalMaskedSetTransformer(nn.Module):
             d_model=d_model,
             nhead=nhead,
             dim_feedforward=d_model * 4,
-            dropout=0.1,
+            dropout=0.3,
             batch_first=True,
             norm_first=True,
         )
@@ -332,24 +367,19 @@ class UniversalMaskedSetTransformer(nn.Module):
         # --- Step 5: Full embedding (identity + value with masking) ---
         x = self.token_embedding(selected_tokens, selected_masked)  # (B, T+K_ctx, d_model)
 
-        # --- Step 6: Multiplicative STE for router gradient flow ---
+        # --- Step 6: Live router scores for gradient flow ---
+        # Instead of STE perturbation (which causes NaN via log_softmax gradients),
+        # compute live scores and pass them through route_info for entropy
+        # regularization. The router gets gradient flow through the entropy loss.
         if not self.is_router_warming_up:
-            # Re-score the selected context tokens for gradient flow
-            # (query is fresh → gradient flows through query_proj)
             sel_identity = self.token_embedding._embed_identity(selected_tokens)
             sel_keys = self.router.key_proj(sel_identity)  # (B, T+K_ctx, d_router)
             sel_keys = F.normalize(sel_keys, dim=-1)
             anchor_q_expanded = anchor_query.unsqueeze(1)  # (B, 1, d_router)
             live_scores = (anchor_q_expanded * sel_keys).sum(dim=-1)  # (B, T+K_ctx)
-            live_scores = live_scores / self.router.temperature.clamp(min=0.01)
-
-            # Softmax over context tokens only
-            ctx_logits = live_scores.masked_fill(selected_masked | selected_padding, float('-inf'))
-            ctx_probs = torch.softmax(ctx_logits, dim=1)
-            n_ctx = (~selected_masked & ~selected_padding).sum(dim=1, keepdim=True).clamp(min=1).float()
-            ctx_scale = (ctx_probs * n_ctx).clamp(min=0.1)
-            scale = torch.where(selected_masked | selected_padding, torch.ones_like(ctx_scale), ctx_scale)
-            x = x * scale.unsqueeze(-1)
+            live_scores = live_scores / self.router.temperature.clamp(min=0.1)
+        else:
+            live_scores = None
 
         # --- Step 7: Transformer ---
         out = self.transformer(x, src_key_padding_mask=selected_padding)
@@ -359,7 +389,7 @@ class UniversalMaskedSetTransformer(nn.Module):
             "selected_indices": selected_pool_indices,
             "selected_masked": selected_masked,
             "selected_tokens": selected_tokens,
-            "selected_scores": context_scores,
+            "selected_scores": live_scores if live_scores is not None else context_scores,
             "selected_padding": selected_padding,
         }
 

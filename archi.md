@@ -2,9 +2,9 @@
 
 ## The Core Concept
 
-We abandon all feature engineering, aggregation, and manual alignment between datasets. Instead of creating structured feature vectors, we flatten the entire universe of French election data (results, polls, and demographics) into atomic, raw data points (~16.8M tokens).
+We abandon all feature engineering, aggregation, and manual alignment between datasets. Instead of creating structured feature vectors, we flatten the entire universe of French election data (results, polls, and demographics) into atomic, raw data points (~32.9M tokens).
 
-The network takes an **arbitrary subset of the entire data universe** as a Set of Tokens and is tasked with predicting the remaining, masked subset. A **learnable full-pool router** scores the entire 16.8M token pool against each target query and selects the top-K most relevant context tokens automatically.
+The network takes an **arbitrary subset of the entire data universe** as a Set of Tokens and is tasked with predicting the remaining, masked subset. A **learnable full-pool router** scores the entire ~32.9M token pool against each target query and selects the top-K most relevant context tokens automatically.
 
 ## 1. Raw Data as Tokens (Zero Feature Engineering)
 
@@ -21,43 +21,49 @@ A token consists of five parts:
 4. **Continuous Value**: The actual number (e.g., vote percentage, turnout %, poll intent %, demographic ratio).
 
 For example, raw rows from different datasets become tokens:
-- `[22.27, "Presidentielle_T1", "Brest", "MACRON Emmanuel", "LREM", "Result", 27.8, 48.39, -4.49]` (availability_date = 22.27)
+- `[22.27, "Presidentielle_T1", "29019_0012", "MACRON Emmanuel", "LREM", "Result", 27.8, 48.39, -4.49]` (availability_date = 22.27, BV 12 in Brest)
 - `[24.43, "Europeennes", "National", "BARDELLA Jordan", "RN", "Poll_Ifop", 31.5, 46.23, 2.21]` (availability_date = 24.43)
-- `[19.50, "", "Brest", "Taux_Chomage", "", "Demographics", 6.8, 48.39, -4.49]` (availability_date = 24.50, Census 2021 published June 2024)
-- `[24.00, "", "Brest", "BPE_Medecins_per_1k", "", "Demographics", 1.2, 48.39, -4.49]` (availability_date = 25.50, BPE 2024 published July 2025)
+- `[19.50, "", "29019", "Taux_Chomage", "", "Demographics", 6.8, 48.39, -4.49]` (availability_date = 24.50, Census 2021 published June 2024)
+- `[08.50, "", "29019", "Pct_Age_60_Plus", "", "Demographics", 22.1, 48.39, -4.49]` (availability_date = 13.50, Census 2010 published June 2013)
 
 ### Token Embedding
 
-The identity part of the embedding (96 dimensions) combines several learned projections:
+The identity part of the token embedding uses **raw continuous features** for date and geography, and **small learned embeddings** (3 dims each) for all categorical fields. All categoricals are kept intentionally small to prevent the model from memorizing specific identities — it should learn structural dynamics instead.
 
 ```python
-token_identity = Linear(relative_date)          # (1 → 96)
-               + StringEmbedding(election_type)  # (96)
-               + StringEmbedding(candidate)      # (3, zero-padded to 96)
-               + StringEmbedding(party)          # (96)
-               + StringEmbedding(metric_type)    # (96)
-               + Linear(lat_norm, lon_norm)       # (2 → 96)
+token_identity = Concat(
+    relative_date,                  # (1) raw scalar
+    lat_norm, lon_norm,             # (2) raw scalars
+    StringEmbedding(election_type), # (3)
+    StringEmbedding(candidate),     # (3, zero-initialized)
+    StringEmbedding(party),         # (3)
+    StringEmbedding(metric_type),   # (3)
+)                                   # → (15) total identity dims
 ```
 
-The candidate embedding is intentionally small (3 dims, zero-initialized) to prevent the model from memorizing candidate identities too strongly — it should learn party and structural dynamics instead.
+**Why no Linear projection for date and geo?** Relative date, latitude, and longitude are already meaningful continuous scalars. Projecting them through `Linear(1→N)` adds learnable parameters that just learn arbitrary scaling and bias — the transformer's attention layers can handle raw scalars directly. Keeping them raw also makes the identity vector directly interpretable for the router.
+
+**Why 3 dims for all categoricals?** Election type (~10 unique values), party (~30), metric type (~20), and candidate (~50K but heavily aliased) are all categorical signals. A 96-dim embedding for a 10-class field is massively over-parameterized and encourages the model to "memorize" category identities instead of learning transferable structural relationships. 3 dims provides enough capacity to separate categories while forcing the model to rely on the combination of all features.
 
 The value part (32 dimensions) is either:
 - `Linear(value)` for unmasked tokens
 - A learned `[MASK]` parameter for masked tokens
 
-The final token embedding is `Concat(identity, value)` → `LayerNorm` → `(B, K, 128)`.
+The final token embedding is `Concat(identity, value)` → `LayerNorm` → `(B, K, 47)`.
+
+> **Note**: `d_model` drops from 128 to 47 (15 identity + 32 value). The transformer, attention heads, and FFN dimensions should be adjusted accordingly. A `d_model` of 48 (with identity = 16, adding one padding dim) would align better with typical power-of-2 constraints for attention heads.
 
 ## 2. Full-Pool Router
 
-The model uses a **learnable router** that scores the entire 16.8M token pool to find the most relevant context for each prediction target. This replaces the earlier random-sampling approach.
+The model uses a **learnable router** that scores the entire ~32.9M token pool to find the most relevant context for each prediction target. This replaces the earlier random-sampling approach.
 
 ### How It Works
 
-1. **Pre-computed Key Cache** (`PoolCache`): All 16.8M token identity embeddings are projected through a learned `key_proj` layer (96 → 64), L2-normalized, and stored as float16 on GPU (~2.2GB). This cache is rebuilt every 100 training steps to reflect updated weights.
+1. **Pre-computed Key Cache** (`PoolCache`): All ~32.9M token identity embeddings are projected through a learned `key_proj` layer (16 → 16), L2-normalized, and stored as float16 on GPU (~1.1GB). This cache is rebuilt every 100 training steps to reflect updated weights.
 
-2. **Anchor Query**: For each batch sample, the masked target tokens' identity embeddings are pooled and projected through `query_proj` (96 → 64), L2-normalized into a single query vector.
+2. **Anchor Query**: For each batch sample, the masked target tokens' identity embeddings are pooled and projected through `query_proj` (16 → 16), L2-normalized into a single query vector.
 
-3. **Full-Pool Scoring**: Brute-force matmul `(B, 64) × (64, 16.8M) → (B, 16.8M)` scores. Future tokens (published after the anchor date) are masked via `searchsorted` on the `availability_date`-sorted pool. Val-only tokens (2026 municipal results) are suppressed during training.
+3. **Full-Pool Scoring**: Brute-force matmul `(B, 16) × (16, 32.9M) → (B, 32.9M)` scores. Future tokens (published after the anchor date) are masked via `searchsorted` on the `availability_date`-sorted pool. Val-only tokens (2026 municipal results) are suppressed during training.
 
 4. **Top-K Selection**: The top `K=256` scoring tokens are selected as context (minus the number of target tokens, which are force-included).
 
@@ -106,10 +112,10 @@ Because the model is trained to predict *any* masked part of its input from *any
 
 | Parameter | Value | Description |
 |---|---|---|
-| `d_model` | 128 | Token embedding dimension (96 identity + 32 value) |
+| `d_model` | 48 | Token embedding dimension (16 identity + 32 value) |
 | `nhead` | 4 | Transformer attention heads |
 | `num_layers` | 4 | Transformer encoder layers |
-| `d_router` | 64 | Router projection dimension |
+| `d_router` | 16 | Router projection dimension |
 | `top_k` | 256 | Total selected tokens (targets + context) |
 | `num_buckets` | 50,000 | Hash embedding table size for string fields |
 | `router_warmup_steps` | 500 | Steps before router activates |
@@ -129,32 +135,34 @@ Because the model is trained to predict *any* masked part of its input from *any
 
 ### Output Layer
 
-The value head outputs a single scalar per token: `nn.Linear(128, 1)`. These logits are not probabilities on their own — they become a probability distribution only when passed through `softmax` over all candidates within the same election group.
+The value head outputs a single scalar per token: `nn.Linear(48, 1)`. These logits are not probabilities on their own — they become a probability distribution only when passed through `softmax` over all candidates within the same election group.
 
 ### Feature Scaling and Layer Normalization
 
-- **Geo Scaling**: Latitude centered on 46.5, longitude on 2.5, both divided by 5.0 before linear projection.
+- **Geo Scaling**: Latitude centered on 46.5, longitude on 2.5, both divided by 5.0. These are raw scalar features in the identity vector (no learned projection).
 - **Input Normalization**: `LayerNorm` applied to the combined token embedding before the transformer.
 - **Pre-Layer Normalization (Pre-LN)**: Transformer layers use `norm_first=True` for training stability.
 
 ## 6. Data Scale
 
+Election results are at **bureau de vote** (BV) level. Each BV × election × candidate produces one token. Location keys are `"{code_commune}_{code_bv}"` (e.g. `"29019_0012"` = BV 12 in Brest). Coordinates come from exact BV geo-positions (REU elector centroids, contour polygons, or polling station addresses). Demographics and polls remain at commune/national level with their own location keys.
+
 | Component | Size |
 |---|---|
-| Total token pool | ~16.8M tokens |
-| Election result tokens | ~14.5M |
-| Poll tokens | ~1.8M |
-| Demographic tokens | ~0.5M |
-| Val-only tokens (2026 muni results) | ~20K |
-| Train election groups | ~1.08M |
-| Dev election groups | ~57K |
-| Val election groups (2026 Municipales) | ~7.1K |
-| Unique communes | ~37K |
-| GPU PoolCache memory | ~0.6GB (features) + ~2.2GB (key cache float16) |
-| Peak training GPU memory | ~4.5GB on NVIDIA TITAN RTX 24GB |
-| Model parameters | ~15.4M |
-
-Demographic token count will grow significantly if/when multi-vintage loading is enabled (up to ~4.5M tokens for 16 Census vintages + 18 BPE vintages × ~35K communes).
+| Total token pool | ~32.9M tokens |
+| Election result tokens (BV-level) | ~26.2M |
+| Election context tokens (BV-level) | ~6.3M |
+| Poll tokens | ~0.2M |
+| Demographic tokens (17 Census vintages) | ~8M+ |
+| Val-only tokens (2026 muni results) | ~176K |
+| Train election groups (BV-level) | ~1.71M |
+| Dev election groups | ~86K |
+| Val election groups (2026 Municipales) | ~35K |
+| Unique BV locations | ~76.6K |
+| Unique commune locations (demographics) | ~36.7K |
+| GPU PoolCache memory | ~2.7GB (features) + ~1.1GB (key cache float16) |
+| Peak training GPU memory | ~18GB on NVIDIA TITAN RTX 24GB |
+| Model parameters | ~1.5M |
 
 ## 7. File Structure
 
@@ -166,9 +174,10 @@ src/
 ├── train.py              # Training loop, EMA, entropy regularization, loss computation
 ├── eval.py               # Evaluation script
 ├── visualize_trajectories.py  # Trajectory prediction visualizations
-├── load_elections.py     # Election data ingestion → token DataFrame
+├── load_elections.py     # Election data ingestion at BV level → token DataFrame
 ├── load_polls.py         # Poll data ingestion → token DataFrame
 ├── load_demographics.py  # Demographic data ingestion → token DataFrame
-├── build_geo_mapping.py  # Commune lat/lon download + derived centroids
+├── build_geo_mapping.py  # BV + commune lat/lon download + derived centroids
+├── geocode_bv.py         # BV-level geocoding (REU, contours, historical)
 └── nuance_mapping.py     # Political nuance → party equivalence mapping
 ```

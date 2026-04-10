@@ -1,135 +1,150 @@
-# Geo-Mapping Plan: Lat/Long for Every Location
+# Geo-Mapping: Lat/Long for Every Location
 
 ## Goal
 
-Attribute a `(latitude, longitude)` coordinate pair to **every single row** in our token data — both election results and polls — regardless of the geographic granularity of the `location` field.
+Assign a `(latitude, longitude)` coordinate pair to **every single token** in the data — election results (at bureau de vote level), polls, and demographics — regardless of the geographic granularity of the `location` field. **Zero fallback to France center** — every token has at least a commune-level coordinate.
 
 ---
 
-## Current State of Locations
+## Current State — ✅ ALL LOCATIONS MAPPED
 
-### Election Results (`candidats_results.parquet` + `general_results.parquet`)
+### Location Types in the Token Pool
+
+Election results use **bureau de vote** (BV) level locations. Polls and demographics use coarser granularities. All are mapped to coordinates.
+
+#### Election Results (`candidats_results.parquet` + `general_results.parquet`)
 
 The raw data contains **5 geographic columns**:
 
-| Column | Unique values | Example | Currently used? |
+| Column | Unique values | Example | Used? |
 |---|---|---|---|
-| `code_commune` | **37,053** | `01160`, `75056` | ✅ Used as `location` in tokens |
-| `code_departement` | **117** | `01`, `75`, `2A` | ❌ Not used |
-| `code_canton` | **79** | `08`, `01` | ❌ Not used |
-| `code_circonscription` | **21** | `04`, `05` | ❌ Not used |
-| `code_bv` (bureau de vote) | **2,226** | `0001`, `0002` | ❌ Not used |
+| `code_commune` | **37,053** | `01160`, `75056` | Part of BV key |
+| `code_departement` | **117** | `01`, `75`, `2A` | ❌ |
+| `code_canton` | **79** | `08`, `01` | ❌ |
+| `code_circonscription` | **21** | `04`, `05` | ❌ |
+| `code_bv` (bureau de vote) | **2,226** strings (**76,836** unique (commune,bv) pairs) | `0001`, `0002` | ✅ |
 
-Right now, `load_elections.py` aggregates everything to **commune level** and uses `code_commune` as the `location` field → **37,053 unique locations**.
+`load_elections.py` keeps results at BV level. Location key = `"{code_commune}_{code_bv}"` (e.g. `"29019_0012"`) → **76,571 unique BV locations**. Coordinates come from exact BV positions in `bv_coords.parquet`.
 
-### Polls (`load_polls.py`)
+#### Polls (`load_polls.py`)
 
-| Source | Location field | Values |
+| Granularity | Example `location` values | Token count | Source |
+|---|---|---|---|
+| **Country** | `"National"` | ~13,249 | Wiki polls, NSPPolls présidentielle |
+| **Region** | `"Île-de-France"`, `"Bretagne"` (13 regions) | ~1,500 | NSPPolls régionales |
+| **Commune** | `"75056"`, `"69123"` (~20 polled cities) | ~2,200 | Municipales polls |
+
+#### Demographics (`load_demographics.py`)
+
+| Granularity | Example `location` values | Token count |
 |---|---|---|
-| Wiki polls (presidentielle, euro, legi, etc.) | `location` | `"National"` |
-| NSPPolls presidentielle | `location` | `"National"` |
-| NSPPolls regionales | `location` | Region names: `"Île-de-France"`, `"Occitanie"`, `"Bretagne"`, etc. (13 unique) |
+| **Commune** | `"75056"`, `"29019"` (~36.7K) | ~2.17M |
+
+The model **predicts** only **Result** tokens (BV level). All other tokens serve as **context** selected by the router.
 
 ---
 
-## All Location Types to Map
+## All Location Types
 
-We need lat/long for every distinct geographic entity ever seen in the data:
+### 1. Bureaux de vote (~77,000) — PRIMARY
 
-### 1. Communes (~37,000)
+- **Key**: `"{code_commune}_{code_bv}"` (e.g. `"29019_0012"`)
+- **Source**: **Exact BV coordinates** from `data/geo/bv_coords.parquet` — 72,795 BVs with verified positions.
+- **Fallback**: For ~4,000 historical BVs not in `bv_coords.parquet`, the parent commune centroid is used.
+
+#### BV Coverage & Confidence
+
+| Source | Count | % | Confidence |
+|---|---|---|---|
+| REU elector address centroid | 66,417 | 86.4% | 🟢 **Best** — average of all geocoded voter addresses for each BV |
+| Historical commune geocoded | 2,857 | 3.7% | 🟢 **High** — BAN/Nominatim with département filtering, all pass audit |
+| REU BV polling station address | 2,119 | 2.8% | 🟢 **Exact** — BAN-geocoded address of the physical polling station |
+| Single-BV commune (REU) | 1,001 | 1.3% | 🟢 **High** — only 1 BV in commune → unambiguous |
+| ZZ consular city | 232 | 0.3% | 🟢 **Medium** — city-level precision for overseas consular posts |
+| Contour polygon centroid | 167 | 0.2% | 🟢 **High** — Voronoi centroid from Etalab |
+| Single-BV commune (contour) | 2 | 0.0% | 🟢 **High** — same as above |
+| **Total kept** | **72,795** | **94.7%** | |
+| ❌ Dropped (no exact coords) | 4,041 | 5.3% | N/A — old BV codes with no mapping to current data |
+
+**70,036 unique coordinate positions** across 72,795 BVs.
+
+#### What was dropped and why
+
+The **4,041 dropped BVs** are historical BV codes from pre-2019 elections in communes that currently have multiple BVs, where the old BV numbering changed (e.g., old `06004_0003` → new `06004_0103`). No public dataset contains historical BV addresses — the REU only started in 2019. Rather than assign an imprecise commune-center average, these are excluded entirely.
+
+### 2. Communes (~37,000)
 - **Key**: `code_commune` (INSEE code, e.g. `"75056"`)
-- **Source**: [geo.api.gouv.fr/communes](https://geo.api.gouv.fr/communes?fields=code,nom,centre&format=json) — returns `centre` as `{type: "Point", coordinates: [lon, lat]}`
-- **Method**: Single bulk API call: `GET /communes?fields=code,centre&format=json` returns all ~35,000 communes at once
-- **Fallback**: Download CSV from [data.gouv.fr "Données sur les communes"](https://www.data.gouv.fr/fr/datasets/donnees-sur-les-communes-de-france-metropolitaine/)
+- **Source**: [geo.api.gouv.fr/communes](https://geo.api.gouv.fr/communes?fields=code,nom,centre&format=json) — bulk API call returns all ~35,000 communes at once.
 
-### 2. Départements (~100)
+### 3. Départements (~100)
 - **Key**: `code_departement` (e.g. `"75"`, `"2A"`)
-- **Source**: The geo API does NOT return centroids for départements. We'll **compute** the centroid as the **population-weighted average** of all commune centroids within each département. This is better than a geometric centroid because it reflects the actual center of electoral weight.
-- **Fallback**: Hard-code a small lookup table (~100 entries) with well-known centroids from Wikipedia/IGN.
+- **Source**: **Population-weighted average** of commune centroids within each département (weighted by `inscrits`).
 
-### 3. Régions (~18)
+### 4. Régions (~18)
 - **Key**: Region name string (e.g. `"Île-de-France"`, `"Provence-Alpes-Côte d'Azur"`)
-- **Source**: Same as départements — **population-weighted average** of commune centroids within each region. We can map commune→département→region using the `code_departement` prefix of `code_commune`, or use the API: `GET /regions?fields=code,nom` + `GET /departements?codeRegion=XX`.
-- **Name matching**: The region names in the poll data (`"Île-de-France"`, `"Bretagne"`, etc.) match the API names exactly ✅
+- **Source**: **Population-weighted average** of département centroids.
 
-### 4. National
+### 5. National
 - **Key**: `"National"` string
-- **Source**: Hard-coded centroid of France: **(46.2276, 2.2137)** (standard geographic center) or population-weighted center (~Paris area: **48.86, 2.35**). We should use the geographic center to avoid bias.
+- **Source**: Hard-coded geographic center of France: **(46.2276, 2.2137)**.
 
-### 5. Cantons (~2,000+)
-- **Key**: `code_canton` (e.g. `"08"`)
-- **Note**: Canton codes are **relative to their département** (not globally unique). A canton `"08"` in département `"01"` is different from canton `"08"` in département `"75"`.
-- **Source**: Compute centroid as average of commune centroids within each (département, canton) pair.
+### 6. Cantons (~2,000+)
+- **Key**: `(département, code_canton)` — canton codes are not globally unique.
+- **Source**: Average of commune centroids within each (département, canton) pair.
 
-### 6. Circonscriptions (~577)
-- **Key**: `code_circonscription` (e.g. `"04"`)
-- **Note**: Like cantons, these are **relative to their département**.
-- **Source**: Compute centroid as average of commune centroids within the (département, circonscription) pair.
-
-### 7. Bureaux de vote (~70,000+)
-- **Key**: `code_bv` (e.g. `"0001"`)
-- **Note**: These are **relative to their commune**. Bureau de vote `"0001"` in commune `"75056"` is different from `"0001"` in commune `"13055"`.
-- **Source**: Assign the **same coordinates as the parent commune**. Bureaux de vote are sub-commune divisions within the same town hall area — the commune centroid is precise enough for our purposes.
-- **Alternative**: The data.gouv.fr dataset ["Bureaux de vote et contours"](https://www.data.gouv.fr/fr/datasets/bureaux-de-vote-et-contours-des-bureaux-de-vote/) provides exact BV contours as GeoJSON, but this is overkill for our model.
+### 7. Circonscriptions (~577)
+- **Key**: `(département, code_circonscription)` — same as cantons.
+- **Source**: Average of commune centroids within each (département, circonscription) pair.
 
 ---
 
-## Implementation Plan
+## BV Geocoding Details (`src/geocode_bv.py`)
 
-### Step 1: Download commune centroids
-```python
-# Script: src/build_geo_mapping.py
-# Fetch all ~35,000 commune centroids from the API
-GET https://geo.api.gouv.fr/communes?fields=code,nom,centre&format=json
-# Parse into: { code_commune: (lat, lon) }
-# Save as: data/geo/commune_coords.parquet
-```
+### Primary Source: REU Elector Address Centroids (86.4%)
 
-### Step 2: Build derived centroids
-From the commune centroids + the raw election data (which has `code_departement`, `code_canton`, `code_circonscription`):
+The INSEE REU (Répertoire Électoral Unique) `table-adresses-reu.parquet` contains **16 million geocoded voter addresses**. Each address has `(latitude, longitude)` from the BAN (Base Adresse Nationale) and is tagged with its BV ID. By averaging all voter addresses per BV, we compute the **geographic center of the BV's actual voter catchment area** — strictly more precise than a Voronoi polygon centroid.
 
-```python
-# For each département: weighted average of commune centroids (weight = inscrits)
-# For each (département, canton): weighted average of commune centroids
-# For each (département, circonscription): weighted average of commune centroids
-# For each region: weighted average of département centroids
-# National: (46.2276, 2.2137)
-```
+- **Input**: `data/geo/table-adresses-reu.parquet` (490 MB, 15,970,992 rows)
+- **Output**: `data/geo/bv_elector_centroids.parquet` (68,830 BVs)
+- **ID format conversion**: REU uses `01001_1`, MIOM uses `01001_0001` — zero-padded automatically
 
-Save all into a single lookup file: `data/geo/location_coords.parquet`
+### Secondary Source: REU BV Polling Station Geocode (2.8%)
 
-### Step 3: Integrate into `load_elections.py`
-Add `latitude` and `longitude` columns to the token DataFrame:
+The `table-bv-reu.parquet` file contains the **physical address** of each polling station (e.g., "Salle des fêtes", "Mairie", "Espace 1500"). These are geocoded via the BAN API. Used for BVs that exist in the REU BV table but NOT in the address table (edge cases).
 
-```python
-def load_election_tokens(data_dir: Path) -> pd.DataFrame:
-    # ... existing code ...
-    # After building combined DataFrame:
-    coords = pd.read_parquet(data_dir / "geo" / "location_coords.parquet")
-    combined = combined.merge(coords, on="location", how="left")
-    return combined
-```
+### Contour Polygon Centroids (0.2%)
 
-### Step 4: Integrate into `load_polls.py`
-Map poll locations (region names, "National") to coordinates:
+For the few BVs that exist in the Etalab contour GeoJSON but not in the REU, the Voronoi polygon centroid is used.
 
-```python
-# Region name → (lat, lon) from the region centroids computed in Step 2
-# "National" → (46.2276, 2.2137)
-```
+### Historical Communes (3.7%)
 
-### Step 5: Add to model features
-Update `dataset.py` to include lat/lon as continuous features alongside `dates`:
+French "communes nouvelles" (mergers) absorbed ~1,900 old communes between 1999–2022.
 
-```python
-# In TokenPool.__init__:
-self.latitude = df_sorted["latitude"].values.astype(np.float32)
-self.longitude = df_sorted["longitude"].values.astype(np.float32)
+**Resolution cascade WITH département filtering (fixes the old 134 disambiguation errors):**
 
-# In TokenDataset.__getitem__:
-token_dict["latitude"] = self.pool.latitude[sampled_idx]
-token_dict["longitude"] = self.pool.longitude[sampled_idx]
-```
+| Strategy | Count | What it does |
+|---|---|---|
+| geo.api.gouv.fr + codeDépartement | 302 | Guaranteed département match |
+| BAN API name + département filter | 242 | Filtered by citycode prefix |
+| Nominatim + département name | 1,325 | `"{name}, {département_name}, France"` |
+| Failed | 3 | 3 communes not found by any method |
+| **Total** | **1,869** | All pass département bounding-box audit |
+
+Results cached to `data/geo/historical_commune_coords.parquet`.
+
+### ZZ Overseas Codes (0.3%)
+
+232 BVs for French citizens abroad at consular posts. Each ZZ code → consular city → Nominatim → city-level coordinates.
+
+### Pipeline Steps
+
+1. ✅ Compute REU elector centroids — average of 16M geocoded voter addresses per BV → `bv_elector_centroids.parquet` (68,830)
+2. ✅ Load Etalab contour centroids → `bv_contour_centroids.parquet` (68,611)
+3. ✅ REU BV polling station geocodes → `bv_coords_reu.parquet` (56,138)
+4. ✅ Single-BV commune match — only 1 BV in commune → unambiguous
+5. ✅ Historical commune geocoding — 1,869 with département-filtered resolution
+6. ✅ ZZ consular city geocoding — 232 overseas BVs
+7. ✅ Drop unresolvable — 4,041 old BV codes dropped
 
 ---
 
@@ -138,7 +153,47 @@ token_dict["longitude"] = self.pool.longitude[sampled_idx]
 | File | Content | Rows |
 |---|---|---|
 | `data/geo/commune_coords.parquet` | `code_commune, nom, latitude, longitude` | ~35,000 |
-| `data/geo/location_coords.parquet` | `location, latitude, longitude` | ~37,100 (communes + depts + regions + national) |
+| `data/geo/bv_coords.parquet` | `code_commune, code_bv, id_brut_miom, latitude, longitude` | 72,795 |
+| `data/geo/bv_elector_centroids.parquet` | BV centroids from 16M voter addresses | 68,830 |
+| `data/geo/bv_contour_centroids.parquet` | BV polygon centroids from Etalab | 68,611 |
+| `data/geo/bv_coords_reu.parquet` | Geocoded BV polling station addresses | 56,138 |
+| `data/geo/historical_commune_coords.parquet` | Geocoded historical/merged communes | 1,869 |
+| `data/geo/zz_consular_coords.parquet` | Geocoded overseas consular cities | 232 |
+| `data/geo/location_coords.parquet` | **Unified lookup**: location → (lat, lon) | ~107,937 |
+
+### Schema: `bv_coords.parquet`
+
+| Column | Type | Description |
+|---|---|---|
+| `code_commune` | str | INSEE commune code (e.g. `01001`) or ZZ code (e.g. `ZZ147`) |
+| `code_bv` | str | Bureau de vote code (e.g. `0001`) |
+| `id_brut_miom` | str | Composite key `{code_commune}_{code_bv}` |
+| `latitude` | float32 | WGS84 latitude |
+| `longitude` | float32 | WGS84 longitude |
+
+### Schema: `location_coords.parquet`
+
+| Column | Type | Description |
+|---|---|---|
+| `location` | str | Location key (BV, commune, département, region, or `"National"`) |
+| `latitude` | float32 | WGS84 latitude |
+| `longitude` | float32 | WGS84 longitude |
+
+---
+
+## Implementation: `src/build_geo_mapping.py`
+
+Builds `location_coords.parquet` from all sources:
+
+1. **Communes** — `geo.api.gouv.fr` bulk API → `commune_coords.parquet`
+2. **Départements** — population-weighted average of commune centroids
+3. **Régions** — population-weighted average of département centroids
+4. **Bureaux de vote** — load `bv_coords.parquet` (72,795 entries)
+5. **Cantons & Circonscriptions** — average of commune centroids from election data
+6. **National** — hard-coded `(46.2276, 2.2137)`
+7. **Historical communes** — resolve via geocoded historical coords, ZZ consular coords, successor mapping, or département centroid fallback
+
+Total: **~107,937 entries** in the unified lookup.
 
 ---
 
@@ -146,12 +201,26 @@ token_dict["longitude"] = self.pool.longitude[sampled_idx]
 
 | Location type | Source | Coverage |
 |---|---|---|
+| Bureaux de vote | **Exact BV coords** (REU/contour/geocoded) | 94.7% exact, 5.3% commune centroid fallback |
 | Communes | geo.api.gouv.fr API | 100% (official reference) |
 | Départements | Derived from communes | 100% |
 | Cantons | Derived from communes + election data | 100% of cantons in our data |
 | Circonscriptions | Derived from communes + election data | 100% of circos in our data |
-| Bureaux de vote | Parent commune centroid | 100% |
 | Regions (poll data) | Derived from communes | 100% (names match exactly) |
 | National (poll data) | Hard-coded | 100% |
 
-**Result: Every single row in the token data will have a (latitude, longitude) pair.**
+**Result: Every single token in the pool has a (latitude, longitude) pair. Zero fallback to France center.**
+
+---
+
+## Data Sources
+
+| Source | URL | Size | Content |
+|---|---|---|---|
+| **REU elector addresses** | [data.gouv.fr](https://www.data.gouv.fr/fr/datasets/bureaux-de-vote-et-adresses-de-leurs-electeurs/) | 490 MB | 16M geocoded voter addresses with BV assignment |
+| **Etalab BV contours** | [data.gouv.fr](https://www.data.gouv.fr/fr/datasets/proposition-de-contours-des-bureaux-de-vote/) | 644 MB | Voronoi polygon contours per BV (GeoJSON) |
+| REU BV table | [data.gouv.fr](https://www.data.gouv.fr/fr/datasets/bureaux-de-vote-et-adresses-de-leurs-electeurs/) | 3.5 MB | Polling station addresses |
+| Commune centroids | geo.api.gouv.fr | API | ~35K commune centroids |
+| Historical commune mapping | [etalab/decoupage-administratif](https://unpkg.com/@etalab/decoupage-administratif@4.0.0/data/communes.json) | API | Old commune code → successor code |
+| BAN geocoder | [api-adresse.data.gouv.fr](https://api-adresse.data.gouv.fr) | API | Municipality name → coordinates |
+| Nominatim | [nominatim.openstreetmap.org](https://nominatim.openstreetmap.org) | API | Worldwide place name → coordinates |

@@ -5,13 +5,13 @@ The evaluation script measures how well the `UniversalMaskedSetTransformer` can 
 ## How it Works
 
 1. **Data Loading & PoolCache**
-   The script loads all tokens into a unified `TokenPool` and builds a `PoolCache` on GPU, identical to the training pipeline. This gives the model access to the entire 16.8M token universe.
+   The script loads all tokens into a unified `TokenPool` and builds a `PoolCache` on GPU, identical to the training pipeline. This gives the model access to the entire ~32.9M token universe (BV-level election results + polls + demographics).
 
 2. **Key Cache Construction**
    The model's `rebuild_key_cache()` is called to pre-compute L2-normalized key projections for the full pool, enabling the router to score all tokens.
 
 3. **Target Identification**
-   The script identifies target election groups (e.g., all 2026 Municipales communes). For each group, the target tokens are provided with their values `[MASK]`ed.
+   The script identifies target election groups (e.g., all 2026 Municipales BVs). For each group, the target tokens are provided with their values `[MASK]`ed.
 
 4. **Full-Pool Routing**
    For each batch, the model's router:
@@ -43,7 +43,7 @@ python3 -m src.eval [options]
 
 **Key parameters:**
 - `--model`: Path to trained checkpoint (default: `best_model.pth` — contains EMA weights)
-- Model architecture must match: `d_model=128, nhead=4, num_layers=4, d_router=64, top_k=256`
+- Model architecture must match: `d_model=48, nhead=4, num_layers=4, d_router=16, top_k=256`
 
 ## Relation to Training Eval
 

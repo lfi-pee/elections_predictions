@@ -12,7 +12,7 @@ For election/poll tokens: `availability_date == date_float`. For demographics, p
 
 **Methodology**: Since 2004, INSEE replaced the traditional exhaustive census with a continuous rolling survey. Communes <10,000 inhabitants are exhaustively surveyed once every 5 years (rotating 1/5 per year). Communes ≥10,000 receive an 8% dwelling sample annually (40% over 5 years). Each published vintage pools the 5 most recent annual surveys. Results are therefore 5-year rolling averages, not point-in-time snapshots.
 
-**Available vintages**: `2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021` (16 years).
+**Available vintages**: `2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022` (17 directories; 2006–2008 have incompatible column schemas and are skipped by the loader).
 
 **Geographic levels**: Commune (all ~35,000), IRIS (~16,000 sub-commune units of ~2,000 residents for cities >5,000 pop; communes <5,000 = 1 IRIS).
 
@@ -53,7 +53,7 @@ For election/poll tokens: `availability_date == date_float`. For demographics, p
 | % Employés | `C{YY}_ACT_CSP5` | Clerical / service workers | LFI/PS tendency |
 | % Ouvriers | `C{YY}_ACT_CSP6` | Blue-collar workers | **Strong** RN predictor |
 | % Agriculteurs | `C{YY}_ACT_CSP1` | Farmers | Rural right, specific municipal dynamics |
-| % Artisans, commerçants | `C{YY}_ACT_CSP2` | Self-employed, shopkeepers | Centre-right tendency |
+| % Artisans, commerçants | `C{YY}_ACT1564_CS2` | Self-employed, shopkeepers | Centre-right tendency |
 
 ### Theme: Formation (FOR) — Education / Diplomas
 
@@ -112,40 +112,6 @@ For election/poll tokens: `availability_date == date_float`. For demographics, p
 
 ---
 
-## 3. Base Permanente des Équipements (BPE) — Local Amenities (`data/demographics/bpe/`)
-
-**Source**: [INSEE — Base Permanente des Équipements](https://www.insee.fr/fr/metadonnees/source/serie/s1161)
-
-**Status**: ✅ **IMPLEMENTED** (`src/load_demographics.py` → `_load_bpe()`)
-
-**Methodology**: Annual administrative compilation from multiple sources (DREES, MEN, Ministry of Sports, etc). Geocoded at commune or IRIS level.
-
-**Available years**: Annually since 2012 (consistent format since 2014). **Latest**: BPE 2024 (data as of Jan 1, 2024, published July 2025).
-
-**Publication lag**: BPE vintage N is published ~July of year N+1. Token `availability_date = vintage_year + 1.5`.
-
-**Geographic levels**: Commune + IRIS (geocoded to address level).
-
-**Download**: `https://www.insee.fr/fr/statistiques/fichier/8217527/DS_BPE_CSV_FR.zip` (automated in `download_demographics.py`)
-
-**File format**: CSV with columns `CODGEO`, `TYPEQU` (4-char equipment code), `NB_EQUIP` (count).
-
-**Implemented indicators** (normalised per 1,000 inhabitants using Census population):
-
-| Token indicator | BPE Code(s) | Description | Electoral relevance |
-|---|---|---|---|
-| `BPE_Medecins_per_1k` | D201 | General practitioners per 1k pop | "Déserts médicaux" / rural decline |
-| `BPE_Pharmacies_per_1k` | D301 | Pharmacies per 1k pop | Service access proxy |
-| `BPE_Postes_per_1k` | A206, A504 | Post offices per 1k pop | Public service withdrawal signal |
-| `BPE_Supermarches_per_1k` | B101, B105 | Supermarkets per 1k pop | Urbanity / commercial vitality |
-
-**Future indicators** (not yet integrated):
-
-| Indicator (aggregated) | BPE Category | Description | Electoral relevance |
-|---|---|---|---|
-| Nb schools per 1,000 | Education (C1xx) | Primary + secondary schools | Service access, family presence |
-| Nb sports facilities per 1,000 | Leisure (F1xx) | Sports venues | Community investment |
-
 ---
 
 ## 4. Répertoire Sirene — Business Registry (`data/demographics/sirene/`)
@@ -181,16 +147,15 @@ For the token-based architecture (see `archi.md`), each indicator becomes a toke
 
 | Priority | Source | Indicators | Status |
 |---|---|---|---|
-| **P0** | Census ACT | `Taux_Chomage`, `Pct_Ouvriers`, `Pct_Cadres` | ✅ Implemented |
-| **P1** | Census FOR | `Pct_Sans_Diplome`, `Pct_Bac_Plus_5` | ✅ Implemented |
-| **P1** | Census POP | `Pct_Age_18_24`, `Pct_Age_60_Plus`, `Pct_Immigres` | ✅ Implemented |
-| **P2** | BPE | `BPE_Medecins_per_1k`, `BPE_Pharmacies_per_1k`, `BPE_Postes_per_1k`, `BPE_Supermarches_per_1k` | ✅ Implemented |
-| **P2** | Census LOG | `Pct_HLM`, `Pct_Proprietaires` | ⬜ Not yet |
+| **P0** | Census ACT | `Taux_Chomage`, `Pct_Ouvriers`, `Pct_Cadres`, `Pct_Employes`, `Pct_Prof_Intermediaires`, `Pct_Agriculteurs`, `Pct_Artisans`, `Pct_Emploi_Agriculture`, `Pct_Emploi_Industrie`, `Pct_Emploi_Construction`, `Pct_Emploi_Tertiaire`, `Pct_Retraites` | ✅ 12 indicators (17 vintages) |
+| **P1** | Census FOR | `Pct_Sans_Diplome`, `Pct_CAP_BEP`, `Pct_Bac`, `Pct_Bac_Plus_2`, `Pct_Bac_Plus_3_4`, `Pct_Bac_Plus_5` | ✅ 6 indicators (17 vintages) |
+| **P1** | Census POP | `Pct_Age_0_14`, `Pct_Age_18_24`, `Pct_Age_30_44`, `Pct_Age_45_59`, `Pct_Age_60_Plus`, `Pct_Immigres` | ✅ 6 indicators (17 vintages) |
+| **P2** | Census LOG | `Pct_Proprietaires`, `Pct_HLM`, `Pct_Locataires`, `Pct_Logements_Vacants` | ✅ 4 indicators (16 vintages, missing 2011) |
+| **P2** | Census FAM | `Pct_Menages_Seuls`, `Pct_Familles_Monoparentales` | ✅ 2 indicators (13 vintages, missing 2010-2013) |
 | **P3** | État civil | Natural balance | ⬜ Not yet |
 | **P3** | Sirene | Sector breakdown, business density | ⬜ Not yet |
 
-**Current token count (P0+P1+P2)**: ~12 indicators × ~35,000 communes = **~420K tokens** (single vintage, latest only).
-**Projected multi-vintage count**: ~12 indicators × ~35,000 communes × ~16 vintages ≈ **~6.7M tokens** (if all historical vintages are loaded).
+**Current token count (all census, multi-vintage)**: up to 30 indicators × ~35,000 communes × ~17 vintages ≈ **~17.9M tokens** (actual count varies by vintage due to column availability).
 
 ---
 
@@ -198,7 +163,6 @@ For the token-based architecture (see `archi.md`), each indicator becomes a toke
 
 - **Filosofi (REMOVED)**: Filosofi was discontinued after the 2021 vintage. The abolition of *taxe d'habitation* on main residences broke its data linkage. INSEE is developing **Résil** (Répertoire Statistique des Individus et des Logements) as a replacement, but it is not yet available. Income/poverty indicators (`Revenu_Median`, `Taux_Pauvrete`) are no longer in the pipeline.
 - **Census 2020 disruption**: The 2020 annual survey was suspended due to COVID-19. INSEE adjusted the 2020 and 2021 vintages using specific correction methods. Compare with caution (prefer ≥6-year gaps for this period).
+- **Census 2006–2008**: These vintages have incompatible column schemas and are skipped by the loader. Census 2009 only produces `Taux_Chomage`.
 - **IRIS boundary changes**: IRIS contours are re-drawn every few years. Some IRIS codes are renamed/split/merged. If using IRIS level, use INSEE's [table de passage IRIS](https://www.insee.fr/fr/information/7672015) to harmonize across years.
-- **BPE pre-2014**: Format changes make pre-2014 data harder to integrate. Start from 2014 for consistency.
 - **Sirene**: Requires significant aggregation work (millions of raw establishments → commune-level indicators). Lower priority.
-- **Single-vintage limitation**: Currently only the latest vintage of each source is loaded. Loading multiple historical vintages (Census 2006–2021, BPE 2014–2024) would provide demographic trajectories and is a high-priority future improvement.

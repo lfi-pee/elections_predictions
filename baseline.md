@@ -1,6 +1,6 @@
-# Tabular Baseline Evaluation
+# Ridge Baseline Evaluation
 
-Tabular baselines to benchmark the `UniversalMaskedSetTransformer` on BV-level election prediction.
+Ridge regression baselines for BV-level election prediction.
 
 ## Experimental Setup
 
@@ -32,7 +32,7 @@ Four regression targets (0–100%) per BV:
 
 ### Evaluation
 *   **Metric:** R² (coefficient of determination) on the validation set per target.
-*   **Baseline vs. Network:** Aggregate the transformer's candidate-level predictions into the same 3 political blocks + abstention, then compare R².
+*   Per-block R² on the validation set.
 
 ## Baseline Results
 
@@ -82,6 +82,6 @@ Added 22 new indicators: BEPC diploma, student rate, other inactive rate, age 75
 *   **V2: Demographics + 2 lags benefits most from expanded features.** Model C improves on Centre+Droite (+0.16) and Extr. Droite (+0.05). The second lag now helps rather than hurts Centre+Droite (0.40→0.56), likely because the larger training set from median imputation gives the model enough data to learn from both lags.
 *   **V2: Demo-only (A) degrades on Centre+Droite and Extr. Droite.** The extra indicators add noise without lag anchoring — demographics alone predict the left better than the right.
 *   **Poly(2) features overfit in both versions.** More features yield worse results than simpler models, particularly on Centre+Droite.
-*   **Abstention is structurally unpredictable** from local features alone — all models in both versions show massive negative R². The 2024 snap election caused a national turnout shift (+10pp vs 2022) that no local demographic or historical pattern can explain. This is a global-context signal that only a cross-BV architecture can capture.
+*   **Abstention is structurally unpredictable** from local features alone — all models in both versions show massive negative R². The 2024 snap election caused a national turnout shift (+10pp vs 2022) that no local demographic or historical pattern can explain. This requires a national-level estimation approach (see `algorithm.md` for the gap-based turnout model that solves this).
 
-**Conclusion:** The best baseline is V1 Model B (29 demo + 1 lag) for Centre+Droite (0.64) and Extr. Droite (0.65), and V2 Model C (47 demo + 2 lags) for Gauche (0.74). The Universal Masked Set Transformer must exceed R² of 0.64–0.74 across all blocks to justify its architectural complexity. The key open challenge is **abstention prediction**, where the transformer's cross-BV routing mechanism should provide unique value by capturing national-level turnout dynamics that are invisible to purely local models.
+**Conclusion:** The best baseline is V1 Model B (29 demo + 1 lag) for Centre+Droite (0.64) and Extr. Droite (0.65), and V2 Model C (47 demo + 2 lags) for Gauche (0.74). The key open challenge is **abstention prediction**, which requires national-level turnout estimation.

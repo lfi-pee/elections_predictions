@@ -2,13 +2,13 @@
 
 ## Goal
 
-Assign a `(latitude, longitude)` coordinate pair to **every single token** in the data — election results (at bureau de vote level), polls, and demographics — regardless of the geographic granularity of the `location` field. **Zero fallback to France center** — every token has at least a commune-level coordinate.
+Assign a `(latitude, longitude)` coordinate pair to **every data point** — election results (at bureau de vote level), polls, and demographics — regardless of the geographic granularity of the `location` field. **Zero fallback to France center** — every location has at least a commune-level coordinate.
 
 ---
 
 ## Current State — ✅ ALL LOCATIONS MAPPED
 
-### Location Types in the Token Pool
+### Location Types in the Dataset
 
 Election results use **bureau de vote** (BV) level locations. Polls and demographics use coarser granularities. All are mapped to coordinates.
 
@@ -28,7 +28,7 @@ The raw data contains **5 geographic columns**:
 
 #### Polls (`load_polls.py`)
 
-| Granularity | Example `location` values | Token count | Source |
+| Granularity | Example `location` values | Row count | Source |
 |---|---|---|---|
 | **Country** | `"National"` | ~13,249 | Wiki polls, NSPPolls présidentielle |
 | **Region** | `"Île-de-France"`, `"Bretagne"` (13 regions) | ~1,500 | NSPPolls régionales |
@@ -36,11 +36,11 @@ The raw data contains **5 geographic columns**:
 
 #### Demographics (`load_demographics.py`)
 
-| Granularity | Example `location` values | Token count |
+| Granularity | Example `location` values | Row count |
 |---|---|---|
 | **Commune** | `"75056"`, `"29019"` (~36.7K) | ~2.17M |
 
-The model **predicts** only **Result** tokens (BV level). All other tokens serve as **context** selected by the router.
+The model predicts at BV level. Poll and demographic data serve as features.
 
 ---
 
@@ -209,7 +209,7 @@ Total: **~107,937 entries** in the unified lookup.
 | Regions (poll data) | Derived from communes | 100% (names match exactly) |
 | National (poll data) | Hard-coded | 100% |
 
-**Result: Every single token in the pool has a (latitude, longitude) pair. Zero fallback to France center.**
+**Result: Every data point has a (latitude, longitude) pair. Zero fallback to France center.**
 
 ---
 

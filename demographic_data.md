@@ -1,10 +1,10 @@
 # Demographic Data Dictionary
 
-All demographic data files are stored in `data/demographics/`. Each demographic token carries two dates:
+All demographic data files are stored in `data/demographics/`. Each demographic record carries two dates:
 - **`date_float`** (reference date): What the data describes (e.g. Census 2021 centred ~2019.5).
-- **`availability_date`** (publication date): When the data was actually published and usable. The router uses this for temporal causality — a token is invisible to the model when predicting elections before its publication.
+- **`availability_date`** (publication date): When the data was actually published and usable. Used for temporal causality — only data published before an election date is used as input for that election.
 
-For election/poll tokens: `availability_date == date_float`. For demographics, publication lags by 1–3 years.
+For election/poll data: `availability_date == date_float`. For demographics, publication lags by 1–3 years.
 
 ## 1. Recensement de la Population — Census (`data/demographics/census/`)
 
@@ -19,7 +19,7 @@ For election/poll tokens: `availability_date == date_float`. For demographics, p
 **Geography alignment**: All vintages are republished on the **current** commune boundaries (géographie au 01/01/2025), so longitudinal joins are safe without conversion tables.
 
 > [!IMPORTANT]
-> **Temporal interpretation**: Vintage 2021 uses survey data from 2017–2021, centered around ~2019.5. Token `date_float = vintage_year - 1.5`. Token `availability_date`: Census vintage N is published ~June of year N+3 (e.g. Census 2021 → published June 2024 → `availability_date = 2024.5`). Compare vintages ≥5 years apart for meaningful signals.
+> **Temporal interpretation**: Vintage 2021 uses survey data from 2017–2021, centered around ~2019.5. `date_float = vintage_year - 1.5`. `availability_date`: Census vintage N is published ~June of year N+3 (e.g. Census 2021 → published June 2024 → `availability_date = 2024.5`). Compare vintages ≥5 years apart for meaningful signals.
 
 ### Theme: Population (POP)
 
@@ -138,11 +138,6 @@ For election/poll tokens: `availability_date == date_float`. For demographics, p
 
 ## Integration Priority
 
-For the token-based architecture (see `archi.md`), each indicator becomes a token:
-```
-[date_float, election_type, commune_code, indicator_name, "", "Demographics", value]
-```
-
 **Priority order for integration**:
 
 | Priority | Source | Indicators | Status |
@@ -155,7 +150,7 @@ For the token-based architecture (see `archi.md`), each indicator becomes a toke
 | **P3** | État civil | Natural balance | ⬜ Not yet |
 | **P3** | Sirene | Sector breakdown, business density | ⬜ Not yet |
 
-**Current token count (all census, multi-vintage)**: up to 30 indicators × ~35,000 communes × ~17 vintages ≈ **~17.9M tokens** (actual count varies by vintage due to column availability).
+**Current data volume (all census, multi-vintage)**: up to 30 indicators × ~35,000 communes × ~17 vintages ≈ **~17.9M rows** (actual count varies by vintage due to column availability).
 
 ---
 

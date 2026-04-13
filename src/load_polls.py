@@ -160,7 +160,11 @@ def _parse_wiki_poll_csv(path: Path, election_type: str) -> pd.DataFrame | None:
         try:
             date_float = _parse_date_to_float(date_str)
         except (ValueError, IndexError):
-            continue
+            # Fallback: try French date format ("30 juin 2024")
+            date_float_maybe = _parse_french_date(date_str)
+            if date_float_maybe is None:
+                continue
+            date_float = date_float_maybe
 
         institute = (
             str(row.get(institute_col, "Unknown")) if institute_col else "Unknown"
@@ -350,6 +354,10 @@ def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
 
 
 def load_poll_tokens(data_dir: Path) -> pd.DataFrame:
+    cache_path = data_dir / "baseline_cache" / "polls.parquet"
+    if cache_path.exists():
+        return pd.read_parquet(cache_path)
+
     frames = [
         _load_nsp_presidentielle(data_dir),
         _load_nsp_regionales(data_dir),
@@ -375,4 +383,8 @@ def load_poll_tokens(data_dir: Path) -> pd.DataFrame:
     combined = _merge_geo_coords(combined, data_dir)
     combined.sort_values("date_float", inplace=True)
     combined.reset_index(drop=True, inplace=True)
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.to_parquet(cache_path, index=False)
+
     return combined

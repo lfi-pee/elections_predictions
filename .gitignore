@@ -1,7 +1,5 @@
 data
 src/__pycache__
 __pycache__
-*.pth
 *.png
 *.log
-runs

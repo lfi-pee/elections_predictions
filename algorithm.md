@@ -24,10 +24,10 @@ Models selected by best Leave-One-Election-Out R² on training data. No validati
 
 | Block | Raw R² | Model | Config | LOO OOF R² |
 |---|---|---|---|---|
-| Gauche | **0.73** | PCA5-devlag | legi-only, V1, 4 train dates | 0.797 |
-| Centre+Droite | **0.60** | PCA7-devlag | legi-only, V1, 4 train dates | 0.596 |
-| Extr. Droite | **0.81** | PCA5-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.816 |
-| Abstention | **0.73** | PCA10-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.908 |
+| Gauche | **0.74** | PCA5-devlag | legi-only, V1, 4 train dates | 0.797 |
+| Centre+Droite | **0.61** | PCA7-devlag | legi-only, V1, 4 train dates | 0.597 |
+| Extr. Droite | **0.80** | PCA5-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.816 |
+| Abstention | **0.74** | PCA10-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.907 |
 
 All numbers use raw poll averages as the national estimate (G=30.7, C+D=32.8, ED=36.5) for vote blocks. For Abstention, a gap-based turnout model (see Stage 1) predicts 33.0% national abstention (actual 31.0%, error 2.0pp) — using Legi+Pres national means only. No calibration, no grid search, no validation tuning of any kind.
 
@@ -53,13 +53,11 @@ pred = national_mean_estimate + Ridge_deviation_pred
 
 Deviations are more stable across elections and across election types. A BV that's +10pp Gauche relative to national stays roughly +10pp regardless of election type or year.
 
-### Feature vector (~65 dims)
+### Feature vector (~60 dims)
 
 | Feature group | Dims | Notes |
 |---|---|---|
 | Demographics (census) | 52 | Last available vintage via merge_asof. V1=strict NaN drop, V2=median impute |
-| Geo (lat, lon) | 2 | |
-| Time (date_float) | 1 | |
 | Deviation lags 1-2 | 8 | `BV_lag - national_mean(lag_election)`. Cross-type: most recent prior election of any type |
 | Election type one-hot | 6 | Only for cross-type models (unnecessary in deviation space but doesn't hurt) |
 
@@ -91,7 +89,9 @@ Tested in `beat_it.py` with up to 8 models × 20 folds. NNLS and Ridge meta-lear
 
 5. **PCA on demographics (3-10 components)**. Compresses 52 correlated census indicators to orthogonal components. C+D benefits from more components: PCA3=0.59, PCA5=0.59, PCA7=0.60, PCA10=0.60. Abstention benefits from fewer: PCA3=0.77. Works for V1 but fails for V2 (multi-vintage data makes PCA incoherent).
 
-6. **1-lag models (dropping lag2 requirement)**. For cross-type Legi+Pres, drops lag2 to unlock 1 extra training date (Legi 2002.5, whose lag1 comes from Pres 2002.33). Improves Gauche (0.72 → 0.75) because more training data outweighs lost lag2 information. Catastrophic for legi-only models (G drops 0.74 → 0.59) because with only 5 training dates, the noisy Legi 2002 lag from Pres 2002 corrupts the model.
+6. **Removing geo/time raw features (lat, lon, date_float)**. Ridge's linear plane in lat/lon is redundant with PCA demographics; linear time trend is dangerous for extrapolation and redundant with deviation lags. Removing improved G (+0.013), C+D (+0.006), Ab (+0.005); ED -0.007 (noise). Cleaner model with better prior: deviations are time-stationary, geography is in demographics.
+
+7. **1-lag models (dropping lag2 requirement)**. For cross-type Legi+Pres, drops lag2 to unlock 1 extra training date (Legi 2002.5, whose lag1 comes from Pres 2002.33). Improves Gauche (0.72 → 0.75) because more training data outweighs lost lag2 information. Catastrophic for legi-only models (G drops 0.74 → 0.59) because with only 5 training dates, the noisy Legi 2002 lag from Pres 2002 corrupts the model.
 
 ## Data Pipeline Details
 
@@ -121,6 +121,8 @@ All candidates/parties mapped to 3 blocks + Abstention via code sets: standard n
 
 ### Features
 
+- **Geo (lat, lon) and time (date_float) as raw features.** Removed: Ridge fits a linear plane in lat/lon (crude geographic gradient already captured by demographics + lags) and a linear time trend (dangerous extrapolation — if ED deviations grew 2007→2022, Ridge predicts even larger 2024 deviations). Deviation space should be time-stationary; temporal momentum is in lags. Removing all 3 features improved G (+0.013), C+D (+0.006), Ab (+0.005); ED dropped 0.007 (LOO noise).
+- **National-level economic variables (GDP growth, real wages, inflation) or political variables (president party, incumbency, popularity).** Same failure mode as national polls and aggregate lags: with 4-8 training elections, any election-level constant acts as a dummy variable. The Ridge memorizes per-election offsets. Polls already integrate these factors implicitly (voters respond to the economy when polled). The right place for macro fundamentals would be Stage 1, but 8 data points cannot learn a stable macro→vote relationship.
 - **National polls as Ridge input features.** Catastrophic (G=-0.89, C+D=-0.60). With only 5 legi dates, poll values act as election dummy variables. The Ridge memorizes date-specific offsets that don't generalize. Use polls only for post-hoc correction or national estimation.
 - **National aggregate lags as features.** Same problem as polls — date-level constants overfit with 5 elections.
 - **Raw (non-deviation) lags in cross-type training.** Catastrophic for G (0.37) and C+D (-0.51). A BV with Gauche=42% in a pres might have 30% in legi. Must convert to deviations first.

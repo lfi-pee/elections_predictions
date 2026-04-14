@@ -22,6 +22,7 @@ from pathlib import Path
 from sklearn.linear_model import RidgeCV, Ridge
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import r2_score
 
 from src.cross_type_dev import (
@@ -35,6 +36,10 @@ from src.beat_it import build_extended_data
 ALPHA_GRID = np.logspace(-2, 6, 20)
 PREV_RAW = {"Gauche": 0.7414, "Centre+Droite": 0.5947,
             "Extreme_Droite": 0.8092, "Abstention": 0.7328}
+
+# Fixed XGB config for residual boosting (no selection, no val tuning)
+XGB_FIXED = {"max_depth": 3, "learning_rate": 0.05, "max_iter": 100,
+             "min_samples_leaf": 500, "l2_regularization": 1.0}
 
 
 def split_tv(df):
@@ -55,10 +60,12 @@ def _apply_pca(X_tr, X_v, cfg):
             np.hstack([pca.transform(X_v[:, :n_d]), X_v[:, n_d:]]))
 
 
-def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg):
+def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg,
+                    xgb_boost=False):
     """Run LOO on training + single forward pass on val.
 
-    Returns: dict per block with 'oof_r2' (training LOO) and 'val_r2'.
+    Returns: dict per block with 'oof_r2', 'val_r2'.
+    If xgb_boost=True, also 'xgb_oof_r2' and 'xgb_val_r2'.
     """
     train, val = split_tv(df)
     ok_tr = train[feat_cols].notna().all(axis=1)
@@ -99,24 +106,61 @@ def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg):
         X_tr_t, X_v_t = _apply_pca(X_tr, X_v, cfg)
         ridge_full = RidgeCV(alphas=ALPHA_GRID)
         ridge_full.fit(X_tr_t, dev_y)
-        val_pred = ridge_full.predict(X_v_t) + national_est.get(tc, 0.0)
-        val_r2 = r2_score(val[tc].values, val_pred)
+        ridge_val_pred = ridge_full.predict(X_v_t) + national_est.get(tc, 0.0)
+        val_r2 = r2_score(val[tc].values, ridge_val_pred)
 
-        # ── LOO over training dates ──
-        oof_pred = np.full(len(train), np.nan)
+        # ── LOO over training dates (deviation-space OOF) ──
+        oof_ridge_dev = np.full(len(train), np.nan)
         for f_idx, held_mask in enumerate(fold_masks):
             not_held = ~held_mask
             X_ft, X_fh = X_tr[not_held], X_tr[held_mask]
             X_ft_t, X_fh_t = _apply_pca(X_ft, X_fh, cfg)
             ridge = Ridge(alpha=ridge_full.alpha_, solver="cholesky")
             ridge.fit(X_ft_t, dev_y[not_held])
-            oof_pred[held_mask] = (
-                ridge.predict(X_fh_t) + fold_nats[f_idx][tc])
+            oof_ridge_dev[held_mask] = ridge.predict(X_fh_t)
 
-        oof_ok = ~np.isnan(oof_pred)
-        oof_r2 = r2_score(train[tc].values[oof_ok], oof_pred[oof_ok])
+        # Ridge-only LOO R²
+        oof_ridge_abs = np.full(len(train), np.nan)
+        for i, m in enumerate(fold_masks):
+            oof_ridge_abs[m] = oof_ridge_dev[m] + fold_nats[i][tc]
+        oof_ok = ~np.isnan(oof_ridge_abs)
+        oof_r2 = r2_score(train[tc].values[oof_ok], oof_ridge_abs[oof_ok])
 
-        results[tc] = {"oof_r2": oof_r2, "val_r2": val_r2}
+        res = {"oof_r2": oof_r2, "val_r2": val_r2}
+
+        # ── XGB residual boost ──
+        if xgb_boost:
+            oof_residuals = dev_y - oof_ridge_dev
+
+            # LOO of combined model
+            oof_combined = np.full(len(train), np.nan)
+            for f_idx, held_mask in enumerate(fold_masks):
+                train_ok = ~held_mask & ~np.isnan(oof_residuals)
+                if train_ok.sum() < 100:
+                    continue
+                xgb = HistGradientBoostingRegressor(
+                    early_stopping=False, random_state=42, **XGB_FIXED)
+                xgb.fit(X_tr[train_ok], oof_residuals[train_ok])
+                oof_combined[held_mask] = (
+                    oof_ridge_dev[held_mask] + xgb.predict(X_tr[held_mask])
+                    + fold_nats[f_idx][tc])
+
+            ok_c = ~np.isnan(oof_combined)
+            xgb_oof_r2 = (r2_score(train[tc].values[ok_c], oof_combined[ok_c])
+                          if ok_c.sum() > 100 else oof_r2)
+
+            # Val: XGB trained on all OOF residuals
+            ok_res = ~np.isnan(oof_residuals)
+            xgb_final = HistGradientBoostingRegressor(
+                early_stopping=False, random_state=42, **XGB_FIXED)
+            xgb_final.fit(X_tr[ok_res], oof_residuals[ok_res])
+            combined_val_pred = ridge_val_pred + xgb_final.predict(X_v)
+            xgb_val_r2 = r2_score(val[tc].values, combined_val_pred)
+
+            res["xgb_oof_r2"] = xgb_oof_r2
+            res["xgb_val_r2"] = xgb_val_r2
+
+        results[tc] = res
 
     return results
 
@@ -146,7 +190,6 @@ def main():
     ext_est = dict(est)
 
     # ── Feature groups ──
-    geo_time = ["latitude", "longitude", "date_float"]
     raw_lag1 = [f"{b}_lag1" for b in BLOCKS_ABS]
     raw_lag2 = [f"{b}_lag2" for b in BLOCKS_ABS]
     dev_lag1 = [f"dev_{b}_lag1" for b in BLOCKS_ABS]
@@ -172,10 +215,10 @@ def main():
         subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2)
 
     # ── Candidate model configs (pre-registered) ──
-    nd_ct = geo_time + dev_lag1 + dev_lag2 + type_cols
-    nd_ct_1lag = geo_time + dev_lag1 + type_cols
-    nd_legi = geo_time + dev_lag1 + dev_lag2
-    ext_nd = geo_time + ext_dev_lag1 + ext_dev_lag2 + ext_type_cols
+    nd_ct = dev_lag1 + dev_lag2 + type_cols
+    nd_ct_1lag = dev_lag1 + type_cols
+    nd_legi = dev_lag1 + dev_lag2
+    ext_nd = ext_dev_lag1 + ext_dev_lag2 + ext_type_cols
 
     configs = [
         # Cross-type Legi+Pres, 2-lag
@@ -272,25 +315,58 @@ def main():
         selected[tc] = best_name
         print(f"  {tc:20s} → {best_name:25s} (OOF R²={best_oof:.4f})")
 
-    # ── Phase 2: Report validation R² for selected models ──
+    # ── Phase 2: Residual boost on LOO-selected Ridge models ──
     print(f"\n{'='*70}")
-    print("STEP 2: VALIDATION (single forward pass, no feedback)")
+    print("STEP 2: RESIDUAL BOOST (Ridge+XGB, fixed config, no val tuning)")
+    print(f"  XGB config: {XGB_FIXED}")
+    print(f"{'='*70}")
+
+    # Re-run selected models with xgb_boost=True
+    xgb_results = {}
+    for tc in TARGET_COLS:
+        sel_name = selected[tc]
+        # Find the matching config
+        for cname, cdata, cfeats, cest, cnm, ccfg in configs:
+            if cname == sel_name:
+                print(f"\n  {ABBR[tc]} ({sel_name})...", end="", flush=True)
+                t1 = time.time()
+                res = run_loo_and_val(
+                    cname, cdata, cfeats, cest, cnm, ccfg,
+                    xgb_boost=True)
+                xgb_results[tc] = res[tc]
+                elapsed = time.time() - t1
+                print(f" ({elapsed:.0f}s)")
+                break
+
+    # ── Phase 3: Report final results ──
+    print(f"\n{'='*70}")
+    print("STEP 3: VALIDATION (single forward pass, no feedback)")
     print(f"{'='*70}\n")
 
     for tc in TARGET_COLS:
         name = selected[tc]
-        val_r2 = all_results[name][tc]["val_r2"]
+        ridge_val = all_results[name][tc]["val_r2"]
+        xgb_val = xgb_results[tc]["xgb_val_r2"]
+        ridge_oof = all_results[name][tc]["oof_r2"]
+        xgb_oof = xgb_results[tc]["xgb_oof_r2"]
+        # Best = whichever has higher LOO OOF R²
+        if xgb_oof > ridge_oof:
+            best_val, best_tag = xgb_val, "+XGB"
+        else:
+            best_val, best_tag = ridge_val, "Ridge"
         prev = PREV_RAW[tc]
-        delta = val_r2 - prev
+        delta = best_val - prev
         mark = "BEAT" if delta > 0.0005 else ("~tie" if abs(delta) <= 0.0005
                                                 else "miss")
-        print(f"  {tc:20s}  Val R²={val_r2:.4f}  "
-              f"(prev={prev:.4f}  Δ={delta:+.4f})  [{mark}]")
-        print(f"  {'':20s}  model={name}")
+        print(f"  {tc:20s}  Val R²={best_val:.4f}  "
+              f"(prev={prev:.4f}  Δ={delta:+.4f})  [{mark}] [{best_tag}]")
+        print(f"  {'':20s}  model={name}  "
+              f"Ridge: OOF={ridge_oof:.4f} Val={ridge_val:.4f}  "
+              f"+XGB: OOF={xgb_oof:.4f} Val={xgb_val:.4f}")
 
     # ── Also show full table for transparency ──
     print(f"\n{'='*70}")
-    print("FULL RESULTS TABLE (all models, all blocks)")
+    print("FULL RESULTS TABLE (all Ridge models, all blocks)")
     print(f"{'='*70}")
 
     print(f"\n{'Model':25s} ", end="")

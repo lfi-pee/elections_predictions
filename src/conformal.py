@@ -39,6 +39,22 @@ from src.cross_type_dev import (
 )
 from src.cross_type_ridge import TARGET_BLOCKS
 from src.beat_it import build_extended_data
+DOM3 = {"971", "972", "973", "974", "975", "976", "977", "978"}
+POLY3 = {"986", "987", "988"}
+
+
+def territory_class(loc):
+    p2 = loc[:2]
+    if p2 in ("2A", "2B"):
+        return "corsica"
+    if p2 == "ZZ":
+        return "abroad"
+    p3 = loc[:3]
+    if p3 in DOM3:
+        return "DOM"
+    if p3 in POLY3:
+        return "polynesia"
+    return "mainland"
 
 ALPHA_GRID = np.logspace(-2, 6, 20)
 
@@ -73,6 +89,37 @@ def evaluate_coverage(y_true, lower, upper):
         "n_covered": int(np.sum(covered)),
         "n_total": len(y_true),
     }
+
+
+def per_territory_intervals(cal_residuals, cal_territories, val_territories,
+                             alpha, min_n=50):
+    """Conformal intervals stratified by territory class.
+
+    Each (mainland / DOM / polynesia / corsica / abroad) gets its own
+    quantile of |residual|. Cells with fewer than min_n calibration
+    points fall back to the global quantile.
+
+    Returns half-widths (one per val BV).
+    """
+    abs_res = np.abs(cal_residuals)
+    n_cal = len(cal_residuals)
+    q_level = min(1.0, (1 - alpha) * (1 + 1 / n_cal))
+    global_q = float(np.quantile(abs_res, q_level))
+
+    per_terr_q = {}
+    for cls in ("mainland", "DOM", "polynesia", "corsica", "abroad"):
+        mask = cal_territories == cls
+        if mask.sum() >= min_n:
+            n_c = int(mask.sum())
+            ql = min(1.0, (1 - alpha) * (1 + 1 / n_c))
+            per_terr_q[cls] = float(np.quantile(abs_res[mask], ql))
+        else:
+            per_terr_q[cls] = global_q
+
+    half_widths = np.array(
+        [per_terr_q.get(t, global_q) for t in val_territories]
+    )
+    return half_widths, per_terr_q
 
 
 def adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_preds,
@@ -194,6 +241,8 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
     # ── LOO: collect calibration residuals ──
     cal_residuals = []
     cal_dev_preds = []
+    cal_territories = []
+    train_locations = train["location"].values
 
     for f_idx, held_mask in enumerate(fold_masks):
         not_held = ~held_mask
@@ -223,10 +272,18 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
 
         cal_residuals.append(residuals)
         cal_dev_preds.append(dev_pred)
+        cal_territories.append(
+            np.array([territory_class(loc)
+                      for loc in train_locations[held_mask]])
+        )
 
     cal_residuals = np.concatenate(cal_residuals)
     cal_dev_preds = np.concatenate(cal_dev_preds)
+    cal_territories = np.concatenate(cal_territories)
     abs_cal_res = np.abs(cal_residuals)
+    val_territories = np.array(
+        [territory_class(loc) for loc in val["location"].values]
+    )
 
     # ── Compute intervals for each alpha ──
     intervals = {}
@@ -246,6 +303,13 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
         adap_upper = val_pred + adap_hw
         adap_cov = evaluate_coverage(y_true_val, adap_lower, adap_upper)
 
+        # Per-territory stratified
+        terr_hw, per_terr_q = per_territory_intervals(
+            cal_residuals, cal_territories, val_territories, alpha)
+        terr_lower = val_pred - terr_hw
+        terr_upper = val_pred + terr_hw
+        terr_cov = evaluate_coverage(y_true_val, terr_lower, terr_upper)
+
         intervals[pct] = {
             "alpha": alpha,
             "std_quantile": q,
@@ -255,6 +319,10 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
             "adap_lower": adap_lower,
             "adap_upper": adap_upper,
             "adap_coverage": adap_cov,
+            "terr_lower": terr_lower,
+            "terr_upper": terr_upper,
+            "terr_coverage": terr_cov,
+            "terr_quantiles": per_terr_q,
         }
 
     return {
@@ -262,8 +330,10 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
         "val_dev_pred": val_dev_pred,
         "y_true_val": y_true_val,
         "val_locations": val["location"].values,
+        "val_territories": val_territories,
         "cal_residuals": cal_residuals,
         "cal_dev_preds": cal_dev_preds,
+        "cal_territories": cal_territories,
         "ridge_alpha": ridge_full.alpha_,
         "n_cal": len(cal_residuals),
         "n_folds": len(fold_masks),
@@ -288,7 +358,7 @@ def main():
     df, demo_indicators, national_means, poll_feats = \
         load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
-    # ── National estimates for 2024 (raw polls — best per LOO) ──
+    # ── National estimates for 2024 (raw polls — preserves PREV_RAW baseline) ──
     print("\nSetting up national estimates...")
     abs_pred, _ = estimate_national_abstention_from_gaps(national_means)
 
@@ -303,8 +373,6 @@ def main():
         print(f"    {tc:20s}: {val_est[tc]:.2f}")
 
     # ── LOO national estimates for realistic calibration ──
-    # Use raw poll averages from poll_feats (no house correction — matches
-    # the pipeline's actual estimation method, avoids optimistic calibration)
     print("\nBuilding LOO national estimates for calibration...")
     loo_nat_ests = {}
     for _, pf_row in poll_feats.iterrows():
@@ -419,6 +487,7 @@ def main():
         for pct, iv in sorted(res["intervals"].items()):
             sc = iv["std_coverage"]
             ac = iv["adap_coverage"]
+            tc_cov = iv["terr_coverage"]
             print(f"  {pct}% standard:  "
                   f"coverage={sc['coverage']:.3f}  "
                   f"mean_width={sc['mean_width']:.2f}pp  "
@@ -427,6 +496,30 @@ def main():
                   f"coverage={ac['coverage']:.3f}  "
                   f"mean_width={ac['mean_width']:.2f}pp  "
                   f"median_width={ac['median_width']:.2f}pp")
+            print(f"  {pct}% terr-strat:"
+                  f"coverage={tc_cov['coverage']:.3f}  "
+                  f"mean_width={tc_cov['mean_width']:.2f}pp  "
+                  f"q_per_class: " +
+                  ", ".join(f"{c[0]}={iv['terr_quantiles'][c]:.1f}"
+                            for c in ("mainland", "DOM", "polynesia",
+                                      "corsica", "abroad")))
+
+        # Per-territory coverage at 90% (the most useful level)
+        iv90 = res["intervals"][90]
+        terr_arr = res["val_territories"]
+        y = res["y_true_val"]
+        print(f"  90% terr-strat coverage by class:")
+        for cls in ("mainland", "DOM", "polynesia", "corsica", "abroad"):
+            m = terr_arr == cls
+            if m.sum() < 2:
+                continue
+            cov = float(np.mean(
+                (y[m] >= iv90["terr_lower"][m]) &
+                (y[m] <= iv90["terr_upper"][m])
+            ))
+            w = float(np.mean(iv90["terr_upper"][m] - iv90["terr_lower"][m]))
+            print(f"    {cls:12s} n={int(m.sum()):5d}  "
+                  f"cov={cov:.3f}  width={w:.1f}pp")
 
         # Build output frame for this block
         iv90 = res["intervals"][90]

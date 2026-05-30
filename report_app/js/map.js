@@ -97,16 +97,16 @@ function hoverBody(p) {
   const bv = p.l !== undefined;
   if (APP.state.mode === "mobil") {
     const mv = bv ? p.mv : p.cmv, abs = bv ? p.ab : p.cab;
-    let s = `<b>${fmt(mv)}</b> électeurs mobilisables`;
+    let s = `<b>${fmt(mv)}</b> électeurs mobilisables à gauche`;
     if (abs > 0) {
-      s += `<br><span class="mini-sub">${fmt(abs)} abstentionnistes × ` +
-        `${Math.round((mv / abs) * 100)} % de gauche (γ)</span>`;
+      s += `<br><span class="mini-sub">${fmt(abs)} abstentionnistes, dont ` +
+        `${Math.round((mv / abs) * 100)} % pencheraient à gauche</span>`;
     }
     if (bv && p.w) s += `<br><span class="mini-why">${p.w}</span>`;
     return s;
   }
   if (APP.state.mode === "honesty") {
-    return bv ? `intervalle conforme ±${p.u} pts (90 %)` : "zoomez pour l'incertitude au bureau";
+    return bv ? `fourchette de prévision ±${p.u} pts (fiable à 90 %)` : "zoomez pour l'incertitude au bureau";
   }
   const lead = leadOf(p, bv);
   return `${APP.NAME[lead]} en tête${p.m !== undefined ? " · marge " + p.m + " pts" : ""}`;

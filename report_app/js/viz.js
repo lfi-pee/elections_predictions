@@ -95,11 +95,11 @@ function renderAccuracy() {
     `<text x="2" y="${Y(100) + 3}" font-size="8" fill="#9a9aa2">100%</text>` +
     `<text x="2" y="${Y(40) + 3}" font-size="8" fill="#9a9aa2">40%</text>` +
     bars +
-    `<text x="${padL}" y="${H - 0.5}" font-size="8" fill="#9a9aa2">marge bloc 1 − bloc 2 (pts)</text>`;
+    `<text x="${padL}" y="${H - 0.5}" font-size="8" fill="#9a9aa2">écart entre le 1ᵉ et le 2ᵉ bloc (points)</text>`;
   const lo = pts[0], hi = pts[pts.length - 1];
   $("acc-cap").innerHTML =
-    `Bon appel dans <b>${Math.round(hi.acc)} %</b> des bureaux à marge nette, ` +
-    `<b>${Math.round(lo.acc)} %</b> sous ${lo.hi} pt. En orange : le terrain serré.`;
+    `Le bon bloc désigné dans <b>${Math.round(hi.acc)} %</b> des bureaux à écart net, ` +
+    `<b>${Math.round(lo.acc)} %</b> quand il est sous ${lo.hi} pt. En orange : le terrain serré.`;
 }
 
 function renderCoverage() {
@@ -129,7 +129,7 @@ function renderPools() {
   const lg = APP.data.summary.left_gain;
   $("pools").innerHTML =
     `<div class="pool-row mob"><span class="pool-lab">Mobilisation` +
-    `<small>abstentionnistes qui penchent à gauche · γ ${lg.gamma_mean} %</small></span>` +
+    `<small>abstentionnistes qui penchent à gauche · ${lg.gamma_mean} % en moyenne</small></span>` +
     `<b class="pool-v">${fmtM(lg.mobilization_voters)}</b><span class="pool-u">électeurs</span></div>`;
 }
 

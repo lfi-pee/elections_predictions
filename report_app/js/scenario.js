@@ -68,13 +68,13 @@ function drawSwingNote(ad) {
   if (!note) return;
   const moved = Math.abs(ad.G) + Math.abs(ad.CD) + Math.abs(ad.ED) > 0.05;
   if (!moved) {
-    note.innerHTML = "Un seul cadran à somme nulle : un bloc gagne, les autres le " +
-      "financent au prorata de leur taille. Tournez un curseur.";
+    note.innerHTML = "Un seul cadran, équilibré : ce qu'un bloc gagne, les autres le " +
+      "perdent — en proportion de leur taille. Tournez un curseur.";
     return;
   }
   const seg = (b) =>
     `<span><b style="background:${APP.COL[b]}"></b>${signed(ad[b])}</span>`;
-  note.innerHTML = `<em>Effet net, à somme nulle&nbsp;:</em> ` +
+  note.innerHTML = `<em>Effet net (un bloc gagne, les autres perdent autant)&nbsp;:</em> ` +
     APP.VOTE.map(seg).join(" ");
 }
 
@@ -134,13 +134,13 @@ function updateLegend() {
     mobil:
       `<span class="legend-lab">mobilisation</span>` +
       grad(APP.PALE.G, "#a83214",
-        "score = abstentionnistes × γ (part de gauche du votant marginal)") +
+        "nombre d'abstentionnistes qui, en venant voter, choisiraient la gauche") +
       "peu → beaucoup d'électeurs gagnables</span>",
     lead:
       `<i data-b="G"></i>Gauche <i data-b="CD"></i>Centre+Droite <i data-b="ED"></i>Extrême&nbsp;Droite` +
       grad(APP.PALE.ED, APP.COL.ED, "pâle = marge serrée") + "pâle = serré</span>",
-    honesty: grad("#f3c9a8", "#a83214", "largeur de l'intervalle conforme 90 %") +
-      "intervalle étroit → large</span>",
+    honesty: grad("#f3c9a8", "#a83214", "largeur de la fourchette de prévision (fiable à 90 %)") +
+      "fourchette étroite → large</span>",
   };
   $("legend").innerHTML = html[APP.state.mode];
 }

@@ -67,12 +67,12 @@ function whyMobil(rec) {
   const g = abs > 0 ? Math.round((rec.mob / abs) * 100) : 0;
   const phrase = rec.wleft ? `<div class="dv-cap">Ce bureau ${rec.wleft}.</div>` : "";
   const bars = (rec.gdrivers && rec.gdrivers.length)
-    ? `<div class="dv-cap" style="margin-top:8px">ce qui règle son niveau de gauche — donc γ — contribution de chaque facteur au score Gauche, en points</div>
+    ? `<div class="dv-cap" style="margin-top:8px">ce qui règle son niveau de gauche — donc la part qui penche à gauche — contribution de chaque facteur au score Gauche, en points</div>
        <div class="dv-chart">${driverBars(rec.gdrivers, APP.COL.G)}</div>`
     : "";
   return `<div class="pv-why"><span class="pv-why-h" style="color:${APP.COL.G}">Pourquoi ce bureau est mobilisable</span>
     <div class="pv-mob-eq"><b>${fmt(rec.mob)}</b> électeurs mobilisables
-      = ${fmt(abs)} abstentionnistes × ${g} % de gauche (γ)</div>
+      = ${fmt(abs)} abstentionnistes, dont ${g} % pencheraient à gauche</div>
     ${phrase}${bars}</div>`;
 }
 
@@ -106,9 +106,9 @@ function renderPanel(loc, rec) {
       Bloc en tête prédit : <b>${APP.NAME[baseLead]}</b>, marge ${rec.m.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts sur ${APP.NAME[rec.ru]}.</div>
     ${flipTxt}
     ${bars}
-    <p class="cap">Barre pleine = prédit · trait noir = réel · bande conforme 90 % :
-    partie <b>sombre</b> = notre lecture locale, prolongement <b>clair</b> = le
-    national des sondages.</p>
+    <p class="cap">Barre pleine = prédit · trait noir = réel · fourchette de prévision
+    à 90 % : partie <b>sombre</b> = notre lecture locale, prolongement <b>clair</b> = la
+    part qui vient du national (sondages).</p>
     <div class="pv-tip">${provTxt}</div>
     <div class="pv-tip">${tipTxt}</div>
     ${APP.state.mode === "mobil" ? whyMobil(rec) : whyBlock(rec)}`;

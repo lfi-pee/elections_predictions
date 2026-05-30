@@ -1,0 +1,16 @@
+[server]
+# Sert le dossier ./static (symlink vers report_app) sous l'URL app/static/…
+enableStaticServing = true
+# Le site est purement statique côté navigateur ; pas d'upload utilisateur.
+enableXsrfProtection = true
+enableCORS = false
+maxUploadSize = 5
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#E4572E"
+backgroundColor = "#FAFAF7"
+textColor = "#1A1A2E"

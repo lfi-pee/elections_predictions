@@ -74,13 +74,15 @@ def split_tv(df):
 
 
 def _clean_name(col):
-    """Shorten column names for display."""
-    return (col
-            .replace("dev_", "")
-            .replace("type_", "")
-            .replace("Pct_", "")
-            .replace("Taux_", "")
-            .replace("_lag", " lag"))
+    """Libellé lisible pour l'axe du waterfall (diagnostic) : jamais de « lag »."""
+    base = col.replace("dev_", "").replace("type_", "")
+    if "_lag" in base:
+        bloc, n = base.split("_lag")
+        rec = "n-1" if n == "1" else "n-2"
+        bloc = bloc.replace("Extreme_Droite", "Extrême Droite").replace("_", " ")
+        sujet = "abstention" if bloc == "Abstention" else f"vote {bloc}"
+        return f"{sujet} ({rec})"
+    return base.replace("Pct_", "").replace("Taux_", "").replace("_", " ")
 
 
 def train_and_explain(block, df, df_ext, demo_indicators, ext_indicators,
@@ -252,8 +254,8 @@ def train_and_explain(block, df, df_ext, demo_indicators, ext_indicators,
     max_err = np.max(np.abs(combined_pred - recon))
     print(f"  Combined SHAP decomposition max error: {max_err:.2e}")
 
-    # All original feature names (readable)
-    all_names = [_clean_name(c) for c in list(indicators) + non_demo_cols]
+    # Raw feature names; cleaned for display only at plot/explanation sites.
+    all_names = list(indicators) + non_demo_cols
 
     # Original (unscaled) feature values for display
     val_raw = val[feat_cols].values.astype(np.float64)
@@ -279,7 +281,7 @@ def make_waterfall(info, block, bv_idx, max_display=15, output=None):
     """Generate SHAP waterfall plot for one BV and one block."""
     sv = info["shap_values"][bv_idx]          # (n_feat,)
     base = info["base_value"]
-    names = info["feature_names"]
+    names = [_clean_name(c) for c in info["feature_names"]]
     raw_vals = info["val_raw"][bv_idx]         # original feature values
     nat_est = info["national_est"]
     val = info["val"]

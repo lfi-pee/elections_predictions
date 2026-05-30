@@ -84,12 +84,13 @@ Settled by experiments in this codebase or in `algorithm.md`:
 - ❌ Tree models on residuals (XGB, GP) — no nonlinear demographic→residual signal
 - ❌ Cross/interaction features — overfit on 4–8 train dates
 - ❌ Logit / sqrt lag transforms
-- ❌ Spatial neighbor features (dept mean, k-NN BV)
+- ❌ Spatial neighbor features (dept mean, k-NN BV); also ❌ a learned-length-scale Gaussian kernel smoother on the Ridge OOF *residual field* over lat/lon (2026-05; `src/spatial_residual_smooth.py`). LOO picked the largest ℓ (50 km, grid max → mildest correction) for **every** block and OOF R² dropped in all four (G 0.797→0.788, CD 0.597→0.589, ED 0.816→0.810, Ab 0.907→0.904). Val deltas were inconsistent in sign and within the noise band (G +0.006, ED +0.017, but CD −0.024, Ab −0.038). self+nbr ≈ nbr-only to ~0.0003 → no residual per-BV persistence left; the dev lags already absorb the local/spatial signal. The deviation residual is spatially white.
 - ❌ Compositional / ILR joint modeling
 - ❌ Macro fundamentals (GDP, inflation, popularity) as features
 - ❌ Voter-weighted Ridge (this session)
 - ❌ Centre/Droite split (this session)
 - ❌ Cluster-then-shrink on demographics (XGB-residual experiment already settled this)
+- ❌ Non-inscrits / registration-rate feature (2026-05; **−0.001 to 0 LOO on every block in its production config — abandoned. See investigation below for the three evaluation errors that briefly made it look positive.**)
 
 ---
 
@@ -122,9 +123,14 @@ All experiments use the same 4 LOO-selected configs from `preregistered.py`. Dec
 
 The territory-indicator regression on Abstention is *the same mechanism* as every other failed variant: the territories' deviations are **not stationary** across regimes. A coefficient learned on 2002–2022 is wrong-signed for the 2024 snap.
 
-### Why the val signal exists but cannot be taken
+### The dev-persistence "gain" is not a real gain
 
-BV-level dev-persistence shows a real **+0.07 aggregate val gain** (3 of 4 blocks beat baseline). LOO refuses it cleanly. The gap is structural, not noise.
+BV-level dev-persistence shows a +0.07 aggregate val improvement (3 of 4 blocks beat baseline on this single 2024 forward pass). **This is overfitting to one election. The rule does not generalize and should not be applied.**
+
+The evidence:
+- LOO refuses it on every training fold for every block, by Δ ≈ −0.01 to −0.08. Across 4–8 training years × 4 blocks (16–32 independent tests), the rule consistently *loses*.
+- The val "win" is on n=1 election. With 4–8 LOO folds rejecting and one val pass accepting, the simplest explanation is sampling noise on a regime-shifted year, not a real structural improvement.
+- The pretty story ("dev-persistence works because val is a snap election with short same-type lag") is post-hoc rationalization. There is no training-data evidence that the rule generalizes to *any* future snap election; it just happened to align with 2024's specific deviations.
 
 **Lag-gap regimes available for training vs val:**
 
@@ -147,7 +153,7 @@ For non-mainland BVs, the same-type-ness of the lag is decisive — Pres→Legi 
 
 ### Conclusion
 
-For non-mainland BVs, **the dataset cannot validate any Stage-2 fix that targets the snap regime**. The +0.07 val gain from dev-persistence is real and structurally explainable, but it's overfitting in the only sense that matters for this codebase. Stop trying.
+**Dev-persistence is just bad — it doesn't generalize.** The +0.07 val gain is a single-election fluke; LOO's unanimous refusal is the trustworthy signal. Stop trying to recover it. No "equivalent feature," no clever LOO redesign, no extra training data short of multiple snap elections (which won't exist) makes this a real gain. The dataset cannot validate any Stage-2 fix targeting the snap regime, because the snap regime is fundamentally OOD relative to all available training and validation data. Treat the +0.07 as a warning about how much R² noise a single OOD election can produce, not as a missed opportunity.
 
 The remaining principled work is Stage-1 uncertainty (Reco 3) — that direction doesn't depend on the missing regime. The bayesian_polls.py work in commit 1ffd648 is the right next step.
 
@@ -155,3 +161,53 @@ The remaining principled work is Stage-1 uncertainty (Reco 3) — that direction
 
 - `src/cross_type_dev.py`, `src/preregistered.py` — territory indicators added then reverted (no diff in git after revert).
 - `src/territory_persistence_exp.py` — investigation script, retained for reproducibility. Re-running it should produce the same negative result. Do not pursue further variants of this without new training data covering a 2-yr same-type lag regime.
+
+---
+
+## Investigation: non-inscrits / registration-rate feature (2026-05-29)
+
+**Question:** does giving the model the *non-registered* population (eligible adults absent from the rolls — distinct from abstention, which is registered-but-didn't-vote) improve prediction?
+
+**Answer: no.** A commune-level registration-rate feature gives **−0.001 to 0 LOO OOF R²** on every block *in its production model config*. Abandoned. (Three wrong intermediate conclusions were reached before this — they are kept below as a cautionary record of how to evaluate features wrong.)
+
+### The feature
+
+A commune-level **registration ratio** `reg_ratio = inscrits / pop_18+`:
+- `inscrits`: BV inscrits (`general_results.parquet`) summed to commune, per election.
+- `pop_18+`: INSEE census, approximated as `POP − POP0014 − 0.2·POP1529`. Census vintage matched to election year, floored at 2010 (earliest struct-pop file).
+- Spread: mean 0.92, std 0.146. **Coverage ~95 %** per election type (see Error 3).
+
+### Final result — LOO OOF R² per block, in its production config
+
+| Bloc | Production config | Δ LOO (base → +reg_ratio) |
+|---|---|---|
+| Gauche | Legi-PCA5 | −0.0000 |
+| Centre+Droite | Legi-PCA7 | −0.0001 |
+| Extreme_Droite | CT-PCA5 | −0.0003 |
+| Abstention | CT-PCA10 | −0.0010 |
+
+Nothing clears the ±0.001 noise band; all lean slightly negative. The feature is not redundant in the linear sense (grouped-CV R² of `reg_ratio ~ demographics = 0.41`, so 59 % is "new" variance), but that new variance carries **no marginal predictive signal for the targets once the model has the full cross-type training set.**
+
+### The three errors made before reaching that answer (cautionary)
+
+This investigation reversed its conclusion three times. Each reversal was a textbook evaluation mistake; documented so they are recognised faster next time.
+
+1. **Selected on the test set.** First pass compared base vs +reg on the *single 2024 val forward pass* and concluded "it hurts" (Ab −0.009 to −0.013). That is feature selection on the held-out year — exactly what this whole document forbids. The val pass is n=1 OOD noise; the decision metric is LOO OOF R² on training only.
+
+2. **Read LOO on a silently-truncated dataset → false positive.** Switching to the LOO gate showed a *consistent +0.004 (Ab) / +0.002 (ED)* across 5 configs — looked robust, was written up as a real gain ("worth pursuing"). It was an artifact: the dataset had silently lost rows (Error 3), collapsing the "cross-type" configs to Legi-only. On Legi-only data, starved of the Presidentielle folds, `reg_ratio` *looked* useful.
+
+3. **A float32/float64 join bug masqueraded as 52.9 % coverage.** `df.date_float` is float32 (Pres = 2002.3334); `reg.date_float` was float64 (2002.3333…). The merge silently dropped **every Presidentielle row** (the .5 Legislatives dates are exactly representable in both dtypes, so they joined; the .333 dates did not). This both (a) made coverage look like 52.9 % when it is really ~95 %, and (b) caused Error 2 by turning cross-type into Legi-only. Fix: cast `reg.date_float` to float32 before the join. With Pres restored, CT configs go 320k → 573k rows and the +0.004 evaporates to −0.001.
+
+**Takeaways:** never read a feature delta without first asserting row count and per-fold coverage are unchanged vs base; a "robust across configs" gain is meaningless if all configs silently share the same truncation; and merging on floats across dtypes is a silent-data-loss trap.
+
+### How it was proven (to reproduce — scripts were deleted)
+
+The whole test reuses the existing pipeline; no new infra needed.
+
+1. **Build the feature.** Sum `inscrits` to commune from `inscrits_lookup.parquet`; divide by `pop_18+` from `data/demographics/census/{vintage}/*evol-struct-pop*` (`POP − POP0014 − 0.2·POP1529`), reading pre-2017 `.xls`/`.xlsx` via `load_demographics._read_insee_file` (needs `xlrd`/`openpyxl` in the venv). Match census vintage to election year, floored at 2010. **Cast `date_float` to float32 before merging onto the model df** — this is the join that was broken.
+2. **Sanity-gate the merge before reading any score.** Assert per-(election_type, date) coverage of the new column is uniform (~95 %) and that the row count fed to each model config is *identical* to the base run. (Skipping this is how the Presidentielle rows vanished and produced the false positive.)
+3. **Score on LOO OOF R², never on 2024.** Call `preregistered.run_loo_and_val(name, df_subset, base_feats, est, national_means, cfg)` and again with `base_feats + ["reg_ratio"]` (appended after the demo block so PCA's `n_demo` is unchanged), on the *same* `reg_ratio`-present row subset for both. Compare `["oof_r2"]` per block.
+4. **Use each block's production config**, not a fixed one: G→Legi-PCA5, CD→Legi-PCA7, ED→CT-PCA5, Ab→CT-PCA10. The CT (cross-type) configs are decisive for ED/Ab — that is where the Legi-only mirage disappears.
+5. Result: Δ LOO = −0.0000 / −0.0001 / −0.0003 / −0.0010 (G/CD/ED/Ab). Cross-checked that the +0.004 mirage only survives when Presidentielle rows are absent (CT n drops 573k→320k) and that `reg_ratio ~ demographics` grouped-CV R² = 0.41 (new variance exists, but carries no marginal signal).
+
+Abandoned on merit (null LOO at full coverage), **not** on coverage — coverage was fine. No tracked source files were modified; `xlrd`/`openpyxl` remain in the venv.

@@ -1,0 +1,36 @@
+{
+ "blocks": {
+  "G": {
+   "national_share": 7.4,
+   "local_share": 92.6,
+   "sd_model": 7.34,
+   "sd_total": 7.63,
+   "q90_oracle": 10.91,
+   "q90_real": 12.57
+  },
+  "CD": {
+   "national_share": 16.1,
+   "local_share": 83.9,
+   "sd_model": 10.8,
+   "sd_total": 11.78,
+   "q90_oracle": 15.3,
+   "q90_real": 17.46
+  },
+  "ED": {
+   "national_share": 48.2,
+   "local_share": 51.8,
+   "sd_model": 5.35,
+   "sd_total": 7.44,
+   "q90_oracle": 8.34,
+   "q90_real": 13.37
+  },
+  "AB": {
+   "national_share": 60.2,
+   "local_share": 39.8,
+   "sd_model": 4.77,
+   "sd_total": 7.57,
+   "q90_oracle": 7.28,
+   "q90_real": 12.27
+  }
+ }
+}

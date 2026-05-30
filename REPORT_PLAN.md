@@ -238,9 +238,12 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
   abstentionnistes qui penchent à gauche = abstentionnistes × **γ(b)**, où **γ est la
   part de gauche du *votant marginal*** — l'ex-abstentionniste qui se déplace quand la
   participation monte — lue sur les vraies hausses de participation par décile de niveau
-  de gauche (`movability_turnout`, voir `MOVABILITY.md` §11). **4,49 M en métropole**,
-  sur 14,1 M d'abstentionnistes (γ moyen 31,9 %) — des non-votants qu'aucun sondage (qui
-  n'interroge que les votants probables) ne voit. Quantité **identifiée** (pas le partage
+  de gauche (`movability_turnout`, voir `MOVABILITY.md` §11). **4,71 M en métropole**,
+  sur 14,8 M d'abstentionnistes (γ moyen 31,7 %) — abstention et niveau de gauche
+  **prédits** (`pred_*`, pas les résultats observés : le livrable montre ce que
+  l'instrument *prévoit*, pas ce qu'on a vu après coup) — des non-votants qu'aucun
+  sondage (qui n'interroge que les votants probables) ne voit. Quantité **identifiée**
+  (pas le partage
   des exprimés locaux, circulaire) et **stable dans le temps** (courbe γ ancienne vs
   récente corrélée à +0,96). **Validée hors échantillon** : la courbe γ(niveau) bat
   l'hypothèse de swing uniforme pour prédire le mouvement du scrutin suivant, et les
@@ -257,9 +260,9 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
   le §3 proscrit. Le canal *persuasion* (chargement β sur la marée) a aussi été testé et
   **échoue hors échantillon** — on ne bat pas le swing uniforme (`MOVABILITY.md` §10).
 - **Où déployer (en électeurs, pas en bureaux, métropole seule) :** le gisement de
-  mobilisation se concentre dans des villes nommables — **Paris 132 k, Marseille 72 k,
-  Toulouse 30 k, Nice 26 k, Lyon 25 k, Montpellier 24 k, Nantes 21 k, Strasbourg 17 k,
-  Lille 17 k, Villeurbanne 16 k, Rennes 13 k, Reims 13 k.** L'outre-mer et l'étranger sont
+  mobilisation se concentre dans des villes nommables — **Paris 134 k, Marseille 74 k,
+  Toulouse 31 k, Lyon 27 k, Nice 26 k, Montpellier 24 k, Nantes 23 k, Lille 19 k,
+  Strasbourg 18 k, Rennes 15 k, Le Havre 14 k, Reims 13 k.** L'outre-mer et l'étranger sont
   exclus de l'ordre de déploiement (non démarchables, erreur concentrée).
   `summary.left_gain.deployment`, top 12 par abstentionnistes mobilisables.
 - **Honnêteté du chiffre :** le total national d'un basculement est arithmétique (+1 pt
@@ -370,7 +373,7 @@ plein :
 
 Le calque **« mobilisation »** allume les **abstentionnistes qui penchent à gauche**
 (`national.json` champ `mv`, abstentionnistes × **γ**, la part de gauche du votant
-marginal) — **4,49 M en métropole** : des non-votants qu'aucun sondage (qui n'interroge
+marginal) — **4,71 M en métropole** : des non-votants qu'aucun sondage (qui n'interroge
 que les votants probables) ne voit, à faire venir aux urnes. La teinte porte la densité
 d'électeurs gagnables ; le rail recadre sur le foyer survolé. *(L'ancien second calque
 « potentiel latent » a été retiré : résidu non identifié, sans signal spatial vérifiable
@@ -378,7 +381,7 @@ d'électeurs gagnables ; le rail recadre sur le foyer survolé. *(L'ancien secon
 
 Sous le calque, le panneau pleine largeur **« Où déployer »** classe les
 **communes par abstentionnistes mobilisables** (`summary.left_gain.deployment`, top 12) —
-**Paris 132 k, Marseille 72 k, Toulouse 30 k, Nice 26 k, Lyon 25 k…** — métropole seule
+**Paris 134 k, Marseille 74 k, Toulouse 31 k, Lyon 27 k, Nice 26 k…** — métropole seule
 (outre-mer/étranger exclus : non démarchables). L'ordre de déploiement est nommé et
 chiffré en personnes, pas une teinte abstraite. Une note honnête tient en une ligne : le
 total national d'un gain est arithmétique (+1 pt ≈ 0,48 M voix) ; ce que le modèle ajoute,
@@ -570,7 +573,7 @@ l'affichage (« vote Extrême Droite (n-1) »), sans jamais imprimer « lag ».
 `src/verify_report.py` (Playwright headless) — zéro exception JS, 7 barres de
 précision, pastille 80/90/95, 4 barres de provenance, **2 barres du duel sondage
 vs nous (48,2 % / 81,6 %)**, la barre **« réalité partagée »** (panneau autonome
-« paysage national » supprimé), **1 gisement d'électeurs** (mobilisation 4,49 M)
+« paysage national » supprimé), **1 gisement d'électeurs** (mobilisation 4,71 M)
 et **12 communes de déploiement**, le **mode par défaut `mobil`** avec le **calque
 bloc en tête** basculable (`#lead` : `mobil` → `lead` → `mobil`),
 **2 barres de rapport de

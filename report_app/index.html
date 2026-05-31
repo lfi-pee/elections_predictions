@@ -79,6 +79,14 @@
     exprimé sur place, qui tournerait en rond. C'est la seule règle qui <b>tient d'une
     élection à l'autre</b> : une carte fondée sur la seule sociologie décrirait finement le
     dernier scrutin mais prédirait mal le suivant — testé, écarté.</p>
+    <p class="fineprint">Deux précisions d'honnêteté. Le multiplicateur (part qui revient à
+    gauche) est <b>quasi ponctuel</b> — bootstrap 95 % à ±0,2 pt : toute l'incertitude du
+    gisement tient à la définition du <b>plancher</b> d'abstention de fond. Nous retenons la
+    plus <b>prudente</b>, sans fuite de l'élection cible ; les définitions plus permissives
+    donneraient <b>davantage</b> (jusqu'à ~0,6 M), pas moins — on ne gonfle pas le chiffre.
+    Et c'est une <b>projection</b> : contrairement au taux de bon appel (81,6 %, vérifié sur
+    2024), un gisement de mobilisation <b>ne se vérifie pas après coup</b> — aucun scrutin ne
+    révèle comment auraient voté les abstentionnistes restés chez eux.</p>
   </section>
 
   <section class="panel span8">
@@ -98,14 +106,15 @@
     <b>du scrutin</b> : à une législative environ <b>39 sur 100</b> en moyenne (et d'autant
     plus que le bureau penche déjà à gauche), à une européenne <b>24</b>, à une
     présidentielle <b>12</b> —
-    le revenant n'a pas le même visage selon l'élection. C'est pourquoi le gisement n'a pas la
+    ce gain net n'a pas la même ampleur selon l'élection. C'est pourquoi le gisement n'a pas la
     même formule selon l'élection visée.</p>
     <p class="lede"><b>Comment ces courbes sont tracées.</b> Pour chaque bureau, on
     compare deux scrutins successifs du même type : entre les deux, la participation a varié
     de quelques points, et le score de la gauche — compté en part des <b>inscrits</b>, non des
     votants — a varié aussi. Le rapport des deux, soit le nombre de points que la gauche gagne
-    par point de participation supplémentaire, est la part de gauche des électeurs qui se sont
-    effectivement déplacés. On rassemble ces variations sur tous les bureaux et toutes les
+    par point de participation supplémentaire, est son <b>gain net</b> par électeur ramené —
+    un effet net qui agrège arrivées, départs et reports entre les deux scrutins, qu'on
+    n'assimile donc pas à la seule couleur des nouveaux venus. On rassemble ces variations sur tous les bureaux et toutes les
     paires de scrutins (des centaines de milliers), on les classe par niveau de gauche du
     bureau (l'axe horizontal), et dans chaque tranche on en calcule la pente — une droite
     forcée par l'origine, puisque sans hausse de participation il n'y a aucune voix gagnée.
@@ -121,11 +130,13 @@
   <h2 class="band span12">Comment ça marche</h2>
 
   <section class="panel span12 method-panel">
-    <figure><img src="data/fig_method.svg?v=16" alt="schéma de méthode en trois bandes : le modèle (ancre nationale plus écart local, abstention modélisée à part faute de sondage), l'estimation de l'abstention de gauche (abstentionnistes conjoncturels multipliés par la part de gauche du votant marginal), et la validation croisée sur les scrutins passés testée une seule fois sur 2024" />
+    <figure><img src="data/fig_method.svg?v=17" alt="schéma de méthode en trois bandes : le modèle (ancre nationale plus écart local, abstention modélisée à part faute de sondage), l'estimation de l'abstention de gauche (abstentionnistes conjoncturels multipliés par la part de gauche du votant marginal), et la validation croisée sur les scrutins passés testée une seule fois sur 2024" />
       <figcaption><b>Le modèle d'abord</b> — une régression Ridge (linéaire régularisée),
       pas de boîte noire : ancre nationale plus notre lecture locale du bureau (votes
       passés, 52 indicateurs INSEE, géographie), et l'abstention, faute de sondage, calée
-      sur la participation passée.<br />
+      sur la participation passée. L'ancre nationale vient des sondages : notre apport est
+      l'<i>écart local</i> — au national, nous valons le sondage, jamais moins ; si le sondage
+      national se trompe, la prévision se décale d'autant.<br />
       <b>Puis le gisement — comment on estime l'abstention de gauche, exactement.</b> En
       deux temps. <b>(1)</b> On isole les abstentionnistes qu'une fin de campagne peut
       ramener : l'abstention prévue du bureau <i>moins</i> son plancher historique (le
@@ -133,11 +144,12 @@
       <b>conjoncturelle</b>. <b>(2)</b> Quelle part de ces revenants vote à gauche ? On ne
       le suppose pas, on le mesure. Sur tous les scrutins <i>passés du même type</i>, on
       regarde bureau par bureau de combien le vote de gauche monte quand la participation
-      monte : si 100 électeurs de plus se déplacent et que la gauche en gagne 39, alors
-      <b>39 %</b> de l'électeur qui revient penche à gauche. Cette part n'est jamais « la
-      part de gauche de ceux qui votent déjà » (ce serait un raisonnement circulaire) :
-      c'est la composition du <i>revenant</i>, lue sur de vraies hausses de participation.
-      Elle dépend du profil du bureau et surtout du scrutin (législatives 39 %,
+      monte : si la participation gagne 100 voix et la gauche 39, on compte <b>39 %</b> —
+      le <b>gain net</b> de la gauche par électeur ramené. C'est un effet net (arrivées,
+      départs et reports entre les deux scrutins confondus), jamais « la part de gauche de
+      ceux qui votent déjà » (qui serait circulaire) : on le mesure sur de vraies hausses de
+      participation, on ne le suppose pas.
+      Il dépend du profil du bureau et surtout du scrutin (législatives 39 %,
       présidentielle 12 %). Au total : <b>mobilisables de gauche = abstentionnistes
       conjoncturels × cette part</b>, bureau par bureau.<br />
       <b>Enfin la preuve</b> : le modèle est choisi par validation croisée sur les scrutins
@@ -158,8 +170,10 @@
     classe de territoire — métropole, Outre-mer, Polynésie, Corse, étranger —, ce qui rend la
     largeur adaptative : chaque classe est calibrée sur ses propres erreurs passées, donc plus
     large là où l'erreur l'est (une classe à trop peu de bureaux reprend la largeur globale).
-    La méthode ne suppose aucune distribution des erreurs et garantit une couverture au moins
-    égale au niveau visé. Contrôle : 2024 est tenu hors de toute cette calibration, et la
+    La méthode ne suppose aucune distribution des erreurs ; sa garantie de couverture vaut
+    sous <b>échangeabilité</b> — hypothèse qu'un scrutin nouveau ne respecte jamais tout à fait
+    (les régimes bougent dans le temps). On ne s'y fie donc pas en théorie : on la <b>vérifie</b>
+    hors échantillon. Contrôle : 2024 est tenu hors de toute cette calibration, et la
     couverture mesurée dessus tient le niveau annoncé en métropole — où se joue le déploiement —
     (≥ 90 % pour la fourchette à 90 %, par bloc) ; les territoires particuliers (Outre-mer,
     Corse, étranger), calibrés sur eux-mêmes, reçoivent les fourchettes les plus larges et
@@ -174,8 +188,8 @@
 <script src="js/config.js?v=12" defer></script>
 <script src="js/map.js?v=12" defer></script>
 <script src="js/scenario.js?v=12" defer></script>
-<script src="js/viz.js?v=14" defer></script>
-<script src="js/panel.js?v=12" defer></script>
-<script src="js/main.js?v=12" defer></script>
+<script src="js/viz.js?v=15" defer></script>
+<script src="js/panel.js?v=13" defer></script>
+<script src="js/main.js?v=13" defer></script>
 </body>
 </html>

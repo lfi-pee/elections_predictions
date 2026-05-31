@@ -204,9 +204,9 @@ def _band_gisement(gain: dict, gbt: dict[str, int], curves: dict) -> str:
     cap = (
         f'<text x="16" y="402" font-size="9.6" fill="{MUT}">Cette part se mesure, jamais ne se '
         f"suppose : sur les scrutins passés du même type, quand la participation d'un bureau monte, "
-        f"on lit combien des votants gagnés rejoignent la gauche.</text>"
-        f'<text x="16" y="416" font-size="9.6" fill="{MUT}">Sur 100 revenants, combien votent à '
-        f"gauche — stable dans le temps (+0,96), mais propre au scrutin : "
+        f"on lit le gain net de la gauche par point de participation.</text>"
+        f'<text x="16" y="416" font-size="9.6" fill="{MUT}">Gain net (entrées, sorties et reports '
+        f"confondus) — stable dans le temps (+0,96), mais propre au scrutin : "
         f'<tspan font-weight="700" fill="{COLOR["G"]}">législatives ~{legi}</tspan> · '
         f'<tspan font-weight="700" fill="{COLOR["CD"]}">européennes ~{euro}</tspan> · '
         f'<tspan font-weight="700" fill="{COLOR["ED"]}">présidentielle ~{pres}</tspan> sur 100.</text>'

@@ -123,8 +123,9 @@ function renderGamma() {
     `<text x="${W - padR}" y="${H - 16}" font-size="8.5" fill="#9a9aa2" text-anchor="end">plutôt à gauche</text>` +
     `<text x="${padL}" y="${H - 4}" font-size="8.5" fill="#9a9aa2">niveau de gauche du bureau →</text>`;
   $("gamma-cap").innerHTML =
-    "<b>Lecture :</b> sur 100 abstentionnistes qu'on ramène aux urnes, combien votent à " +
-    "gauche. Le revenant n'a pas la même couleur selon le scrutin — à une législative " +
+    "<b>Lecture :</b> quand la participation monte, combien de voix <b>nettes</b> la gauche " +
+    "capte sur 100 ramenées — un gain net (arrivées, départs et reports confondus), pas la " +
+    "seule couleur des nouveaux venus. Ça dépend du scrutin — à une législative " +
     "~39 sur 100 <b>en moyenne</b>, et d'autant plus que le bureau penche déjà à gauche " +
     "(de ~24 dans les bureaux les plus à droite à ~56 dans les plus à gauche) ; à une " +
     "européenne ~24, à une présidentielle ~12. Comme les abstentionnistes qu'on peut " +

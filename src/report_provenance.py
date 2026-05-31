@@ -120,7 +120,15 @@ def compute() -> dict:
     }
     val_est["Abstention"] = abs_pred
     loo_nat = _loo_nat_ests(poll_feats, national_means)
+    nm_val = national_means[
+        (national_means["election_type"] == VAL_TYPE)
+        & np.isclose(national_means["date_float"], VAL_DATE, atol=0.1)
+    ]
+    actual_nat = {tc: float(nm_val[tc].iloc[0]) for tc in TARGET_COLS}
     datasets, feat_maps = _datasets(df, demo_indicators, type_cols)
+
+    def _r2(y: np.ndarray, p: np.ndarray) -> float:
+        return round(1 - ((y - p) ** 2).sum() / ((y - y.mean()) ** 2).sum(), 2)
 
     blocks: dict[str, dict[str, float]] = {}
     for tc in TARGET_COLS:
@@ -136,6 +144,12 @@ def compute() -> dict:
         sd_m = float(np.std(oracle["cal_residuals"]))
         sd_t = float(np.std(real["cal_residuals"]))
         share = max(sd_t**2 - sd_m**2, 0.0) / sd_t**2 if sd_t > 0 else 0.0
+        y = oracle["y_true_val"]
+        # r2_real: prediction anchored on the polls (what we actually ship).
+        # r2_oracle: same local deviation, but anchored on the TRUE national level —
+        # isolates the bureau-level skill, free of the national poll error.
+        r2_real = _r2(y, oracle["val_pred"])
+        r2_oracle = _r2(y, oracle["val_dev_pred"] + actual_nat[tc])
         blocks[SHORT[ABBR[tc]]] = {
             "national_share": round(100 * share, 1),
             "local_share": round(100 * (1 - share), 1),
@@ -143,6 +157,8 @@ def compute() -> dict:
             "sd_total": round(sd_t, 2),
             "q90_oracle": round(oracle["intervals"][90]["std_quantile"], 2),
             "q90_real": round(real["intervals"][90]["std_quantile"], 2),
+            "r2_real": r2_real,
+            "r2_oracle": r2_oracle,
         }
     return {"blocks": blocks}
 

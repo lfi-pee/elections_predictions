@@ -5,7 +5,7 @@ Sorties (cache `data/report/`, servi dans `report_app/data/`) :
   bloc en tête, statut disputé, point de bascule ED, inscrits, centroïde).
 - `communes.json` : agrégat commune pondéré par inscrits (couche nationale + index
   de recherche).
-- `summary.json` : chiffres d'accroche vérifiés + courbe de bascule.
+- `summary.json` : chiffres d'accroche vérifiés.
 
 Le détail polygones par département est produit par `report_geo.py`, les
 explications SHAP par `report_shap.py`.
@@ -34,6 +34,16 @@ CIRCO_SRC = "2022_legi_t1"
 
 CACHE = Path("data/report")
 SERVED = Path("report_app/data")
+# Panel 3 types (legi + présid + **européennes**) : sert l'estimation de γ (`movability_turnout`).
+# Le plancher d'abstention (`attach_abst_floor`) ne lit que le type projeté, hors élection
+# cible, et renormalise dans le cadre national+local du modèle (voir la fonction).
+TURNOUT_CACHE = Path("data/baseline_cache/gamma_panel.parquet")
+# Le scrutin projeté par le livrable (Législatives T1) ⇒ courbe γ de CE type.
+TARGET_TYPE = "Legislatives_T1"
+# Le plancher exclut l'élection cible elle-même (sinon le min vaut sa valeur observée et la
+# part « conjoncturelle » dégénère en résidu de prédiction) : on ne lit que les scrutins
+# strictement antérieurs à cette date (date_float du scrutin 2024 visé = 2024,5).
+TARGET_FLOOR_CUTOFF = 2024.0
 
 BLOCKS = {
     "Gauche": "G",
@@ -120,6 +130,31 @@ def _contourless() -> set[str]:
     return set(json.loads(path.read_text())) if path.exists() else set()
 
 
+def attach_abst_floor(df: pd.DataFrame) -> pd.DataFrame:
+    """Plancher d'abstention par bureau = **plus bas niveau d'abstention démontré** sur les
+    législatives **strictement passées** (hors élection cible). Deux exigences tenues :
+
+    - **Hors fuite.** La cible 2024 étant le législatif le plus mobilisé, l'inclure faisait
+      valoir le min à sa valeur 2024 pour 56 % des bureaux → la part « conjoncturelle »
+      dégénérait en **résidu de prédiction** (`pred − observé₂₀₂₄`). On exclut donc la cible.
+    - **Validité faciale.** On garde le min en **niveau observé** (∈ [0, prédiction]), un
+      plancher *réellement atteint* par le bureau, donc atteignable par construction. La
+      renormalisation national+local (écart prédit − meilleur écart passé) a été testée et
+      **écartée** : estimer l'écart local sur ~5 scrutins bruités produit des planchers
+      hors bornes (jusqu'à −17 %) et des poches « 70 % mobilisable » sur des bureaux isolés —
+      indéfendable sur un produit où chaque bureau se clique. Le climat national de l'année
+      du min n'est pas retiré, et c'est assumé : un niveau que le bureau *a atteint* reste
+      atteignable, quel que soit le climat de cette année-là. C'est le choix conservateur."""
+    c = pd.read_parquet(
+        TURNOUT_CACHE, columns=["location", "election_type", "date_float", "Abstention"]
+    )
+    c = c[(c.election_type == TARGET_TYPE) & (c.date_float < TARGET_FLOOR_CUTOFF)]
+    floor = c.groupby("location").Abstention.min().rename("abst_floor")
+    df = df.merge(floor, left_on="location", right_index=True, how="left")
+    df["abst_floor"] = df.abst_floor.fillna(df.pred_AB).clip(upper=df.pred_AB)
+    return df
+
+
 def swing_weights(df: pd.DataFrame) -> np.ndarray:
     """National vote-share weights (G/CD/ED sum to 1): a national swing for one
     bloc is drawn from the others in proportion to their size."""
@@ -162,14 +197,12 @@ def lead_accuracy(df: pd.DataFrame) -> float:
     return float((pred == act).mean())
 
 
-def _targets(df: pd.DataFrame, reach: float) -> dict[str, int]:
-    sel = (df.ed_tip > 0) & (df.ed_tip <= reach)
-    fragile = sel & (df.ed_tip >= reach * 0.8)
-    return {
-        "bv": int(sel.sum()),
-        "inscrits": int(df.inscrits[sel].sum()),
-        "fragile": int(fragile.sum()),
-    }
+def observed_lead(df: pd.DataFrame) -> dict[str, int]:
+    """Nombre de bureaux où chaque bloc de parti arrive **réellement** en tête en 2024
+    (résultat observé, pas la prédiction) — le contrepoint honnête au favori unique d'un
+    sondage, et la vérité contre laquelle se mesure le 81,6 %."""
+    act = df[[f"act_{b}" for b in VOTE]].to_numpy().argmax(1)
+    return {b: int((act == i).sum()) for i, b in enumerate(VOTE)}
 
 
 def flat_poll(df: pd.DataFrame, baselines: dict[str, float]) -> dict[str, object]:
@@ -177,67 +210,6 @@ def flat_poll(df: pd.DataFrame, baselines: dict[str, float]) -> dict[str, object
     act = df[[f"act_{b}" for b in VOTE]].to_numpy().argmax(1)
     acc = float((act == VOTE.index(fav)).mean())
     return {"bloc": fav, "accuracy": round(acc * 100, 1)}
-
-
-def target_communes(
-    df: pd.DataFrame, reach: float, top: int = 10
-) -> list[dict[str, object]]:
-    sel = (df.ed_tip > 0) & (df.ed_tip <= reach)
-    g = (
-        df[sel]
-        .groupby(["libelle_commune", "code_departement"])
-        .agg(bv=("inscrits", "size"), el=("inscrits", "sum"))
-        .sort_values("el", ascending=False)
-        .head(top)
-        .reset_index()
-    )
-    return [
-        {
-            "nom": r.libelle_commune,
-            "dept": r.code_departement,
-            "bv": int(r.bv),
-            "el": int(r.el),
-        }
-        for r in g.itertuples()
-    ]
-
-
-def accuracy_by_margin(df: pd.DataFrame) -> list[dict[str, float]]:
-    pred = df[[f"pred_{b}" for b in VOTE]].to_numpy()
-    act = df[[f"act_{b}" for b in VOTE]].to_numpy()
-    margins = np.sort(pred, 1)[:, -1] - np.sort(pred, 1)[:, -2]
-    correct = pred.argmax(1) == act.argmax(1)
-    edges = [0, 1, 2, 3, 5, 8, 12, 100]
-    out = []
-    for lo, hi in zip(edges[:-1], edges[1:]):
-        sel = (margins >= lo) & (margins < hi)
-        n = int(sel.sum())
-        if not n:
-            continue
-        out.append(
-            {
-                "lo": lo,
-                "hi": hi,
-                "acc": round(float(correct[sel].mean()) * 100, 1),
-                "n": n,
-            }
-        )
-    return out
-
-
-def flip_curve(df: pd.DataFrame, w: np.ndarray) -> list[dict[str, float]]:
-    pred = df[[f"pred_{b}" for b in VOTE]].to_numpy()
-    base = pred.argmax(1)
-    ed = VOTE.index("ED")
-    out = []
-    for d in np.round(np.arange(-4, 6.01, 0.5), 2):
-        deltas = np.zeros(3)
-        deltas[ed] = d
-        flips = int(((pred + conserved(deltas, w)).argmax(1) != base).sum())
-        out.append(
-            {"shift": float(d), "flips": flips, "pct": round(flips / len(df) * 100, 2)}
-        )
-    return out
 
 
 def circo_rollup(
@@ -332,11 +304,16 @@ def build() -> None:
     df = load_wide().merge(load_context(), on="location", how="left")
     df = attach_circo(df)
     df = attach_centroid(df)
+    df = attach_abst_floor(df)
     w = swing_weights(df)
     df = derive(df, w)
-    left, mob = report_targets.left_gain(df, movability_turnout.fit_gamma())
+    curve = movability_turnout.fit_gamma(election_type=TARGET_TYPE)
+    left, mob = report_targets.left_gain(df, curve)
     df["mob"] = np.round(mob).astype(int)
     df.to_parquet(CACHE / "bv_master.parquet", index=False)
+    (SERVED / "gamma_curve.json").write_text(
+        json.dumps(movability_turnout.curves_by_type(), separators=(",", ":"))
+    )
 
     baselines = {
         b: round(
@@ -366,11 +343,7 @@ def build() -> None:
         "total_inscrits": int(df.inscrits.sum()),
         "baselines": baselines,
         "battlefield": battlefield,
-        "flip_curve": flip_curve(df, w),
-        "accuracy_by_margin": accuracy_by_margin(df),
-        "target_reach": 4,
-        "targets": _targets(df, 4),
-        "target_communes": target_communes(df, 4),
+        "observed_lead": observed_lead(df),
         "left_gain": left,
         "flat_poll": flat_poll(df, baselines),
         "circo": circo_stats,

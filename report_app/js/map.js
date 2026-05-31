@@ -41,7 +41,7 @@ function communeFC() {
       type: "Feature",
       geometry: { type: "Point", coordinates: [c.lon, c.lat] },
       properties: { pG: c.pG, pCD: c.pCD, pED: c.pED, pAB: c.pAB,
-        cmv: c.cmv, cab: c.cab,
+        cmv: c.cmv, cab: c.cab, nb: c.n_bv,
         i: c.inscrits, n: c.nom, code: c.code_commune, dept: c.dept },
     })),
   };
@@ -76,7 +76,12 @@ function addLayers() {
   map.on("click", "com-circ", (e) => zoomToCommune(e.features[0].properties));
   for (const ly of ["bv-fill", "com-circ"]) {
     map.on("mouseenter", ly, () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", ly, () => (map.getCanvas().style.cursor = ""));
+    // Hover only lives over a feature on the map: drop the popup on leave so it never
+    // lingers over the page once the cursor moves off the map.
+    map.on("mouseleave", ly, () => {
+      map.getCanvas().style.cursor = "";
+      if (popup) popup.remove();
+    });
     map.on("mousemove", ly, (e) => hover(e));
   }
   map.on("moveend", autoLoadDept);
@@ -86,35 +91,58 @@ let popup = null;
 function hover(e) {
   const p = e.features[0].properties;
   if (!popup) popup = new maplibregl.Popup({ closeButton: false, className: "mini" });
-  const name = p.n || "commune";
-  popup.setLngLat(e.lngLat).setHTML(`<b>${name}</b><br>${hoverBody(p)}`).addTo(APP.map);
+  popup.setLngLat(e.lngLat).setHTML(`<b>${hoverTitle(p)}</b>${hoverBody(p)}`).addTo(APP.map);
 }
 
-// Hover text follows what the map is coloured by. In mobilization mode it explains
-// the score itself — mv = abstainers × γ (marginal-voter Left share) — and appends
-// the per-bureau SHAP reason (`w`) when available, so the legend isn't a party score.
+// Always name the geographic unit first: a polygon ("le shape") is a polling station,
+// a circle is a whole commune. The earlier popup left this implicit — the client asked
+// what the shape was. Bureau number is parsed from the location id (commune_num).
+function hoverTitle(p) {
+  const name = p.n || "commune";
+  if (p.l !== undefined) return `Bureau de vote n°${+p.l.split("_")[1]} · ${name}`;
+  return p.nb ? `${name} · ${fmt(p.nb)} bureaux de vote` : name;
+}
+
+// New Gauche share among voters if every mobilizable abstainer turns out and votes
+// Left: (Gshare·voters + mob) / (voters + mob). "Si vous les ramenez tous, voilà
+// votre score" — the client's request, computed exactly from the served fields.
+function mobilizedScore(p, bv) {
+  const ins = bv ? p.i : p.i, abPct = bv ? p.pa : p.pAB, gShare = bv ? p.pg : p.pG;
+  const mv = bv ? p.mv : p.cmv;
+  const voters = ins * (1 - abPct / 100);
+  if (voters <= 0 || mv <= 0) return null;
+  const cur = gShare, next = (gShare / 100 * voters + mv) / (voters + mv) * 100;
+  return { cur, next };
+}
+
+// Hover text follows what the map is coloured by. In mobilization mode it explains the
+// score itself — mobilizable = conjunctural abstainers × γ — then shows the resulting
+// Left score if they all turn out, and the per-bureau SHAP reason (`w`) when available.
 function hoverBody(p) {
   const bv = p.l !== undefined;
   if (APP.state.mode === "mobil") {
     const mv = bv ? p.mv : p.cmv, abs = bv ? p.ab : p.cab;
-    let s = `<b>${fmt(mv)}</b> électeurs mobilisables à gauche`;
+    let s = `<br><b>${fmt(mv)}</b> électeurs à aller chercher` +
+      `<br><span class="mini-cap">la couleur = densité d'abstentionnistes qui, en venant voter, choisiraient la gauche</span>`;
     if (abs > 0) {
       s += `<br><span class="mini-sub">${fmt(abs)} abstentionnistes, dont ` +
         `${Math.round((mv / abs) * 100)} % pencheraient à gauche</span>`;
     }
+    const sc = mobilizedScore(p, bv);
+    if (sc) {
+      s += `<br><span class="mini-score">si vous les ramenez tous : Gauche ` +
+        `${sc.cur.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % → ` +
+        `<b>${sc.next.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></span>`;
+    }
     if (bv && p.w) s += `<br><span class="mini-why">${p.w}</span>`;
     return s;
   }
-  if (APP.state.mode === "honesty") {
-    return bv ? `fourchette de prévision ±${p.u} pts (fiable à 90 %)` : "zoomez pour l'incertitude au bureau";
-  }
   const lead = leadOf(p, bv);
-  return `${APP.NAME[lead]} en tête${p.m !== undefined ? " · marge " + p.m + " pts" : ""}`;
+  return `<br>${APP.NAME[lead]} en tête${p.m !== undefined ? " · marge " + p.m + " pts" : ""}`;
 }
 
 function leadOf(p, bv) {
-  const s = APP.state;
-  const g = (bv ? p.pg : p.pG) + s.dG, c = (bv ? p.pc : p.pCD) + s.dC, e = (bv ? p.pe : p.pED) + s.dE;
+  const g = bv ? p.pg : p.pG, c = bv ? p.pc : p.pCD, e = bv ? p.pe : p.pED;
   return g >= c && g >= e ? "G" : c >= e ? "CD" : "ED";
 }
 

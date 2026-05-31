@@ -7,6 +7,55 @@
 
 ---
 
+## 0. État du site au 2026-05-30 (faisant foi — prévaut sur les §5–§8 ci-dessous)
+
+Le site a été **resserré sur la mobilisation** (usage fin de campagne / GOTV, client LFI).
+La structure réellement rendue (`report_app/index.html`) est **une descente, deux bandes**
+de preuve + un pied de méthode :
+
+- **En-tête fixe** : titre « Législatives 2024 · 1ᵉ tour », l'accroche **81,6 %**, la légende
+  pilotée par le mode.
+- **Hero plein cadre** : la carte MapLibre (mobilisation par défaut, **calque « bloc en
+  tête »** basculable via la case `#lead`), recherche de commune, survol, clic → panneau.
+  **La carte ne se docke plus** : elle reste dans le hero et défile normalement (pas de
+  mini-carte collante). Le survol n'agit que sur la carte et l'infobulle disparaît au
+  `mouseleave`.
+- **Bloc preuve** : « Pas un sondage déguisé » (`span12` : réalité partagée + duel
+  48,2 %/81,6 % + provenance local/national) · frise du socle (`span12`). *(Le panneau
+  « La précision suit la marge » a été retiré sur retour client — voir « Retiré du rendu ».)*
+- **Bande « Combien d'électeurs, et où — votre plan de mobilisation »** : gisement
+  mobilisation **0,25 M** (`span4`) · « Où déployer » volume + rendement γ (`span8`) ·
+  **« Qui revient voter quand la participation monte »** — courbe γ **3 types** legi/euro/
+  présid (`span12`), avec **légende des trois courbes et nom d'axe des ordonnées (« part
+  qui choisit la gauche (%) ») tracés dans le SVG** (`renderGamma`).
+- **Pied « Comment ça marche »** : (1) schéma de méthode SVG en trois bandes (modèle →
+  gisement γ → validation croisée), `report_figs.method_schema` ; (2) **panneau « Comment
+  on calcule la fourchette »** (`span12`, `#ic-explain`) qui explique l'intervalle de
+  confiance **en clair, sans jargon** (retour client) : la prédiction d'un bureau = **ancre
+  nationale + écart local** ; la fourchette n'est pas une marge théorique sortie d'une
+  formule mais une **calibration conforme sur les erreurs réelles** — on rejoue chaque
+  scrutin passé en *leave-one-election-out* (`src/conformal.py`), et la bande « fiable à
+  90 % » est l'écart qui a contenu **90 % de ces erreurs passées** (quantile conforme à
+  correction d'échantillon fini) ; largeur **adaptative** (plus large là où le bureau est
+  dur à prévoir — les territoires particuliers Outre-mer / Corse / étranger en reçoivent de
+  plus amples) ; **vérifiée hors échantillon sur 2024, jamais réajustée** (couverture
+  empirique ≥ promise). C'est la « section pour expliquer comment on calcule l'IC » demandée
+  par le client.
+- **Panneau au clic** (§7-bis) : prédiction vs réel + intervalles, provenance, et le
+  « pourquoi mobilisable » (équation conjoncturels × γ + score si tous mobilisés + SHAP Gauche).
+
+**Retiré du rendu** (et donc des descriptions §5–§8 qui le mentionnent encore — conservées
+comme historique) : le panneau **« La précision suit la marge »** (barres d'exactitude par
+tranche de marge ; `renderAccuracy`, `summary.accuracy_by_margin` et l'état `marginT`
+supprimés), toute la bande **« Et si… ? »** (curseurs de scénario, compteurs de
+bascule, courbe de bascule), le **rapport de force en circonscriptions** et la liste « sur le
+fil », le panneau **« Notre honnêteté »** (calque incertitude + pastille de couverture) et le
+**recap**. Le moteur de scénario client (`appliedDeltas`/`conservedDeltas`, sliders) est
+supprimé du JS. *Le pipeline Python continue de produire `circo.json`, `coverage.json`,
+`summary.flip_curve` etc. ; ils ne sont simplement plus consommés par le site.*
+
+---
+
 ## 1. Destinataire & nature du livrable
 
 Le client est **un parti politique** (décideurs de campagne, pas des
@@ -14,9 +63,10 @@ statisticiens). Le livrable est **un site web unique, en français** — une pag
 qui se parcourt d'une seule descente d'écran. Plus de PDF : le produit qu'on vend
 est **un instrument de décision qu'on peut interroger**, et un PDF ne peut pas
 être interrogé — il ne peut que *représenter* une interrogation. Le médium doit
-*être* le produit. C'est un objet de persuasion stratégique, premium, slick —
-mais c'est désormais un objet **vivant** : on bouge le national, les 69 000
-bureaux répondent sous les yeux du décideur.
+*être* le produit. C'est un objet de persuasion stratégique, premium, slick et
+**vivant** : on cherche une commune, on zoome jusqu'au bureau de vote, on survole, on
+clique pour interroger chacun des 69 358 bureaux. *(Le cadran de scénario qui « bougeait
+le national » a été retiré dans la version resserrée GOTV — voir §0.)*
 
 ## 2. Objectif unique
 
@@ -33,13 +83,16 @@ Deux exigences tenues ensemble, et la première nourrit la seconde :
   avant d'être écrit. Chaque limite est assumée. La rigueur (aucun réglage sur la
   validation, intervalles à garantie de couverture stratifiés par territoire,
   modes d'échec documentés) *est* l'argument de vente — c'est ce qui manque aux
-  prévisions des instituts. Sur le web, l'honnêteté devient tangible : des
-  **calques** « là où on est le moins sûr » et des pastilles de couverture qu'on
-  peut afficher d'un clic font *partie* de la démonstration.
+  prévisions des instituts. Sur le web, l'honnêteté devient tangible : un panneau
+  **« Comment on calcule la fourchette »** (calibration conforme sur les erreurs
+  réelles, voir §0) et les **intervalles par bureau** du panneau au clic font *partie*
+  de la démonstration. *(Les anciens calque « là où on est le moins sûr » et pastille de
+  couverture ont été retirés du rendu — voir §0.)*
 - **Effet « waouh ».** Le rendu doit être le plus slick et convaincant possible.
-  Le « waouh » vient de *montrer* et de *laisser manipuler* (carte zoomable,
-  curseurs de scénario, panneau d'explication au clic), jamais de surpromettre.
-  On persuade par la preuve interrogeable, pas par l'emphase.
+  Le « waouh » vient de *montrer* et de *laisser manipuler* (carte zoomable, recherche,
+  calque bloc en tête, panneau d'explication au clic), jamais de surpromettre.
+  On persuade par la preuve interrogeable, pas par l'emphase. *(Le cadran de scénario a
+  été retiré — voir §0.)*
 
 Posture de production : ingénieur principal senior — concis, on planifie avant de
 coder, on vérifie avant d'affirmer.
@@ -49,11 +102,12 @@ coder, on vérifie avant d'affirmer.
 1. **Court : une seule descente d'écran.** Densité d'information ≈ deux pages, mais
    on porte beaucoup plus *parce que* le détail se range dans les états
    d'interaction (survol, clic, zoom, calque) au lieu de coûter de l'encre. Pas de
-   scrollytelling fleuve : trois bandes verticales, point final.
+   scrollytelling fleuve : **deux bandes** de preuve + un pied de méthode, point final
+   (voir §0 ; l'ancienne 3ᵉ bande « Et si… ? » est retirée).
 2. **Aucune liste, aucune puce, aucune énumération à puces dans le rendu.** Le
    texte est un liant court, en phrases, entre les visuels. *(Cette règle vaut
    pour le site rendu, pas pour le présent brief.)*
-3. **Dense mais lisible.** Une douzaine de panneaux composés en grille magazine
+3. **Dense mais lisible.** ~8 panneaux composés en grille magazine
    pleine largeur (1400 px+) ; chaque panneau petit, titré d'une ligne, une idée.
 4. **Jamais 69 000 bureaux jetés d'un coup à l'écran.** La règle « agréger +
    zoomer » du print survit ici sous forme de **niveau de détail** : choroplèthe
@@ -70,6 +124,10 @@ coder, on vérifie avant d'affirmer.
    site sort du seul modèle prédictif et de ses sorties.
 
 ## 5. Erreurs de jugement déjà commises — NE PAS refaire
+
+> *Note : plusieurs entrées ci-dessous concernent des panneaux **depuis retirés du rendu**
+> (scénario à somme nulle, circonscriptions, fusion d'honnêteté, courbe de bascule). Elles
+> restent comme **leçons de conception** ; pour l'état réellement affiché, voir §0.*
 
 - ❌ Avoir gardé le PDF comme livrable. → **Le PDF combattait le pitch : on vend
   un instrument interrogeable, le web l'incarne. Le companion QR du plan
@@ -191,11 +249,14 @@ coder, on vérifie avant d'affirmer.
   champs `id`/`nm`, ancre calculée dans `report_data.circo_rollup`), réordonnés en direct,
   les basculés surlignés. Marge / bloc / bascule recalculés client depuis les parts + swing
   conservé. Le compteur dit *combien*, la liste dit *lesquelles*.**
-- ❌ Avoir laissé la **courbe de bascule aveugle aux sièges** (bureaux seuls) alors que le
-  climax vend « un cadran, bureaux *et* circonscriptions ». → **Courbe à deux unités :
-  bureaux (trait plein, échelle de gauche) et circonscriptions (pointillé violet, échelle
-  de droite) superposés sur le même balayage −4…+6 pts, avec axes Y chiffrés (l'ancienne
-  courbe n'avait aucune échelle Y). Le « un geste, deux unités » devient littéral.**
+- ❌ Avoir gardé une **courbe de bascule** (balayage −4…+6 pts traçant bureaux et
+  circonscriptions basculés). → **Retirée du plan et du site. Elle redisait en graphe ce
+  que les **deux compteurs** (bureaux *et* circonscriptions) montrent déjà au scénario
+  courant, ajoutait un panneau à deux axes — objet de statisticien, pas de décideur — et
+  coûtait de la hauteur contre la discipline « une descente ». Les compteurs disent
+  *combien*, la liste « sur le fil » dit *lesquelles* : la courbe n'apportait rien
+  d'interrogeable. `summary.flip_curve` (`report_data.flip_curve`) et le `drawCurve`
+  client supprimés. Ne pas la réintroduire.**
 - ❌ Avoir laissé la **conservation du swing invisible** : trois curseurs indépendants,
   la somme-nulle absorbée en silence par le calcul. → **Le §5 fait de l'honnêteté le
   moteur du waouh, donc la conservation doit se *voir*. Témoin « effet net, à somme nulle »
@@ -229,29 +290,48 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
 - **Terrain du combat :** 11 080 bureaux à marge < 3 pts (16,0 %), **17 841 à
   marge < 5 pts (25,7 %)**, 26 968 à marge < 8 pts (38,9 %). Terrain fini,
   nommable, à chiffrer aussi en électeurs via `inscrits`.
-- **La précision suit la marge (preuve honnête, pas un hexbin) :** le bon appel
-  monte avec l'écart bloc 1 − bloc 2 — **47 % sous 1 pt, 67 % à 3–5 pts, 86 % à
-  8–12 pts, 95 % au-delà de 12 pts.** Une seule image porte l'accroche (81,6 %),
-  l'aveu (on est plus faible sur le serré) et le récit du combat (le serré, c'est
-  le terrain). Calculée dans `report_data.accuracy_by_margin`, tracée client.
+- **La précision suit la marge** *(calculé, panneau retiré du rendu — voir §0)* **:** le bon
+  appel monte avec l'écart bloc 1 − bloc 2 — **47 % sous 1 pt, 67 % à 3–5 pts, 86 % à
+  8–12 pts, 95 % au-delà de 12 pts.** Calculée dans `report_data.accuracy_by_margin`
+  (toujours dans `summary.json`, mais le panneau `accmargin` n'est plus affiché).
 - **Électeurs convaincables — mobilisation (le seul gisement défendable) :**
-  abstentionnistes qui penchent à gauche = abstentionnistes × **γ(b)**, où **γ est la
-  part de gauche du *votant marginal*** — l'ex-abstentionniste qui se déplace quand la
-  participation monte — lue sur les vraies hausses de participation par décile de niveau
-  de gauche (`movability_turnout`, voir `MOVABILITY.md` §11). **4,71 M en métropole**,
-  sur 14,8 M d'abstentionnistes (γ moyen 31,7 %) — abstention et niveau de gauche
-  **prédits** (`pred_*`, pas les résultats observés : le livrable montre ce que
-  l'instrument *prévoit*, pas ce qu'on a vu après coup) — des non-votants qu'aucun
-  sondage (qui n'interroge que les votants probables) ne voit. Quantité **identifiée**
-  (pas le partage
-  des exprimés locaux, circulaire) et **stable dans le temps** (courbe γ ancienne vs
-  récente corrélée à +0,96). **Validée hors échantillon** : la courbe γ(niveau) bat
-  l'hypothèse de swing uniforme pour prédire le mouvement du scrutin suivant, et les
-  variantes ML plus riches (γ par démographie / lags — GBM, forêt, linéaire — ou par
-  historique propre du bureau) ont **toutes été testées et écartées** : elles décrivent
-  finement l'élection sur laquelle on les ajuste mais **ne transfèrent pas** au scrutin
-  suivant — or l'objectif est de *prédire* (`MOVABILITY.md` §13). Calculé dans
-  `report_targets.left_gain`, champ `summary.left_gain`.
+  abstentionnistes **conjoncturels** qui penchent à gauche = abstentionnistes
+  conjoncturels × **γ(b)**, où **γ est la part de gauche du *votant marginal*** —
+  l'ex-abstentionniste qui se déplace quand la participation monte — lue sur les vraies
+  hausses de participation par décile de niveau de gauche, **pour le type de scrutin
+  projeté** (`movability_turnout`, voir `MOVABILITY.md` §11/§14). **0,25 M en métropole**,
+  sur **0,57 M d'abstentionnistes conjoncturels** (14,8 M au total dont 14,3 M de fond,
+  γ moyen **43,0 %** au régime législatif) — abstention et niveau de gauche **prédits**
+  (`pred_*`, pas les résultats observés : le livrable montre ce que l'instrument
+  *prévoit*, pas ce qu'on a vu après coup) — des non-votants qu'aucun sondage (qui
+  n'interroge que les votants probables) ne voit.
+  - **Abstention de fond vs conjoncturelle (retour client) :** on ne mobilise pas le
+    chronique (qui ne vote jamais) ; le gisement de fin de campagne, c'est la frange qui
+    revient quand l'enjeu monte. On l'isole par le plancher historique d'abstention du
+    bureau **mesuré sur le seul type projeté** (`abst_floor`, min des Législatives T1) :
+    `conjoncturelle = max(0, prédite − plancher)` (`report_data.attach_abst_floor`,
+    `report_targets.conjunctural_pct`). **Régime-cohérent (correctif 2026-05-31) :** pooler
+    legi+présid+euro laissait la présidentielle (forte participation) fixer le `min` et
+    comptait le décalage structurel legi↔présid comme « conjoncturel » ; **et** le `min`
+    incluait la cible 2024 (le législatif le plus mobilisé) → pour 56 % des bureaux le
+    plancher *était* la valeur observée 2024, donc « conjoncturel » = résidu de prédiction
+    (fuite). Correctif : plancher = meilleur niveau **législatif passé démontré** (hors cible),
+    en niveau observé. La renormalisation national+local a été testée et écartée (planchers
+    hors bornes, −17 %, artefacts par bureau). Gisement **0,25 M** (`src/floor_sensitivity.py` ;
+    γ quasi ponctuel, bootstrap 95 % [42,2 ; 42,6]).
+  - **γ dépend du scrutin (retour client, chiffré) :** γ législatif **39 %**, européen
+    **24 %**, présidentiel **12 %** — courbes de forme contrastée (legi monotone croissante,
+    présid en U). La courbe poolée mélangeait ces régimes ⇒ on sert la courbe du **type cible**
+    (`TARGET_TYPE = "Legislatives_T1"`) et on **trace les trois** (`gamma_curve.json`, panneau
+    « Qui revient voter quand la participation monte »). Les **Européennes** (1999–2024,
+    présentes dans le brut) sont intégrées via un **panel γ dédié** `gamma_panel.parquet`
+    (`movability_turnout._ensure_panel`) **sans toucher au modèle de production**.
+  - Quantité **identifiée** (pas le partage des exprimés locaux, circulaire) et **stable
+    dans le temps** intra-type (courbe γ ancienne vs récente corrélée à +0,96). Les
+    variantes ML plus riches (γ par démographie / lags) ont **toutes été testées et
+    écartées** : elles ne transfèrent pas au scrutin suivant (`MOVABILITY.md` §13).
+    Calculé dans `report_targets.left_gain`, champ `summary.left_gain` (dont
+    `conjunctural_abstainers`, `structural_abstainers`, `deployment[].gamma`).
 - **« Potentiel latent » abandonné (verdict honnête) :** l'ancien gisement (attente
   démographique − réalisé) était un **résidu non identifié, de signe ambigu** (un bureau
   sous ses jumeaux a *durablement* refusé sa démographie → le moins mobilisable, pas le
@@ -260,11 +340,11 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
   le §3 proscrit. Le canal *persuasion* (chargement β sur la marée) a aussi été testé et
   **échoue hors échantillon** — on ne bat pas le swing uniforme (`MOVABILITY.md` §10).
 - **Où déployer (en électeurs, pas en bureaux, métropole seule) :** le gisement de
-  mobilisation se concentre dans des villes nommables — **Paris 134 k, Marseille 74 k,
-  Toulouse 31 k, Lyon 27 k, Nice 26 k, Montpellier 24 k, Nantes 23 k, Lille 19 k,
-  Strasbourg 18 k, Rennes 15 k, Le Havre 14 k, Reims 13 k.** L'outre-mer et l'étranger sont
-  exclus de l'ordre de déploiement (non démarchables, erreur concentrée).
-  `summary.left_gain.deployment`, top 12 par abstentionnistes mobilisables.
+  mobilisation se concentre dans des villes nommables — **Marseille 7,1 k, Paris 4,9 k,
+  Le Havre 1,7 k, Limoges 1,7 k, Nîmes 1,6 k, Avignon 1,6 k, Toulouse 1,4 k, Bastia 1,3 k,
+  Montpellier 1,3 k, Angers 1,2 k, Toulon 1,1 k, Carcassonne 1,0 k** (plancher législatif passé,
+  hors fuite). L'outre-mer et l'étranger sont exclus de l'ordre de déploiement (non démarchables,
+  erreur concentrée). `summary.left_gain.deployment`, top 12 par abstentionnistes mobilisables.
 - **Honnêteté du chiffre :** le total national d'un basculement est arithmétique (+1 pt
   gauche ≈ 0,48 M voix) — le modèle ne le crée pas. Son apport est la *répartition*
   spatiale du gisement. Et l'orientation des abstentionnistes est *modélisée* par γ (lue
@@ -275,13 +355,15 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
   bureaux** ; notre carte, lue bureau par bureau, y arrive à **81,6 %**. Deux barres
   côte à côte portent l'écart mieux que la part d'incertitude abstraite
   (`summary.flat_poll`, calculé sur les vrais résultats 2024).
-- **Moteur de scénarios (l'arme décisive) :** prédiction = moyenne nationale +
+- **Moteur de scénarios** *(calculé, non rendu — retiré du site, voir §0)* **:** prédiction
+  = moyenne nationale +
   écart local, donc on tourne le cadran national et le local répond. Vérifié :
   **+3 pts d'Extrême Droite au national → 6 923 bureaux basculent de bloc en
-  tête (10,0 %).** Aucun sondage ne donne ce « et si… ? » au bureau de vote. Le swing
+  tête (10,0 %).** Le swing
   est **conservé** : les +3 pts d'ED sont financés par les autres blocs au prorata de
-  leur taille (voir §5), jamais ajoutés ex nihilo.
-- **Rapport de force en circonscriptions (la monnaie du décideur) :** chaque bureau est
+  leur taille (voir §5), jamais ajoutés ex nihilo. *(Fait conservé pour mémoire ; le cadran
+  et les compteurs ne sont plus affichés.)*
+- **Rapport de force en circonscriptions** *(calculé, non rendu — voir §0)* **:** chaque bureau est
   remonté à sa circonscription (carte bureau→circo du législatif **2022**, découpage
   stable depuis 2012, **99,9 % des 69 358 bureaux couverts**, 577 circonscriptions). Le
   **bloc dominant au premier tour, sur l'agrégat des bureaux** d'une circonscription se
@@ -315,15 +397,23 @@ T1, une seule passe, jamais ré-ajustée). À recalculer/citer tels quels.
 
 ---
 
-## 7. Maquette du site (une descente, trois bandes)
+## 7. Maquette du site (une descente, deux bandes)
 
 Bandeau de tête, fixé et discret : titre décision, le **81,6 %** et la légende des
-blocs. Le lien entre vues est **intuitif et unique** : les curseurs de scénario
-national et les calques (mobilisation, honnêteté) recomposent la
-carte en direct, et la carte répond au survol / clic — pas de brushing pleine page
-(geste invisible, source de bugs).
+blocs. Le lien entre vues est **intuitif et unique** : le calque (mobilisation par
+défaut, bloc en tête en option) recompose la carte, et la carte répond au survol /
+clic — pas de brushing pleine page (geste invisible, source de bugs).
 
-**Principe de mise en page — la carte qui se docke (à ne pas oublier).** Une seule
+> **Override client (2026-05-30) : la carte ne se docke plus.** Sur retour de Bompard,
+> le passage en mini-carte collante au scroll est **retiré** : la carte reste dans le
+> hero et défile normalement (pas de vignette fixe). Le survol n'agit que **sur la carte**
+> et son infobulle disparaît dès qu'on quitte un bureau. Les §7/§8 ci-dessous décrivent
+> l'ancien comportement de dock, conservés pour mémoire mais **non actifs** dans le rendu
+> (`initMinimap`/`resizeBurst` et le bouton « agrandir » supprimés, règles `body.mini`
+> retirées du CSS).
+
+**Principe de mise en page — la carte qui se docke (historique, désactivé — voir override
+ci-dessus).** Une seule
 carte MapLibre, persistante et toujours vivante (clic, survol, curseurs continuent
 de la piloter), mais qui **change de statut au scroll** au lieu de rester héros
 permanent. Erreur précédente : la carte posée en héros des trois bandes mangeait
@@ -345,109 +435,105 @@ tête : le client est un parti de gauche, le gisement prime sur le horse-race. L
 en tête** reste accessible en **calque** (case « afficher le bloc en tête — le duel
 sondage vs nous » dans le hero). Une **barre de recherche** (« tape une commune ») fait
 *voler* la caméra ailleurs ; au dézoom, la carte agrège en choroplèthe commune/canton.
-**Survol** d'un bureau → infobulle qui *explique le score affiché* : en mobilisation,
-« N électeurs mobilisables · A abstentionnistes × γ % de gauche » plus la phrase SHAP
+**Survol** d'un bureau → infobulle qui **nomme d'abord l'unité géographique** (retour
+client « le shape c'est sur quoi ? » : « Bureau de vote n°X · commune » à fort zoom,
+« commune · N bureaux » au dézoom) puis *explique le score affiché* : en mobilisation,
+« N électeurs à aller chercher · la couleur = densité d'abstentionnistes de gauche · si
+vous les ramenez tous : Gauche X % → Y % » (retour client) plus la phrase SHAP
 « pourquoi ce bureau penche (ou non) à gauche » ; en calque bloc, « bloc en tête · marge ».
-La **légende** suit le mode. **Clic** → le **panneau d'instrument** (décrit §7-bis). **Au scroll vers la Bande 2, la carte se docke** : la colonne
-libérée déroule une grille de preuve en **langage de décideur**, pas de
-statisticien — **« La précision suit la marge »** (barres d'exactitude par tranche de
-marge en `span4` ; le terrain serré, sous 5 pts, s'allume en orange — l'aveu honnête
-qu'on est plus faible là où les blocs se tiennent) et, en **héros argumentaire
-(`span8`)**, **« Pas un sondage déguisé »**. Ce dernier ouvre sur une barre **« la réalité, bureau par bureau »**
-(partage G/CD/ED des bureaux en tête — le contrepoint au favori unique, qui *remplace*
-l'ancien panneau autonome « paysage national »), puis le **duel sondage vs nous** —
+La **légende** suit le mode. **Clic** → le **panneau d'instrument** (décrit §7-bis).
+En **dessous**, à mesure qu'on scrolle (la carte défile normalement, sans se docker), la
+grille de preuve déroule en **langage de décideur**, pas de statisticien — un seul panneau,
+**« Pas un sondage déguisé » en `span12`** *(le panneau « La précision suit la marge » a été
+retiré sur retour client — voir §0)*. Il ouvre sur une barre **« la réalité, bureau par
+bureau »** (partage G/CD/ED des bureaux en tête — le contrepoint au favori unique), puis le
+**duel sondage vs nous** —
 deux barres : le favori unique d'un sondage national tape juste dans **48,2 %** des
 bureaux, notre carte **81,6 %** — puis détaille d'où vient l'écart (part locale vs
 nationale). Une **frise pleine largeur**
-(56 élections, 16 M d'adresses, 52 indicateurs, 69 358 bureaux) signe le socle. La
-couverture conforme n'est plus un graphe : elle devient une **pastille numérique**
-en Bande 3.
+(56 élections, 16 M d'adresses, 52 indicateurs, 69 358 bureaux) signe le socle.
 
 ### Bande 2 — « Combien d'électeurs, et où » (le gisement de voix)
 
-Colonne principale aux panneaux, **carte en rail collant** à côté (elle réagit, ne
-domine plus). La bande ne compte plus des **bureaux** — un bureau n'est ni un siège
+Panneaux pleine grille (la carte est restée dans le hero plus haut). La bande ne compte
+plus des **bureaux** — un bureau n'est ni un siège
 ni un électeur — mais des **électeurs convaincables**, en personnes et localisés. Un
-**seul calque** (basculable), un seul gisement défendable, son compteur en chiffre
-plein :
+**seul calque** carte (basculable, dans le hero), un seul gisement défendable, son compteur
+en chiffre plein :
 
-Le calque **« mobilisation »** allume les **abstentionnistes qui penchent à gauche**
-(`national.json` champ `mv`, abstentionnistes × **γ**, la part de gauche du votant
-marginal) — **4,71 M en métropole** : des non-votants qu'aucun sondage (qui n'interroge
+Le calque **« mobilisation »** (carte du hero) allume les **abstentionnistes conjoncturels
+qui penchent à gauche** (`national.json` champ `mv`, abstentionnistes conjoncturels × **γ**
+du scrutin visé) — **0,25 M en métropole** : des non-votants qu'aucun sondage (qui n'interroge
 que les votants probables) ne voit, à faire venir aux urnes. La teinte porte la densité
-d'électeurs gagnables ; le rail recadre sur le foyer survolé. *(L'ancien second calque
+d'électeurs gagnables. *(L'ancien second calque
 « potentiel latent » a été retiré : résidu non identifié, sans signal spatial vérifiable
-— `MOVABILITY.md` §2/§10.)*
+— `MOVABILITY.md` §2/§10.)* Un **panneau γ** (« Qui revient voter quand la participation
+monte ») répond à *« sur 100 abstentionnistes ramenés aux urnes, combien votent à gauche ? »*
+par niveau de gauche du bureau, **une ligne par type de scrutin** (legi ~39 / euro ~24 /
+présid ~12 sur 100), sans lettre grecque ni pourcentage abstrait à l'écran.
 
-Sous le calque, le panneau pleine largeur **« Où déployer »** classe les
-**communes par abstentionnistes mobilisables** (`summary.left_gain.deployment`, top 12) —
-**Paris 134 k, Marseille 74 k, Toulouse 31 k, Lyon 27 k, Nice 26 k…** — métropole seule
-(outre-mer/étranger exclus : non démarchables). L'ordre de déploiement est nommé et
+Sous le calque, le panneau pleine largeur **« Où déployer »** classe les communes par
+abstentionnistes mobilisables (`summary.left_gain.deployment`, top 12) et affiche **deux
+colonnes — volume ET rendement γ** : le volume suit la taille de la ville (corr. 0,99 avec
+les abstentionnistes), le rendement (part qui penche à gauche, p. ex. Toulouse 52 %,
+Toulouse 54 %) est l'apport propre du modèle. **Marseille 7,1 k, Paris 4,9 k, Le Havre 1,7 k,
+Limoges 1,7 k, Nîmes 1,6 k…** — métropole seule (outre-mer/étranger exclus : non démarchables).
+L'ordre de déploiement est nommé et
 chiffré en personnes, pas une teinte abstraite. Une note honnête tient en une ligne : le
 total national d'un gain est arithmétique (+1 pt ≈ 0,48 M voix) ; ce que le modèle ajoute,
 c'est *où* sont ces électeurs — et leur orientation est modélisée par γ (lue sur des
 hausses de participation réelles), pas observée bureau par bureau.
 
-### Bande 3 — « Et si… ? » (l'instrument qu'on interroge) — le climax
-
-Les **curseurs de scénario** (G / C+D / ED / Abstention au national) recomposent
-**instantanément** les 69 000 bureaux (recomposition client `moyenne nationale
-ajustée + écart local`, swing conservé). Sous les curseurs, un **témoin « effet net,
-à somme nulle »** rend la conservation *visible* : pousser ED de +3 affiche en clair
-« Gauche −1,5 · Centre+Droite −1,5 · Extrême Droite +3,0 » — le décideur voit que le
-gain d'un bloc est financé par les autres, jamais conjuré (au repos : « un seul cadran
-à somme nulle, tournez un curseur »). **Deux compteurs côte à côte** sur le panneau
-sombre : **bureaux basculés** (**6 923** à +3 pts ED, avec bande d'incertitude « ≈ N
-bureaux au seuil, fragiles ») **et circonscriptions** dont le bloc dominant change
-(**75** à +3 pts ED, sur 577) — le même geste répond en bureaux *et* en sièges. À côté,
-un **balayage à deux unités** : faire glisser le national de −4 à +6 pts trace la
-**courbe de bascule** où **deux** réponses se superposent — bureaux basculés (trait
-plein, échelle de gauche) *et* circonscriptions basculées (pointillé violet, échelle de
-droite) — le « un cadran, deux unités » rendu littéral. En regard, le **« rapport de
-force »** — deux barres empilées G/CD/ED des circonscriptions, *aujourd'hui* vs *sous
-le scénario courant* (**bloc dominant au premier tour**, agrégat des bureaux ; le modèle
-ne voit que le T1, donc pas une projection de siège à deux tours — c'est dit) — puis,
-en `span12`, **« les circonscriptions sur le fil »** : la liste *nommée* (commune la
-plus peuplée de chaque circo, p. ex. *Le Havre · circ. 7*) des sièges à la marge la
-plus mince **sous le scénario courant**, réordonnée en direct, celles qui *viennent de
-basculer* surlignées. Le compteur dit *combien* ; cette liste dit *lesquelles* — la
-monnaie du décideur (le siège) enfin **interrogeable**, pas seulement agrégée.
-Le rail collant reflète chaque réglage en direct. L'honnêteté qui referme la bande tient
-désormais en **un seul panneau « Notre honnêteté » (`span12`)** : à gauche le calque
-carte des intervalles élargis sur les territoires particuliers (R² en note), à droite
-la couverture conforme en **pastille numérique** (« on annonce 80/90/95 %, le réel y
-tombe ≥ 88,1 / 93,5 / 96,3 % »), pas en graphe. La partition local vs national (promue
-en Bande 1) se réannote sur la **moustache d'intervalle** du panneau-instrument (7-bis).
-Enfin, juste avant le pied de page, une bande **« Ce qu'il faut retenir »** (`span12`,
-trois colonnes, pas une liste à puces) fixe les trois choses à emporter : **81,6 % vs
-48,2 %**, le **cadran unique** qui déplace 69 358 bureaux et 577 circonscriptions, et
-**où déployer** — la discipline contre la surcharge des ~12 panneaux.
-
 ### Pied de page — « Comment ça marche » (la signature de méthode)
 
-**Panneau de méthode (compact), tout en bas du site, après les trois bandes :**
+**Panneau de méthode (compact), tout en bas du site, après les deux bandes :**
 c'est la dernière chose que voit le décideur, la preuve de sérieux qui referme la
-démonstration. Un **schéma de méthode** lisible en cinq secondes, qui rend la
-rigueur *visible* sans jargon. Deux objets seulement :
+démonstration. Un **schéma de méthode** — trois bandes empilées, chacune lisible
+d'un coup d'œil — qui rend la rigueur *visible* sans jargon. *(Retour client : la
+version « deux temps » ne disait pas assez précisément comment marche le modèle, ni
+en quoi l'abstention diffère des blocs, et **taisait entièrement comment on a estimé
+l'abstention de gauche**. Les trois objets ci-dessous corrigent ces trois manques.)*
 
-- Un **flux en deux temps** dessiné de gauche à droite : *national* (sondages +
-  modèle de participation pour l'abstention, qui n'a pas de sondage) **→ + écart
-  local** (lecture du bureau : démographie INSEE compressée + héritage du vote
-  passé) **→ prédiction du bureau → intervalle conforme**. C'est la même équation
-  que le moteur de scénarios (Bande 3) — le décideur voit que le cadran qu'il
-  tourne agit sur la première boîte, et que tout le reste est notre apport local.
-- Une **frise validation croisée / test** : les scrutins passés (2002–2022) en
-  points, **un retiré à tour de rôle** (validation croisée leave-one-election-out :
-  c'est ainsi qu'on *choisit* le modèle, jamais sur 2024), puis **un seul point
-  distinct, 2024**, séparé, marqué « tenu à l'écart · testé une fois ». L'image
-  porte à elle seule l'argument d'honnêteté du §3 : la sélection se fait par
-  validation croisée sur le passé, le test 2024 est une passe unique jamais
-  réajustée. Le **81,6 %** et les R² par bloc (hors échantillon 2024) se posent ici
-  en légende discrète, pas en titre.
+- **Bande 1 — le modèle, précis.** Un **flux de quatre boîtes** de gauche à droite :
+  *national* **→ + écart local → = prédiction du bureau → intervalle conforme**.
+  Chaque boîte nomme ses entrées. Deux précisions tenues sous le flux : (a) c'est **un
+  seul modèle entraîné sur tous les types de scrutin** (législatives, présidentielle,
+  européennes…), et la prédiction est *ancre nationale + écart local* — on change
+  l'hypothèse nationale, l'écart local, lui, transfère ; (b) **l'abstention est
+  modélisée à part** : elle n'a **aucun sondage**, donc
+  son ancre vient d'un **modèle de participation** (la participation passée du même type
+  de scrutin), là où les trois blocs sont calés sur les sondages — *c'est pourquoi* son
+  incertitude est surtout nationale (60 %, contre 7 % pour la Gauche).
+- **Bande 2 — comment on estime l'abstention de gauche (le gisement).** L'objet qui
+  manquait : une **équation en trois boîtes** `abstentionnistes conjoncturels × γ =
+  mobilisables de gauche`. *Conjoncturels* = abstention prédite − plancher historique
+  du bureau **du type projeté, hors élection cible** (0,57 M sur 14,8 M ; on ne mobilise pas
+  l'abstentionniste de fond — plancher législatif passé, sans fuite, voir §5/§6). **γ = la
+  part de gauche du *votant marginal*** — lue sur les **vraies hausses de participation**,
+  jamais le partage des exprimés (qui serait circulaire). Sous l'équation, ce qui fait
+  de γ une mesure et non une supposition : c'est la composition de l'électeur qui *revient*
+  quand la participation monte, **identifiée et stable dans le temps** au sein d'un type
+  (+0,96), mais **propre au scrutin** — sur 100 revenants : législatives ~39 · européennes ~24 ·
+  présidentielle ~12. Résultat encadré en teinte Gauche : **0,25 M en métropole**.
+- **Bande 3 — choisi par validation croisée, testé une fois.** La **frise** : les
+  scrutins passés (2002–2022) en points, **un retiré à tour de rôle** (leave-one-election-out :
+  c'est ainsi qu'on *choisit* le modèle, jamais sur 2024), puis **un seul point distinct,
+  2024**, séparé, marqué « tenu à l'écart · testé une fois ». Le **81,6 %** et les R² par
+  bloc (hors échantillon 2024) se posent ici en légende discrète, pas en titre.
 
-Pleine largeur (`span12`), SVG centré plafonné, titré d'une ligne : il referme la
-descente sans la rallonger. C'est le raccord du § « d'où vient l'incertitude ? » de
-la Bande 3 — local vs national — réexprimé en schéma de méthode.
+Pleine largeur (`span12`), SVG centré plafonné (`viewBox` 800×600), trois bandes titrées
+d'une ligne : il referme la descente sans la rallonger. Construit dans
+`report_figs.method_schema` ; les trois γ par type viennent de `report_figs._gamma_by_type`
+(même source identifiée que le reste du site, `movability_turnout`), les totaux du gisement
+de `summary.left_gain`. C'est le raccord du § « d'où vient l'incertitude ? » de la Bande 1 —
+local vs national — réexprimé en schéma de méthode.
+
+Un **second panneau (`span12`, `#ic-explain`) « Comment on calcule la fourchette »** referme
+le pied (retour client : il manquait une explication de l'intervalle de confiance). En clair,
+sans jargon : la fourchette n'est pas une marge théorique mais une **calibration conforme sur
+les erreurs réelles passées** (leave-one-election-out, `src/conformal.py`) — la bande « fiable
+à 90 % » est l'écart qui a contenu 90 % des erreurs passées ; largeur **adaptative** (plus
+ample sur les territoires durs) ; **vérifiée hors échantillon sur 2024, jamais réajustée**.
 
 ### 7-bis. Le panneau « interroger l'instrument » (au clic sur un bureau)
 
@@ -464,19 +550,25 @@ des **libellés lisibles** (`report_shap.pretty_label` : « Vote Gauche (n-1) »
 lag1 »). Le décideur voit *combien* chaque facteur pèse et *dans quel sens*, pas une
 phrase qui lisse les chiffres. **En mode mobilisation (défaut), le « pourquoi » bascule
 sur la mobilisabilité** : section **« Pourquoi ce bureau est mobilisable »** — l'équation
-en clair `N électeurs = A abstentionnistes × γ %` (base d'abstentionnistes **réelle**,
-cohérente avec le `mv` du modèle), une **phrase de décideur** (« doit son niveau de gauche
+en clair `N électeurs = C abstentionnistes conjoncturels × γ %` (conjoncturels = hors
+abstention de fond ; total réel rappelé en note), **le score résultant si tous reviennent
+voter** (« Gauche X % → Y % », retour client, `rec.conj`/`rec.mob` dans `detail/*.json`),
+une **phrase de décideur** (« doit son niveau de gauche
 surtout à son héritage de vote à gauche et son taux de diplômés », ou pour un bureau de
 droite « voit son niveau de gauche tiré vers le bas par… » — `report_shap.explain_left`,
 directionnelle et honnête), et les **barres SHAP du modèle Gauche** : ce qui règle le
-niveau de gauche du bureau (`gdrivers`), donc γ, donc le gisement. **Réponse au scénario
-courant** : ce bureau bascule-t-il sous le réglage des curseurs — et
-son **point de bascule propre** (« +4,2 pts ED au national le feraient tomber »),
-le seuil nommable qui transforme la carte en instrument.
+niveau de gauche du bureau (`gdrivers`), donc γ, donc le gisement.
 
 ---
 
 ## 8. Production (telle que construite)
+
+> **Voir §0.** Cette section décrit la chaîne complète telle que construite. Le **pipeline
+> Python est inchangé** (il produit toujours `circo.json`, `coverage.json`,
+> `summary.flip_curve`, le swing conservé…), mais le **front-end resserré ne consomme plus**
+> le moteur de scénario client (`appliedDeltas`/`conservedDeltas`, sliders), les
+> circonscriptions, la pastille de couverture ni la carte qui se docke. Les passages
+> ci-dessous qui les décrivent sont **historiques**.
 
 Site statique (aucun backend) : **MapLibre GL JS** + fond raster CARTO, via CDN.
 L'environnement n'avait ni tippecanoe ni node : plutôt que de risquer une chaîne
@@ -501,14 +593,11 @@ force en circonscriptions** se recompose pareil, client, depuis `circo.json` (pa
 agrégées `g`/`c`/`e` par circonscription, plus `id` = code `dépt-circ` et `nm` = commune
 la plus peuplée de la circo comme ancre lisible — alimente la liste **« sur le fil »** ;
 ~30 Ko). Marge, bloc en tête et bascules par circonscription se calculent **en direct
-côté client** depuis ces parts + les deltas conservés ; la **courbe de bascule** superpose
-bureaux (`summary.flip_curve`, Python) et circonscriptions (recomptées client sur le même
-balayage). Les poids de swing `w` viennent de
+côté client** depuis ces parts + les deltas conservés. Les poids de swing `w` viennent de
 `summary.swing`, identiques côté Python. Vérifié au navigateur (Playwright,
 Chromium headless) : zéro erreur JS, +3 pts ED → 6 923 bascules de bureau **et 75
-circonscriptions** (swing conservé, identiques à `report_data.flip_curve` /
-`circo_rollup`), calque mobilisation réactif (basculable on/off) — identique aux chiffres
-Python. **Carte qui se docke (§7)** : une seule
+circonscriptions** (swing conservé, identiques à `report_data.circo_rollup`), calque
+mobilisation réactif (basculable on/off) — identique aux chiffres Python. **Carte qui se docke (§7)** : une seule
 instance MapLibre, conteneur en `position: sticky` dont la taille passe par paliers
 selon le scroll (IntersectionObserver, pas de listener coûteux) ; `map.resize()` à
 chaque palier — MapLibre garde l'état (caméra, couches, expressions de scénario)
@@ -549,9 +638,11 @@ abstentionnistes réels pour le γ du survol, `w` phrase « pourquoi mobilisable
 (pour disposer de `why_left.json`). `aggregate_communes` ajoute `cmv`/`cab` (mobilisables
 et abstentionnistes réels agrégés) à `communes.json` pour le survol de la vue dézoomée. `report_figs.py`
 ne produit plus que deux choses : `coverage.json` (couverture empirique, servie en
-**pastille numérique**) et le **schéma de méthode** SVG (flux deux temps + frise
-apprentissage/test, R² en légende). Précision-par-marge, déploiement par commune,
-courbe de bascule, rapport de force et pastille de couverture sont **tracés client**
+**pastille numérique**) et le **schéma de méthode** SVG en **trois bandes** (le modèle
+*national + écart local* avec l'abstention sur sa propre voie ; l'estimation γ du gisement
+*abstentionnistes conjoncturels × part de gauche du votant marginal* ; la frise
+apprentissage/test, R² en légende) — les γ par type via `_gamma_by_type`. Précision-par-marge, déploiement par commune,
+rapport de force et pastille de couverture sont **tracés client**
 (SVG / barres en palette, réactifs aux curseurs). `report_shap.py` réutilise
 `train_and_explain` (modèles pré-enregistrés, désormais à **noms de features bruts**)
 pour les contributions top-6 par bureau — `drivers` du **bloc en tête** (calque bloc) **et
@@ -573,8 +664,10 @@ l'affichage (« vote Extrême Droite (n-1) »), sans jamais imprimer « lag ».
 `src/verify_report.py` (Playwright headless) — zéro exception JS, 7 barres de
 précision, pastille 80/90/95, 4 barres de provenance, **2 barres du duel sondage
 vs nous (48,2 % / 81,6 %)**, la barre **« réalité partagée »** (panneau autonome
-« paysage national » supprimé), **1 gisement d'électeurs** (mobilisation 4,71 M)
-et **12 communes de déploiement**, le **mode par défaut `mobil`** avec le **calque
+« paysage national » supprimé), **1 gisement d'électeurs** (mobilisation 0,25 M,
+abstentionnistes conjoncturels × γ législatif, plancher législatif passé hors fuite), **3 courbes γ** (panneau par type de
+scrutin) et **12 communes de déploiement** (volume + rendement γ), le **mode par défaut
+`mobil`** avec le **calque
 bloc en tête** basculable (`#lead` : `mobil` → `lead` → `mobil`),
 **2 barres de rapport de
 force** (aujourd'hui / scénario), la liste **« sur le fil »** (12 circonscriptions, zéro
@@ -601,25 +694,26 @@ curseur vient de faire basculer ressort *pâle* — l'incertitude est lisible su
 carte elle-même, pas seulement dans les panneaux. Légende : pastille dégradée
 « pâle = serré ».
 
-**Robustesse de la carte qui se docke.** Une seule instance MapLibre ; le passage
-plein-cadre ↔ rail ne se déclenche qu'**au changement d'état** (IntersectionObserver
-sur `#hero-end`), jamais à chaque frame de scroll, et `map.resize()` est appelé par
-brèves rafales (`resizeBurst`, ~14 frames) à ce seul moment — pas de listener
-coûteux. Repli mobile : la grille magazine s'effondre en une colonne (≤ 720 px), le
-hero rétrécit, la mini-carte passe à 200×150 px ; le site reste lisible au doigt.
+**Carte (état actuel, voir §0).** Une seule instance MapLibre dans le hero ; elle **ne se
+docke plus** (le dock en rail collant, `initMinimap`/`resizeBurst` et le bouton « agrandir »
+ont été supprimés sur retour client). La carte défile normalement avec le hero. Repli
+mobile : la grille magazine s'effondre en une colonne (≤ 720 px), le hero rétrécit ; le site
+reste lisible au doigt. *(L'ancien dock plein-cadre ↔ rail piloté par IntersectionObserver
+sur `#hero-end` est retiré.)*
 
 ## 9. Décisions ouvertes (confirmer, sinon défauts)
 
-- **Parti & couleur d'accent** — sinon palette neutre ci-dessus.
-- **Rapport de force en circonscriptions** — défaut : **bloc dominant au premier tour,
-  agrégat des bureaux** (honnête, déjà construit, swing conservé, cohérent avec le
-  modèle qui ne voit que le T1). À confirmer si le client veut aller jusqu'à une
-  **projection de siège à deux tours** — hors périmètre actuel (exige de modéliser la
-  qualification, les désistements et le report de voix du T1 vers le T2, non fait et
-  non validé) ; à ne pas vendre comme un pronostic de sièges sans ce travail.
-- **Scénario mis en avant** — défaut +3 pts ED (le plus parlant sur 2024).
-- **Caméra d'entrée & zooms** — défaut métropole = Lyon ; circonscription
-  disputée = la plus serrée selon les marges calculées.
+- **Parti & couleur d'accent** — **tranché : client = Manuel Bompard (LFI)**, livrable
+  cadré **fin de campagne / GOTV** (aller chercher les abstentionnistes). Accent de marque
+  `--accent:#cc2229` (rouge LFI) sur titres de bande / accroche ; la Gauche reste `#E4572E`
+  sur la carte (sémantique des blocs inchangée). Le ton du hero et de la Bande 2 assume le
+  registre directeur de campagne de gauche.
+- **Rapport de force en circonscriptions** — *retiré du rendu (voir §0)*. Le calcul existe
+  (`report_data.circo_rollup`, bloc dominant au premier tour, swing conservé) mais n'est plus
+  affiché. À rouvrir seulement si le client veut réintroduire l'angle « sièges » — et jamais
+  comme projection de siège à deux tours sans modéliser qualification/désistements/reports.
+- **Scénario mis en avant** — *sans objet : le cadran de scénario est retiré (voir §0)*.
+- **Caméra d'entrée & zooms** — défaut métropole = Lyon ; entrée par recherche ou zoom.
 - **Hébergement / diffusion** — site statique : un lien privé suffit-il, ou faut-il
   un accès protégé par mot de passe ?
 - **Mention de confidentialité** du pied de page.

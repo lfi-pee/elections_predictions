@@ -209,10 +209,11 @@ Testé séparément dans `src/movability_turnout.py`, par différences première
    pas un artefact de période.
 
 **Conséquence opératoire (le chemin défendable pour la Bande 2)** : le gisement mobilisation se
-chiffre **mobilisables_gauche(b) = abstentionnistes(b) × γ(b)**, où `γ(b)` vient de la courbe
-participation (fonction du niveau de gauche du bureau, ou de sa représentation), **jamais
-`γ = G`**. Identifié, stable, honnête sur la saturation — plus petit que l'ancienne méthode en
-bastion, plus grand à droite. C'est la version qui survit à l'examen.
+chiffre **mobilisables_gauche(b) = abstentionnistes conjoncturels(b) × γ(b)** (voir §14 pour le
+split conjoncturel/fond), où `γ(b)` vient de la courbe participation **du type de scrutin projeté**
+(§15), fonction du niveau de gauche du bureau, **jamais `γ = G`**. Identifié, stable, honnête sur la
+saturation — plus petit que l'ancienne méthode en bastion, plus grand à droite. C'est la version qui
+survit à l'examen.
 
 ## 12. Statut en production (résolu)
 
@@ -365,3 +366,92 @@ description rétrospective) : utiliser la démographie reviendrait à présenter
 2024* comme une loi — impressionnant sur 2024, pire que rien pour le scrutin d'après. **Seule la
 courbe de niveau transfère** (+0,96) ; c'est donc, pour l'objectif de prévision, non un compromis
 prudent mais le **seul choix défendable**. La richesse démographique est un mirage prédictif.
+
+## 14. Abstention de fond vs conjoncturelle (retour client, câblé)
+
+Retour client (fin de campagne) : on ne mobilise pas l'**abstentionniste de fond** (chronique,
+qui ne vote jamais même quand l'enjeu monte). Le gisement de fin de campagne, c'est la frange
+**conjoncturelle** — ceux qui reviennent voter quand la participation grimpe. Multiplier *tout*
+le stock d'abstentionnistes par γ comptait des électeurs inatteignables.
+
+**Identification.** Plancher d'abstention par bureau `abst_floor(b) = plus bas niveau
+d'abstention démontré sur les Législatives T1 **strictement passées**` (= le meilleur niveau de
+participation que le bureau a *réellement atteint*, hors élection cible) ;
+`conjoncturelle(b) = max(0, abstention prédite(b) − abst_floor(b))`. Le gisement devient
+`mobilisables(b) = inscrits(b) · conjoncturelle(b)/100 · γ(b)`. Câblé dans
+`report_data.attach_abst_floor` (`gamma_panel.parquet` filtré sur `TARGET_TYPE` et
+`date_float < TARGET_FLOOR_CUTOFF`) et `report_targets.conjunctural_pct`. Effet : 14,8 M
+d'abstentionnistes → **0,57 M conjoncturels** (14,3 M de fond) ; gisement mobilisation
+**0,25 M en métropole**.
+
+**Deux correctifs de défendabilité (2026-05-31).** Le plancher initial (min poolé sur les trois
+types) avait deux failles, découvertes en réponse à la question « ne faut-il pas renormaliser le
+plancher par la prédiction ? » :
+
+1. **Confusion de régimes.** Pooler legi+présid+euro laissait l'abstention présidentielle (forte
+   participation) dominer le `min` : le plancher d'une projection *législative* incluait le
+   décalage structurel legi↔présid, des électeurs qu'une campagne législative ne ramène pas.
+   ⇒ on restreint au seul type projeté (`TARGET_TYPE`).
+2. **Fuite de l'élection cible.** La cible (2024 legi) est **le législatif le plus mobilisé** du
+   panel (abst. nationale 31 % vs 33,8 % pour le meilleur passé). Inclure 2024 faisait valoir le
+   `min` à la valeur **observée 2024** pour **56 % des bureaux**, si bien que `conjoncturelle =
+   pred − min ≈ pred − observé₂₀₂₄` = le **résidu de prédiction**, clippé positif (corr 0,75 ;
+   64 % du gisement). On prédisait 2024 *et* on lisait 2024 dans le plancher. ⇒ on exclut la
+   cible (`date_float < TARGET_FLOOR_CUTOFF`). corr résidu : 0,75 → 0,40.
+
+**Renormalisation national+local testée puis écartée.** La voie « propre » suggérée — travailler
+en écart à la moyenne nationale pour que le national s'annule (`plancher = ancre_proj +
+min_passé[ AB − ancre_obs ]`), donc un signal purement local — a été implémentée et stress-testée.
+Elle **échoue la validité faciale** : estimer l'écart local sur ~5 scrutins bruités produit des
+planchers **hors bornes** (jusqu'à **−17 %** d'abstention) et des poches **« 70 % mobilisable »**
+sur des bureaux isolés (la queue est immatérielle au national, 1,9 % du total, mais le produit
+laisse **cliquer chaque bureau** — un plancher négatif affiché détruit la confiance). Sa
+corrélation spatiale avec le plancher retenu n'est que +0,68 : la renormalisation *change* le
+classement, mais au prix d'artefacts. **Verdict :** on garde le plancher en **niveau observé**
+(∈ [0, prédiction], toujours valide, plafond *réellement atteint*). Le climat national de l'année
+du min n'est pas retiré — assumé : un niveau que le bureau *a atteint* reste atteignable. C'est le
+choix conservateur (0,25 M, le plus petit des candidats sans fuite ; min légi avec fuite donnait
+0,56 M, renorm 0,34–0,61 M selon l'ancre). γ, lui, reste quasi ponctuel (bootstrap 95 %
+[42,2 ; 42,6 %]) : toute la sensibilité du gisement est dans le plancher, pas dans γ. Balayage
+reproductible dans `src/floor_sensitivity.py`.
+
+**Historique du plancher.** Mesuré sur les Législatives T1 passées du panel `gamma_panel.parquet`
+(§15) — ~5 scrutins/bureau. Le panel 3 types sert toujours l'estimation de γ (§15), mais **pas**
+le plancher. Complément possible : `gauche(Prés. 2022) − gauche(Eur. 2024)` par bureau = le
+conjoncturel de gauche *mesuré* (non modélisé), calculable depuis le même panel
+(`preconisations.md`, reco 6).
+
+## 15. γ dépend du type de scrutin (retour client, chiffré)
+
+Retour client : *« le γ ne doit pas être la même formule selon les élections. »* Exact, et l'écart
+est massif. Mêmes différences premières intra-type, **séparées par type de scrutin cible** :
+
+| γ = part de gauche du votant marginal | valeur | n diffs |
+|---|---|---|
+| poolé (ancien défaut) | 31,5 % | 561 292 |
+| **Législatives T1** | **39,3 %** | 314 280 |
+| **Européennes T1** | **23,9 %** | 307 463 |
+| **Présidentielle T1** | **12,3 %** | 247 012 |
+
+Trois régimes de participation distincts. Les courbes γ(niveau de gauche) sont de **forme
+contrastée** : législatives monotone croissante (24 → 56 %, l'électeur ramené penche d'autant
+plus à gauche que le bureau l'est), présidentielle en U bas (18 → 8 → 19 %), européennes
+intermédiaire mais montant fort en bastion (2 → 59 %). La courbe poolée mélangeait ces régimes
+et n'était juste pour aucun scrutin réel.
+
+**Données.** Les Européennes (1999–2024) sont bien dans le brut (`general_results`,
+`elections.parquet`) ; elles n'étaient pas dans le cache du modèle (`cross_type_dev_base.parquet`,
+legi+présid seuls). On les intègre via un **panel γ dédié** `data/baseline_cache/gamma_panel.parquet`
+(`movability_turnout._ensure_panel` → `cross_type_ridge._build_block_scores` sur les trois types
+T1), **sans toucher au modèle de production** (qui n'entraîne toujours que sur legi+présid). Le
+plancher d'abstention (§14) lit aussi ce panel ⇒ abstention de fond sur historique 3 scrutins.
+
+**Distinction avec §13.** §13 a montré que γ par *démographie / lags / momentum* ne transfère pas
+(non stationnaire). Le **type de scrutin** est une autre dimension : c'est un régime de
+participation, identifié et **stable intra-type** (la stabilité +0,96 du §11 vaut *au sein* d'un
+type). On code donc en dur la courbe du type projeté (`report_data.TARGET_TYPE = "Legislatives_T1"`,
+`movability_turnout.fit_gamma(election_type=…)`) et on sert les deux courbes au site
+(`movability_turnout.curves_by_type` → `gamma_curve.json`, panneau « Qui revient voter quand la
+participation monte »). Pour projeter une présidentielle, basculer `TARGET_TYPE` — le chiffre héros
+change de régime (≈ 1,8 M au γ présidentiel), ce qui est l'honnêteté même : **le gisement n'existe
+qu'au regard d'un scrutin.**

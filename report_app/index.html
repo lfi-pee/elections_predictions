@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>L'élection au bureau de vote près</title>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<link href="style.css?v=6" rel="stylesheet" />
+<link href="style.css?v=12" rel="stylesheet" />
 </head>
 <body>
 <header id="top">
   <div class="brand">Législatives 2024 · 1<sup>er</sup> tour<span>la prévision, au bureau de vote près</span></div>
   <div class="hook">
     <strong id="hook-acc">81,6 %</strong>
-    <span>des <b id="hook-n">69 358</b> bureaux : le bloc arrivé en tête correctement désigné — notre prévision confrontée au scrutin réel, tenu à l'écart</span>
+    <span>des <b id="hook-n">69 358</b> bureaux : le bon bloc désigné en tête — prévision vérifiée sur le résultat réel de 2024</span>
   </div>
   <div class="legend" id="legend"></div>
 </header>
@@ -29,34 +29,26 @@
       afficher le bloc en tête — le duel sondage vs nous</label>
     <p class="hero-cap">Survolez un bureau pour la lecture rapide ; cliquez pour l'interroger en détail.</p>
   </div>
-  <div id="map-hint">Cherchez une commune ou zoomez : la carte se résout au bureau de vote.</div>
+  <div id="map-hint">Cherchez une commune ou zoomez : la carte descend jusqu'au bureau de vote.</div>
 </section>
 <div id="hero-end"></div>
-<button id="map-expand" title="agrandir la carte">⤢</button>
 
 <main class="mag">
-  <section class="panel span4">
-    <h3>La précision suit la marge</h3>
-    <p class="lede">La bonne désignation n'est pas du hasard : elle est quasi certaine
-    quand l'écart entre les deux premiers blocs est net, plus difficile quand ils se
-    tiennent — exactement le terrain du combat plus bas.</p>
-    <svg id="accmargin" viewBox="0 0 360 170"></svg>
-    <figcaption id="acc-cap"></figcaption>
-  </section>
-
-  <section class="panel span8">
-    <h3>Pas un sondage déguisé <span class="muted">le sondage vs nous</span></h3>
+  <section class="panel span12">
+    <h3>Pas un sondage déguisé <span class="muted">ce qu'un sondage national ne peut pas voir</span></h3>
     <p class="lede">On regroupe les partis en trois blocs — Gauche, Centre+Droite,
-    Extrême Droite — auxquels s'ajoute l'Abstention. Un sondage national n'a qu'un
-    favori, le même bloc partout, alors que la réalité, lue bureau par bureau, est
-    partagée. Ce favori unique se trompe une fois sur deux ; notre carte lit chaque
-    bureau et désigne le bon bloc quatre fois sur cinq.</p>
+    Extrême Droite — plus l'Abstention. Un sondage national donne un seul favori, le même
+    partout. Mais le bloc qui arrive en tête change d'un bureau à l'autre : voici, sur les
+    69 358 bureaux, combien chaque bloc en remporte.</p>
     <div id="realite"></div>
+    <p class="lede" style="margin:16px 0 8px">Appliquer ce favori unique à tous les bureaux
+    ne désigne le bon bloc qu'une fois sur deux. Notre carte, qui lit chaque bureau, y arrive
+    quatre fois sur cinq.</p>
     <div id="pollgap"></div>
-    <p class="lede" style="margin:14px 0 8px">La prédiction d'un bureau est une moyenne
-    nationale plus un écart local ; voici, dans sa marge d'erreur, la part qui vient des
-    sondages nationaux et celle qui vient de notre lecture du terrain — l'essentiel,
-    qu'aucun sondage ne porte.</p>
+    <p class="lede" style="margin:16px 0 8px">D'où vient cet écart ? De ce qu'aucun sondage
+    ne porte : notre lecture du terrain. Pour chaque bloc, la barre montre d'où vient ce qui
+    reste d'incertain dans la prévision — la part colorée, c'est notre lecture locale ; le
+    gris, ce qu'un sondage national apporte. Sur la Gauche, l'essentiel est local.</p>
     <div id="provbars"></div>
     <p class="provkey"><i class="pk-loc"></i> notre lecture locale<i class="pk-nat"></i> national (sondages)</p>
   </section>
@@ -70,125 +62,105 @@
     jamais ré-ajustée. Aucune optimisation sur les données de test.</p>
   </section>
 
-  <h2 class="band span12">Combien d'électeurs, et où</h2>
+  <h2 class="band span12">Combien d'électeurs, et où — votre plan de mobilisation</h2>
 
   <section class="panel span4">
-    <p class="lede">Un bureau n'est ni un siège ni un électeur. Ce qui se gagne, ce sont
-    des <b>électeurs</b> : les abstentionnistes qui penchent à gauche. C'est ce gisement
-    que la carte colore par défaut — pâle là où il est rare, saturé là où il se concentre.</p>
+    <p class="lede">Un bureau n'est ni un siège ni un électeur. En fin de campagne, ce qui
+    se gagne, ce sont des <b>électeurs</b> : les abstentionnistes qui penchent à gauche, à
+    faire venir aux urnes. C'est ce gisement que la carte colore par défaut — pâle là où il
+    est rare, saturé là où il se concentre.</p>
     <div id="pools"></div>
-    <p class="fineprint">Le total national d'un gain est arithmétique ; ce que le modèle
-    seul apporte, c'est <b>où</b> sont ces électeurs. Leur orientation est estimée à partir
-    des vraies hausses de participation passées : quand des abstentionnistes se déplacent
-    vers les urnes, on sait quelle part choisit la gauche — pas à partir du seul vote déjà
-    exprimé sur place, qui tournerait en rond. Nous avons retenu la seule règle qui
-    <b>tient d'une élection à l'autre</b> : une carte fondée sur la seule sociologie décrirait
-    finement le dernier scrutin mais prédirait mal le suivant — testé, écarté.</p>
+    <p class="fineprint">On ne compte pas l'abstention <b>de fond</b> (ceux qui ne votent
+    jamais), mais l'abstention <b>conjoncturelle</b> : la frange qui revient voter quand
+    l'enjeu monte. Le total d'un gain est arithmétique ; ce que le modèle seul apporte,
+    c'est <b>où</b> sont ces électeurs et <b>quelle part</b> choisit la gauche — estimée
+    sur les vraies hausses de participation passées <b>du scrutin visé</b> (une législative
+    ne ramène pas le même électorat qu'une présidentielle), pas sur le seul vote déjà
+    exprimé sur place, qui tournerait en rond. C'est la seule règle qui <b>tient d'une
+    élection à l'autre</b> : une carte fondée sur la seule sociologie décrirait finement le
+    dernier scrutin mais prédirait mal le suivant — testé, écarté.</p>
   </section>
 
   <section class="panel span8">
     <h3>Où déployer <span class="muted">communes par abstentionnistes mobilisables · métropole</span></h3>
-    <p class="lede">Les électeurs gagnables ne sont pas dispersés : ils se concentrent
-    dans des villes nommables. Chaque barre compte les abstentionnistes qui, à profil de
-    bureau donné, penchent à gauche. Outre-mer et étranger exclus — non démarchables.</p>
+    <p class="lede">Les électeurs gagnables se concentrent dans des villes nommables. Deux
+    chiffres par ville : le <b>volume</b> (combien d'électeurs à aller chercher, qui suit la
+    taille de la commune) et le <b>rendement</b> (la part qui penche à gauche — l'apport
+    propre du modèle : c'est là que chaque porte frappée rapporte le plus). Outre-mer
+    et étranger exclus — non démarchables.</p>
     <div id="deployment"></div>
   </section>
 
-  <h2 class="band span12">Et si… ?</h2>
-
-  <section class="panel span4">
-    <p class="lede">Tournez le cadran national : chaque bureau répond, parce que la
-    prédiction est une moyenne nationale plus un écart local stable. Le compteur est
-    exact sur les 69 358 bureaux, et en additionnant les bureaux on remonte aux 577
-    circonscriptions (chacune élit un député). C'est
-    aussi ainsi qu'on porte l'instrument au <b>prochain scrutin</b> : on change
-    l'hypothèse nationale, l'écart local, lui, transfère.</p>
-    <div id="sliders"></div>
-    <p id="swing-note" class="swing-note"></p>
-  </section>
-
-  <section class="panel span8 scenario-panel">
-    <div class="scenario-grid">
-      <div class="scenario-out">
-        <div class="big"><b id="flip-count">0</b><span>bureaux changent de bloc en tête</span></div>
-        <div class="sub"><b id="flip-el">0</b> électeurs · <span id="flip-band"></span></div>
-      </div>
-      <div class="scenario-out">
-        <div class="big"><b id="seat-flip">0</b><span>circonscriptions changent de bloc en tête au 1ᵉ tour</span></div>
-        <div class="sub">sur <b>577</b> · bloc arrivé en tête au 1ᵉ tour, en additionnant
-          tous les bureaux — pas une projection de sièges à deux tours</div>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel span6">
-    <h3>Courbe de bascule <span class="muted">un cadran, deux unités</span></h3>
-    <figure class="curve"><svg id="flipcurve" viewBox="0 0 360 170"></svg>
-      <figcaption>Selon le déplacement national de l'Extrême Droite, combien de
-      <b>bureaux</b> (trait plein, échelle de gauche) et de <b style="color:#6A4C93">circonscriptions</b>
-      (pointillé, échelle de droite) changent de bloc en tête — un point figé qu'un PDF
-      ne peut pas montrer.</figcaption></figure>
-  </section>
-
-  <section class="panel span6">
-    <h3>Le rapport de force <span class="muted">circonscriptions · 1ᵉ tour · tous les bureaux additionnés</span></h3>
-    <div id="seats"></div>
-    <figcaption>Bloc arrivé <b>en tête au premier tour</b> dans chaque circonscription, en
-    additionnant les voix de tous ses bureaux de vote — avant, et sous le scénario courant.
-    Le modèle ne prédit que le premier tour : ce n'est pas une projection de sièges à deux
-    tours (il ne modélise ni les qualifications, ni les désistements, ni les reports de voix
-    entre les deux tours). Découpage des circonscriptions stable depuis 2012, appliqué aux
-    69 358 bureaux de 2024.</figcaption>
-  </section>
-
-  <section class="panel span12 fil-panel">
-    <h3>Les circonscriptions sur le fil <span class="muted" id="fil-sub">les plus serrées · 1ᵉ tour · tous les bureaux additionnés</span></h3>
-    <p class="lede">Le compteur dit <i>combien</i> de circonscriptions changent de bloc en tête ;
-    voici <i>lesquelles</i> — celles dont la marge est la plus mince sous le scénario courant.
-    Tournez le cadran : la liste se réordonne, et celles qui viennent de basculer s'allument.</p>
-    <div id="fil"></div>
-  </section>
-
-  <section class="panel span12 honesty-panel">
-    <h3>Notre honnêteté <span class="muted">là où l'on est le moins sûr · la garantie tenue</span></h3>
-    <div class="honesty-grid">
-      <div>
-        <label class="check"><input id="honesty" type="checkbox" />
-          afficher l'incertitude sur la carte</label>
-        <p class="lede" id="honesty-note">Les territoires particuliers (Outre-mer, Corse,
-        étranger) concentrent l'erreur et reçoivent des fourchettes plus larges. Nous
-        l'assumons plutôt que de le cacher. R² (qualité d'ajustement, 1 = parfait) —
-        Gauche 0,74 · Centre+Droite 0,61 · Extrême Droite 0,80 · Abstention 0,74.</p>
-      </div>
-      <div>
-        <p class="lede">Quand on annonce une fourchette fiable à 80, 90 ou 95 %, le réel y
-        tombe au moins aussi souvent que promis — une fiabilité garantie, calculée
-        séparément pour chaque type de territoire, mesurée sur 2024 et jamais ajustée.</p>
-        <div id="covbadge"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel span12 recap-panel">
-    <div class="recap">
-      <div><b>81,6 % vs 48,2 %</b><span>notre carte désigne le bon bloc en tête ; un favori
-        national unique n'y arrive qu'une fois sur deux</span></div>
-      <div><b>un seul cadran</b><span>déplacez le national : 69 358 bureaux et 577
-        circonscriptions se recomposent sous vos yeux</span></div>
-      <div><b>où déployer</b><span>4,71 M d'abstentionnistes qui penchent à gauche,
-        concentrés sur des villes nommables</span></div>
-    </div>
+  <section class="panel span12">
+    <h3>Qui revient voter quand la participation monte <span class="muted">par type de scrutin</span></h3>
+    <p class="lede">La question, en clair : <b>sur 100 abstentionnistes qu'on ramène aux
+    urnes, combien votent à gauche ?</b> La réponse dépend du profil du bureau — et surtout
+    <b>du scrutin</b> : à une législative environ <b>39 sur 100</b> en moyenne (et d'autant
+    plus que le bureau penche déjà à gauche), à une européenne <b>24</b>, à une
+    présidentielle <b>12</b> —
+    le revenant n'a pas le même visage selon l'élection. C'est pourquoi le gisement n'a pas la
+    même formule selon l'élection visée.</p>
+    <p class="lede"><b>Comment ces courbes sont tracées.</b> Pour chaque bureau, on
+    compare deux scrutins successifs du même type : entre les deux, la participation a varié
+    de quelques points, et le score de la gauche — compté en part des <b>inscrits</b>, non des
+    votants — a varié aussi. Le rapport des deux, soit le nombre de points que la gauche gagne
+    par point de participation supplémentaire, est la part de gauche des électeurs qui se sont
+    effectivement déplacés. On rassemble ces variations sur tous les bureaux et toutes les
+    paires de scrutins (des centaines de milliers), on les classe par niveau de gauche du
+    bureau (l'axe horizontal), et dans chaque tranche on en calcule la pente — une droite
+    forcée par l'origine, puisque sans hausse de participation il n'y a aucune voix gagnée.
+    Cette pente est la hauteur du point ; reliés, les points forment la courbe. Les trois
+    courbes sont la même mesure conduite séparément sur les législatives, les européennes et
+    les présidentielles. Contrôle de stabilité : la courbe estimée sur les scrutins anciens
+    (≤ 2012) et celle des récents coïncident (corrélation +0,96) — régularité de comportement,
+    non artefact de période.</p>
+    <svg id="gammacurve" viewBox="0 0 360 175"></svg>
+    <figcaption id="gamma-cap"></figcaption>
   </section>
 
   <h2 class="band span12">Comment ça marche</h2>
 
   <section class="panel span12 method-panel">
-    <figure><img src="data/fig_method.svg" alt="schéma de méthode : national plus écart local, choisi par validation croisée sur les scrutins passés et testé une seule fois sur 2024" />
-      <figcaption>Le cadran national des scénarios plus haut agit sur la première
-      boîte ; tout le reste est notre lecture locale du bureau. Le modèle est choisi
-      par validation croisée sur les scrutins passés — chacun retiré à tour de rôle —
-      puis confronté à 2024, jamais vu, une seule fois. Aucun réglage sur les données
-      de test.</figcaption></figure>
+    <figure><img src="data/fig_method.svg?v=16" alt="schéma de méthode en trois bandes : le modèle (ancre nationale plus écart local, abstention modélisée à part faute de sondage), l'estimation de l'abstention de gauche (abstentionnistes conjoncturels multipliés par la part de gauche du votant marginal), et la validation croisée sur les scrutins passés testée une seule fois sur 2024" />
+      <figcaption><b>Le modèle d'abord</b> — une régression Ridge (linéaire régularisée),
+      pas de boîte noire : ancre nationale plus notre lecture locale du bureau (votes
+      passés, 52 indicateurs INSEE, géographie), et l'abstention, faute de sondage, calée
+      sur la participation passée.<br />
+      <b>Puis le gisement — comment on estime l'abstention de gauche, exactement.</b> En
+      deux temps. <b>(1)</b> On isole les abstentionnistes qu'une fin de campagne peut
+      ramener : l'abstention prévue du bureau <i>moins</i> son plancher historique (le
+      socle d'abstentionnistes chroniques, qui ne reviennent jamais) — reste la frange
+      <b>conjoncturelle</b>. <b>(2)</b> Quelle part de ces revenants vote à gauche ? On ne
+      le suppose pas, on le mesure. Sur tous les scrutins <i>passés du même type</i>, on
+      regarde bureau par bureau de combien le vote de gauche monte quand la participation
+      monte : si 100 électeurs de plus se déplacent et que la gauche en gagne 39, alors
+      <b>39 %</b> de l'électeur qui revient penche à gauche. Cette part n'est jamais « la
+      part de gauche de ceux qui votent déjà » (ce serait un raisonnement circulaire) :
+      c'est la composition du <i>revenant</i>, lue sur de vraies hausses de participation.
+      Elle dépend du profil du bureau et surtout du scrutin (législatives 39 %,
+      présidentielle 12 %). Au total : <b>mobilisables de gauche = abstentionnistes
+      conjoncturels × cette part</b>, bureau par bureau.<br />
+      <b>Enfin la preuve</b> : le modèle est choisi par validation croisée sur les scrutins
+      passés — chacun retiré à tour de rôle — puis confronté à 2024, jamais vu, une seule
+      fois.</figcaption></figure>
+  </section>
+
+  <section class="panel span12">
+    <h3>Comment on calcule la fourchette <span class="muted">prédiction conforme, calibrée sur les erreurs passées</span></h3>
+    <p class="lede" id="ic-explain">La fourchette n'est pas une formule théorique : elle est
+    calibrée sur les erreurs réelles du modèle, par <b>prédiction conforme</b>. Le procédé,
+    exactement : on retire une élection passée, on entraîne le modèle sur toutes les autres,
+    on prédit les bureaux de l'élection retirée, et on relève pour chacun l'erreur
+    hors échantillon — l'écart absolu entre le résultat réel et la prévision ; on répète pour
+    chaque élection passée. La fourchette à 90 % est alors le 90<sup>e</sup> centile de ces
+    erreurs (corrigé du nombre fini de bureaux, par le facteur (1−α)(1+1/n)) ; les fourchettes
+    à 80 % et 95 % sont les centiles correspondants. Ce centile est calculé séparément par
+    classe de territoire — métropole, Outre-mer, Polynésie, Corse, étranger —, ce qui rend la
+    largeur adaptative : plus large là où l'erreur passée l'est (une classe à trop peu de
+    bureaux reprend la largeur globale). La méthode ne suppose aucune distribution des erreurs
+    et garantit une couverture au moins égale au niveau visé. Contrôle : 2024 est tenu hors de
+    toute cette calibration, et la couverture mesurée dessus est supérieure ou égale au niveau
+    annoncé (≥ 90 % pour la fourchette à 90 %).</p>
   </section>
 </main>
 
@@ -196,11 +168,11 @@
 
 <script src="js/devreload.js?v=2" defer></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="js/config.js?v=6" defer></script>
-<script src="js/map.js?v=6" defer></script>
-<script src="js/scenario.js?v=6" defer></script>
-<script src="js/viz.js?v=6" defer></script>
-<script src="js/panel.js?v=6" defer></script>
-<script src="js/main.js?v=6" defer></script>
+<script src="js/config.js?v=12" defer></script>
+<script src="js/map.js?v=12" defer></script>
+<script src="js/scenario.js?v=12" defer></script>
+<script src="js/viz.js?v=14" defer></script>
+<script src="js/panel.js?v=12" defer></script>
+<script src="js/main.js?v=12" defer></script>
 </body>
 </html>

@@ -91,6 +91,17 @@ def pretty_label(raw: str) -> str:
     return raw.replace("Pct_", "").replace("Taux_", "").replace("_", " ")
 
 
+def feat_value_str(raw: str, v: float) -> str:
+    """Valeur de la variable telle que mesurée dans ce bureau, pour l'afficher sous le
+    libellé. Votes passés = écart au national (en points) ; indicateurs INSEE = niveau
+    local (en %) ; géographie / date / type de scrutin : non affichés (peu parlants)."""
+    if "_lag" in raw:
+        return f"{v:+.0f} pts vs national".replace("-", "−")
+    if raw.startswith(("Pct_", "Taux_")):
+        return f"{round(v)} %"
+    return ""
+
+
 def humanize_left(label: str) -> str:
     if label.startswith("Vote Gauche"):
         return "son héritage de vote à gauche"
@@ -115,9 +126,9 @@ def explain_left(gdrivers: list[list]) -> str:
     if not gdrivers:
         return "un profil peu différencié"
     top = gdrivers[:2]
-    labels = list(dict.fromkeys(humanize_left(lab) for lab, _ in top))
+    labels = list(dict.fromkeys(humanize_left(e[0]) for e in top))
     joined = " et ".join(labels)
-    raises = sum(v for _, v in top) >= 0
+    raises = sum(e[1] for e in top) >= 0
     if raises:
         return "doit son niveau de gauche surtout à " + joined
     return "voit son niveau de gauche tiré vers le bas par " + joined
@@ -134,6 +145,8 @@ def national_estimates(poll_feats, national_means) -> dict[str, float]:
 
 
 def block_shap(block: str, ctx: dict) -> dict[str, list[list]]:
+    # Ridge-only SHAP: matches the deployed predictions (conformal.py is Ridge-only),
+    # so the per-bureau "why" explains the exact production model — not a boosted variant.
     info = train_and_explain(
         block,
         ctx["df"],
@@ -144,14 +157,23 @@ def block_shap(block: str, ctx: dict) -> dict[str, list[list]]:
         ctx["ext_nm"],
         ctx["est"],
         ctx["est"],
+        with_boost=False,
     )
     sv = info["shap_values"]
     names = info["feature_names"]
+    vr = info["val_raw"]
     locs = info["val"]["location"].to_numpy()
     top = np.argsort(-np.abs(sv), axis=1)[:, :TOP_K]
     out = {}
     for i, loc in enumerate(locs):
-        out[loc] = [[pretty_label(names[j]), round(float(sv[i, j]), 2)] for j in top[i]]
+        out[loc] = [
+            [
+                pretty_label(names[j]),
+                round(float(sv[i, j]), 2),
+                feat_value_str(names[j], float(vr[i, j])),
+            ]
+            for j in top[i]
+        ]
     return out
 
 
@@ -187,6 +209,11 @@ def build() -> None:
             "u": round(float(row.unc), 0),
             "tip": round(float(row.ed_tip), 1),
             "mob": int(round(float(row.mob))),
+            "conj": int(
+                round(
+                    float(row.inscrits) * max(0.0, row.pred_AB - row.abst_floor) / 100
+                )
+            ),
             "drivers": shap_by_block[row.lead].get(row.location, []),
             "gdrivers": gdrivers,
             "wleft": why_left[row.location],

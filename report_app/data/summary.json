@@ -25,302 +25,102 @@
    "inscrits": 18508920
   }
  },
- "flip_curve": [
-  {
-   "shift": -4.0,
-   "flips": 8747,
-   "pct": 12.61
-  },
-  {
-   "shift": -3.5,
-   "flips": 7699,
-   "pct": 11.1
-  },
-  {
-   "shift": -3.0,
-   "flips": 6643,
-   "pct": 9.58
-  },
-  {
-   "shift": -2.5,
-   "flips": 5605,
-   "pct": 8.08
-  },
-  {
-   "shift": -2.0,
-   "flips": 4509,
-   "pct": 6.5
-  },
-  {
-   "shift": -1.5,
-   "flips": 3403,
-   "pct": 4.91
-  },
-  {
-   "shift": -1.0,
-   "flips": 2278,
-   "pct": 3.28
-  },
-  {
-   "shift": -0.5,
-   "flips": 1165,
-   "pct": 1.68
-  },
-  {
-   "shift": 0.0,
-   "flips": 0,
-   "pct": 0.0
-  },
-  {
-   "shift": 0.5,
-   "flips": 1190,
-   "pct": 1.72
-  },
-  {
-   "shift": 1.0,
-   "flips": 2357,
-   "pct": 3.4
-  },
-  {
-   "shift": 1.5,
-   "flips": 3510,
-   "pct": 5.06
-  },
-  {
-   "shift": 2.0,
-   "flips": 4621,
-   "pct": 6.66
-  },
-  {
-   "shift": 2.5,
-   "flips": 5759,
-   "pct": 8.3
-  },
-  {
-   "shift": 3.0,
-   "flips": 6923,
-   "pct": 9.98
-  },
-  {
-   "shift": 3.5,
-   "flips": 7986,
-   "pct": 11.51
-  },
-  {
-   "shift": 4.0,
-   "flips": 9076,
-   "pct": 13.09
-  },
-  {
-   "shift": 4.5,
-   "flips": 10211,
-   "pct": 14.72
-  },
-  {
-   "shift": 5.0,
-   "flips": 11316,
-   "pct": 16.32
-  },
-  {
-   "shift": 5.5,
-   "flips": 12351,
-   "pct": 17.81
-  },
-  {
-   "shift": 6.0,
-   "flips": 13418,
-   "pct": 19.35
-  }
- ],
- "accuracy_by_margin": [
-  {
-   "lo": 0,
-   "hi": 1,
-   "acc": 47.2,
-   "n": 3975
-  },
-  {
-   "lo": 1,
-   "hi": 2,
-   "acc": 54.6,
-   "n": 3602
-  },
-  {
-   "lo": 2,
-   "hi": 3,
-   "acc": 60.2,
-   "n": 3503
-  },
-  {
-   "lo": 3,
-   "hi": 5,
-   "acc": 67.0,
-   "n": 6761
-  },
-  {
-   "lo": 5,
-   "hi": 8,
-   "acc": 76.5,
-   "n": 9127
-  },
-  {
-   "lo": 8,
-   "hi": 12,
-   "acc": 85.6,
-   "n": 10568
-  },
-  {
-   "lo": 12,
-   "hi": 100,
-   "acc": 94.6,
-   "n": 31821
-  }
- ],
- "target_reach": 4,
- "targets": {
-  "bv": 9076,
-  "inscrits": 6021409,
-  "fragile": 1702
+ "observed_lead": {
+  "G": 16960,
+  "CD": 18939,
+  "ED": 33459
  },
- "target_communes": [
-  {
-   "nom": "Marseille",
-   "dept": "13",
-   "bv": 44,
-   "el": 49414
-  },
-  {
-   "nom": "Nice",
-   "dept": "06",
-   "bv": 55,
-   "el": 48003
-  },
-  {
-   "nom": "Le Tampon",
-   "dept": "ZD",
-   "bv": 34,
-   "el": 27132
-  },
-  {
-   "nom": "Nîmes",
-   "dept": "30",
-   "bv": 21,
-   "el": 23441
-  },
-  {
-   "nom": "Béziers",
-   "dept": "34",
-   "bv": 22,
-   "el": 18188
-  },
-  {
-   "nom": "Beauvais",
-   "dept": "60",
-   "bv": 18,
-   "el": 17674
-  },
-  {
-   "nom": "Castres",
-   "dept": "81",
-   "bv": 15,
-   "el": 16296
-  },
-  {
-   "nom": "Cannes",
-   "dept": "06",
-   "bv": 19,
-   "el": 16030
-  },
-  {
-   "nom": "Tourcoing",
-   "dept": "59",
-   "bv": 12,
-   "el": 15260
-  },
-  {
-   "nom": "Salon-De-Provence",
-   "dept": "13",
-   "bv": 12,
-   "el": 14515
-  }
- ],
  "left_gain": {
-  "method": "part de gauche du votant marginal (courbe participation)",
-  "mobilization_voters": 4709060,
+  "method": "abstentionnistes conjoncturels × part de gauche du votant marginal (γ législatif)",
+  "mobilization_voters": 246476,
   "total_abstainers": 14835357,
-  "gamma_mean": 31.7,
+  "conjunctural_abstainers": 573424,
+  "structural_abstainers": 14261933,
+  "gamma_mean": 43.0,
   "deployment": [
-   {
-    "nom": "Paris",
-    "dept": "75",
-    "mob": 134292,
-    "bv": 861
-   },
    {
     "nom": "Marseille",
     "dept": "13",
-    "mob": 73855,
-    "bv": 482
+    "mob": 7134,
+    "bv": 482,
+    "gamma": 46.2
    },
    {
-    "nom": "Toulouse",
-    "dept": "31",
-    "mob": 30911,
-    "bv": 267
-   },
-   {
-    "nom": "Lyon",
-    "dept": "69",
-    "mob": 27071,
-    "bv": 305
-   },
-   {
-    "nom": "Nice",
-    "dept": "06",
-    "mob": 25757,
-    "bv": 254
-   },
-   {
-    "nom": "Montpellier",
-    "dept": "34",
-    "mob": 24393,
-    "bv": 139
-   },
-   {
-    "nom": "Nantes",
-    "dept": "44",
-    "mob": 22796,
-    "bv": 202
-   },
-   {
-    "nom": "Lille",
-    "dept": "59",
-    "mob": 18541,
-    "bv": 127
-   },
-   {
-    "nom": "Strasbourg",
-    "dept": "67",
-    "mob": 18240,
-    "bv": 144
-   },
-   {
-    "nom": "Rennes",
-    "dept": "35",
-    "mob": 15231,
-    "bv": 110
+    "nom": "Paris",
+    "dept": "75",
+    "mob": 4887,
+    "bv": 861,
+    "gamma": 51.2
    },
    {
     "nom": "Le Havre",
     "dept": "76",
-    "mob": 14487,
-    "bv": 110
+    "mob": 1707,
+    "bv": 110,
+    "gamma": 49.9
    },
    {
-    "nom": "Reims",
-    "dept": "51",
-    "mob": 13030,
-    "bv": 105
+    "nom": "Limoges",
+    "dept": "87",
+    "mob": 1692,
+    "bv": 86,
+    "gamma": 49.5
+   },
+   {
+    "nom": "Nîmes",
+    "dept": "30",
+    "mob": 1640,
+    "bv": 86,
+    "gamma": 49.8
+   },
+   {
+    "nom": "Avignon",
+    "dept": "84",
+    "mob": 1608,
+    "bv": 71,
+    "gamma": 50.4
+   },
+   {
+    "nom": "Toulouse",
+    "dept": "31",
+    "mob": 1428,
+    "bv": 267,
+    "gamma": 54.4
+   },
+   {
+    "nom": "Bastia",
+    "dept": "2B",
+    "mob": 1284,
+    "bv": 27,
+    "gamma": 38.4
+   },
+   {
+    "nom": "Montpellier",
+    "dept": "34",
+    "mob": 1255,
+    "bv": 139,
+    "gamma": 51.8
+   },
+   {
+    "nom": "Angers",
+    "dept": "49",
+    "mob": 1208,
+    "bv": 85,
+    "gamma": 50.5
+   },
+   {
+    "nom": "Toulon",
+    "dept": "83",
+    "mob": 1066,
+    "bv": 128,
+    "gamma": 41.3
+   },
+   {
+    "nom": "Carcassonne",
+    "dept": "11",
+    "mob": 952,
+    "bv": 36,
+    "gamma": 47.7
    }
   ]
  },

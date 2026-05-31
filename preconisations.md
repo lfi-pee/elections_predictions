@@ -84,7 +84,7 @@ Settled by experiments in this codebase or in `algorithm.md`:
 - ❌ Tree models on residuals (XGB, GP) — no nonlinear demographic→residual signal
 - ❌ Cross/interaction features — overfit on 4–8 train dates
 - ❌ Logit / sqrt lag transforms
-- ❌ Spatial neighbor features (dept mean, k-NN BV); also ❌ a learned-length-scale Gaussian kernel smoother on the Ridge OOF *residual field* over lat/lon (2026-05; `src/spatial_residual_smooth.py`). LOO picked the largest ℓ (50 km, grid max → mildest correction) for **every** block and OOF R² dropped in all four (G 0.797→0.788, CD 0.597→0.589, ED 0.816→0.810, Ab 0.907→0.904). Val deltas were inconsistent in sign and within the noise band (G +0.006, ED +0.017, but CD −0.024, Ab −0.038). self+nbr ≈ nbr-only to ~0.0003 → no residual per-BV persistence left; the dev lags already absorb the local/spatial signal. The deviation residual is spatially white.
+- ❌ Spatial neighbor features (dept mean, k-NN BV); also ❌ a learned-length-scale Gaussian kernel smoother on the Ridge OOF *residual field* over lat/lon (2026-05; script not kept). LOO picked the largest ℓ (50 km, grid max → mildest correction) for **every** block and OOF R² dropped in all four (G 0.797→0.788, CD 0.597→0.589, ED 0.816→0.810, Ab 0.907→0.904). Val deltas were inconsistent in sign and within the noise band (G +0.006, ED +0.017, but CD −0.024, Ab −0.038). self+nbr ≈ nbr-only to ~0.0003 → no residual per-BV persistence left; the dev lags already absorb the local/spatial signal. The deviation residual is spatially white.
 - ❌ Compositional / ILR joint modeling
 - ❌ Macro fundamentals (GDP, inflation, popularity) as features
 - ❌ Voter-weighted Ridge (this session)
@@ -211,3 +211,41 @@ The whole test reuses the existing pipeline; no new infra needed.
 5. Result: Δ LOO = −0.0000 / −0.0001 / −0.0003 / −0.0010 (G/CD/ED/Ab). Cross-checked that the +0.004 mirage only survives when Presidentielle rows are absent (CT n drops 573k→320k) and that `reg_ratio ~ demographics` grouped-CV R² = 0.41 (new variance exists, but carries no marginal signal).
 
 Abandoned on merit (null LOO at full coverage), **not** on coverage — coverage was fine. No tracked source files were modified; `xlrd`/`openpyxl` remain in the venv.
+
+---
+
+## 6. European elections — loaded into the γ machinery; observed differential still open (2026-05-30)
+
+**Status.** The Europeans were **already in the raw data** (`general_results.parquet`:
+`1999/2004/2009/2014/2019/2024_euro_t1`; `elections.parquet`: 11.5 M `Europeennes_T1` token rows) —
+only absent from the *model* cache `cross_type_dev_base.parquet`. They are now wired into the
+mobilization machinery via a dedicated γ panel `data/baseline_cache/gamma_panel.parquet`
+(`movability_turnout._ensure_panel` → `cross_type_ridge._build_block_scores`, three T1 types),
+**without touching the production model** (still trained on legi+présid only). Outcomes: a third γ
+regime (euro 23.9 %, between legi 39.3 % and présid 12.3 %), a third curve on the site, and a
+3-election abstention floor. **Open item:** the *observed* Pres−Eur differential as a validation
+layer (below).
+
+**Motivation (client feedback, end-of-campaign GOTV use):** the deliverable's Band 2 now
+distinguishes **structural** abstention (chronic non-voters) from **conjunctural** abstention
+(people who vote in high-salience contests and skip the rest) — the latter being the mobilizable
+target. Today the split is approximated by each bureau's historical abstention floor
+(`report_data.attach_abst_floor`), measured on **only two election types present in the data:
+`Legislatives_T1` and `Presidentielle_T1`** (verified in `cross_type_dev_base.parquet`). There are
+**no European elections loaded.**
+
+**The idea (Bompard):** `Gauche(Présidentielle 2022) − Gauche(Européennes 2024)` at bureau level
+isolates the **Left voters present at the high-turnout contest but absent at the low-turnout one** —
+i.e. the conjunctural Left reservoir, *measured rather than modelled* (γ is an estimated slope; this
+is an observed differential, a stronger proof for the client).
+
+**Action.** Load **Européennes 2024** (and Présidentielle 2022) at bureau level via
+`download_elections.py` / `load_elections.py`, key on `id_brut_miom` (100 % join with the master,
+as the existing two types already achieve). Then:
+1. recompute `abst_floor` over three election types (sharper structural/conjunctural split);
+2. compute the Pres−Eur Left differential per bureau as a **measured** conjunctural reservoir, to
+   cross-check the γ-based `mv` and to surface in the deployment panel.
+
+**Caveat to respect.** Cantonales-style block-mapping noise does not apply to Européennes (clean
+list-level Left/RN/macronist mapping), but turnout regimes differ — keep the γ curve **per election
+type** (`MOVABILITY.md` §15); do not pool European transitions into the legislative curve.

@@ -39,14 +39,15 @@ function bar(b, blk) {
 
 function driverBars(drivers, col) {
   const max = Math.max(...drivers.map((d) => Math.abs(d[1])), 0.1);
-  return drivers.map(([lab, v]) => {
+  return drivers.map(([lab, v, fv]) => {
     const w = Math.max(2, (Math.abs(v) / max) * 50);
     const pos = v >= 0;
     const fill = pos
       ? `<div class="dv-bar" style="left:50%;width:${w}%;background:${col}"></div>`
       : `<div class="dv-bar dv-neg" style="right:50%;width:${w}%"></div>`;
-    const val = (pos ? "+" : "") + v.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    return `<div class="dv-row"><span class="dv-lab" title="${lab}">${lab}</span>
+    const val = (pos ? "+" : "−") + Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const sub = fv ? `<span class="dv-fval">${fv}</span>` : "";
+    return `<div class="dv-row"><span class="dv-lab"><span class="dv-name">${lab}</span>${sub}</span>
       <span class="dv-track">${fill}</span><span class="dv-val">${val}</span></div>`;
   }).join("");
 }
@@ -55,69 +56,54 @@ function whyBlock(rec) {
   const drivers = rec.drivers;
   if (!drivers || !drivers.length) return "";
   return `<div class="pv-why"><span class="pv-why-h">Pourquoi ${APP.NAME[rec.lead]} dévie du national</span>
-    <div class="dv-cap">contribution de chaque facteur à l'écart au national, en points</div>
+    <div class="dv-cap">Barre : contribution de chaque facteur à l'écart au national, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
     <div class="dv-chart">${driverBars(drivers, APP.COL[rec.lead])}</div></div>`;
 }
 
-// The mobilization score explained: mv = abstainers × γ, plus the Left-model SHAP
-// drivers that make this bureau lean Left (hence its γ). The "avec le SHAP" answer.
+// The mobilization score explained: mobilizable = conjunctural abstainers × γ, the
+// resulting Left score if they all turn out, plus the Left-model SHAP drivers that make
+// this bureau lean Left (hence its γ). Conjunctural = abstainers minus the chronic floor.
 function whyMobil(rec) {
   if (rec.mob === undefined) return "";
   const abs = Math.round((rec.blocks.AB.act / 100) * rec.i);
-  const g = abs > 0 ? Math.round((rec.mob / abs) * 100) : 0;
+  const conj = rec.conj !== undefined ? rec.conj : abs;
+  const g = conj > 0 ? Math.round((rec.mob / conj) * 100) : 0;
+  const voters = rec.i * (1 - rec.blocks.AB.act / 100);
+  const cur = rec.blocks.G.pred;
+  const next = voters > 0 ? (cur / 100 * voters + rec.mob) / (voters + rec.mob) * 100 : cur;
   const phrase = rec.wleft ? `<div class="dv-cap">Ce bureau ${rec.wleft}.</div>` : "";
   const bars = (rec.gdrivers && rec.gdrivers.length)
-    ? `<div class="dv-cap" style="margin-top:8px">ce qui règle son niveau de gauche — donc la part qui penche à gauche — contribution de chaque facteur au score Gauche, en points</div>
+    ? `<div class="dv-cap" style="margin-top:8px">Ce qui tire le niveau de gauche de ce bureau, facteur par facteur. Barre : contribution au score Gauche, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
        <div class="dv-chart">${driverBars(rec.gdrivers, APP.COL.G)}</div>`
     : "";
   return `<div class="pv-why"><span class="pv-why-h" style="color:${APP.COL.G}">Pourquoi ce bureau est mobilisable</span>
-    <div class="pv-mob-eq"><b>${fmt(rec.mob)}</b> électeurs mobilisables
-      = ${fmt(abs)} abstentionnistes, dont ${g} % pencheraient à gauche</div>
+    <div class="pv-mob-eq"><b>${fmt(rec.mob)}</b> électeurs à aller chercher
+      = ${fmt(conj)} abstentionnistes conjoncturels, dont ${g} % pencheraient à gauche</div>
+    <div class="dv-cap">conjoncturels = abstentionnistes hors abstention de fond (chronique) — ${fmt(abs)} abstentionnistes au total</div>
+    <div class="pv-mob-score">Si vous les ramenez tous voter : Gauche
+      <b>${cur.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % → ${next.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></div>
     ${phrase}${bars}</div>`;
 }
 
 function renderPanel(loc, rec) {
-  const [code, num] = loc.split("_");
-  const lead = leadUnderScenario(rec);
+  const num = loc.split("_")[1];
   const baseLead = rec.lead;
-  const flipped = lead !== baseLead;
-  const tip = rec.tip;
-  const tipTxt = tip > 0
-    ? `Il faudrait <b>+${tip.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts</b> d'Extrême Droite au national pour faire basculer ce bureau en sa faveur.`
-    : `L'Extrême Droite y devance déjà : il faudrait <b>${tip.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts</b> au national pour la faire passer derrière.`;
   const dispTag = rec.m >= 8
-    ? `<span class="tag">rang net</span>`
+    ? `<span class="tag">avance nette</span>`
     : rec.m >= 3
-      ? `<span class="tag">rang serré</span>`
-      : `<span class="tag warn">rang disputé</span>`;
+      ? `<span class="tag">avance serrée</span>`
+      : `<span class="tag warn">issue incertaine</span>`;
   const order = ["G", "CD", "ED", "AB"];
   const bars = order.map((b) => bar(b, rec.blocks[b])).join("");
-  const natShare = Math.round(APP.data.provenance.blocks[baseLead].national_share);
-  const provTxt = `Sur ${APP.NAME[baseLead]}, environ <b>${natShare} %</b> de cette marge
-    d'erreur tient au national (sondages) ; le reste vient de notre lecture du terrain
-    propre à ce bureau.`;
-  const flipTxt = flipped
-    ? `<div class="pv-tip"><span class="pv-tip-h">Sous le scénario courant</span><br>
-       Ce bureau <b>bascule</b> : ${APP.NAME[baseLead]} → ${APP.NAME[lead]}.</div>`
-    : "";
   return `<div class="pv-head"><h3>${rec.n}</h3>
-      <div class="sub">Bureau ${num} · commune ${code} · ${fmt(rec.i)} inscrits ${dispTag}</div></div>
+      <div class="sub">Bureau de vote n°${num} · ${fmt(rec.i)} inscrits ${dispTag}</div></div>
     <div class="pv-lead" style="background:${APP.COL[baseLead]}22;border-left:3px solid ${APP.COL[baseLead]}">
       Bloc en tête prédit : <b>${APP.NAME[baseLead]}</b>, marge ${rec.m.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts sur ${APP.NAME[rec.ru]}.</div>
-    ${flipTxt}
     ${bars}
     <p class="cap">Barre pleine = prédit · trait noir = réel · fourchette de prévision
     à 90 % : partie <b>sombre</b> = notre lecture locale, prolongement <b>clair</b> = la
     part qui vient du national (sondages).</p>
-    <div class="pv-tip">${provTxt}</div>
-    <div class="pv-tip">${tipTxt}</div>
     ${APP.state.mode === "mobil" ? whyMobil(rec) : whyBlock(rec)}`;
-}
-
-function leadUnderScenario(rec) {
-  const a = appliedDeltas(), bl = rec.blocks;
-  const g = bl.G.pred + a.G, c = bl.CD.pred + a.CD, e = bl.ED.pred + a.ED;
-  return g >= c && g >= e ? "G" : c >= e ? "CD" : "ED";
 }
 
 function initPanel() {

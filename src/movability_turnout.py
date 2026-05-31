@@ -20,15 +20,37 @@ import numpy as np
 import pandas as pd
 
 CACHE = Path("data/baseline_cache/cross_type_dev_base.parquet")
+# Panel γ dédié (legi + présid + **européennes**), bâti depuis le brut bloc-mappé sans
+# toucher au modèle de production (qui n'entraîne que sur legi+présid). Construit à la
+# demande puis caché. Trois régimes de participation distincts ⇒ trois courbes γ.
+PANEL = Path("data/baseline_cache/gamma_panel.parquet")
+T1_TYPES = ("Legislatives_T1", "Presidentielle_T1", "Europeennes_T1")
 
 
-def panel_diffs() -> pd.DataFrame:
+def _ensure_panel() -> pd.DataFrame:
+    """Panel (location, election_type, date_float, Gauche, Abstention) pour les trois
+    scrutins T1, européennes comprises. Bâti depuis `elections.parquet` (tokens
+    candidat) via le mapping bloc canonique, puis caché."""
+    if PANEL.exists():
+        return pd.read_parquet(PANEL)
+    from src.cross_type_ridge import _build_block_scores
+
+    el = pd.read_parquet(Path("data/baseline_cache/elections.parquet"))
+    bs = _build_block_scores(el[el.election_type.isin(T1_TYPES)])
+    cols = ["location", "election_type", "date_float", "Gauche", "Abstention"]
+    bs[cols].to_parquet(PANEL, index=False)
+    return bs[cols]
+
+
+def panel_diffs(election_type: str | None = None) -> pd.DataFrame:
     """Différences premières intra-type : ΔT (participation) et ΔLR (gauche % inscrits),
-    avec le niveau de gauche G du bureau. Filtre les mouvements de participation > 0,5 pt."""
-    df = pd.read_parquet(
-        CACHE,
-        columns=["location", "election_type", "date_float", "Gauche", "Abstention"],
-    )
+    avec le niveau de gauche G du bureau. Filtre les mouvements de participation > 0,5 pt.
+
+    `election_type` (ex. "Legislatives_T1") restreint les transitions au seul type de
+    scrutin projeté : γ n'est PAS la même formule selon le scrutin (legi ≈ 39 %, euro
+    ≈ 24 %, présid ≈ 12 % — l'électeur marginal ramené n'a pas la même couleur).
+    None = poolé (legs)."""
+    df = _ensure_panel()
     df["T"] = 100.0 - df["Abstention"]
     df["LR"] = df["T"] * df["Gauche"] / 100.0
     df = df.sort_values(["location", "election_type", "date_float"])
@@ -36,7 +58,10 @@ def panel_diffs() -> pd.DataFrame:
     dT = (df["T"] - g["T"].shift(1)).to_numpy()
     dLR = (df["LR"] - g["LR"].shift(1)).to_numpy()
     date = df["date_float"].to_numpy()
+    et = df["election_type"].to_numpy()
     m = ~np.isnan(dT) & ~np.isnan(dLR) & (np.abs(dT) > 0.5)
+    if election_type is not None:
+        m &= et == election_type
     return pd.DataFrame(
         {"dT": dT[m], "dLR": dLR[m], "G": df["Gauche"].to_numpy()[m], "date": date[m]}
     )
@@ -60,10 +85,28 @@ def gamma_curve(t: pd.DataFrame, nbins: int = 10) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["decile", "G_moyen", "gamma_pct", "n"])
 
 
-def fit_gamma(nbins: int = 20) -> tuple[np.ndarray, np.ndarray]:
-    """Courbe γ(niveau de gauche) prête à l'application : (niveaux, γ %) croissants."""
-    res = gamma_curve(panel_diffs(), nbins).sort_values("G_moyen")
+def fit_gamma(
+    nbins: int = 20, election_type: str | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Courbe γ(niveau de gauche) prête à l'application : (niveaux, γ %) croissants.
+
+    `election_type` choisit le régime du scrutin projeté (défaut : législatives, le
+    scrutin du livrable). Voir `panel_diffs`."""
+    res = gamma_curve(panel_diffs(election_type), nbins).sort_values("G_moyen")
     return res.G_moyen.to_numpy(), res.gamma_pct.to_numpy()
+
+
+def curves_by_type(nbins: int = 8) -> dict[str, list[list[float]]]:
+    """Courbes γ(niveau) par type de scrutin, pour le graphe du site (`gamma_curve.json`).
+    Renvoie {type: [[niveau, γ%], …]} — une ligne lisible par régime (legi/euro/présid)."""
+    out: dict[str, list[list[float]]] = {}
+    for et in T1_TYPES:
+        res = gamma_curve(panel_diffs(et), nbins).sort_values("G_moyen")
+        out[et] = [
+            [round(float(g), 1), round(float(v), 1)]
+            for g, v in zip(res.G_moyen, res.gamma_pct)
+        ]
+    return out
 
 
 def apply_gamma(curve: tuple[np.ndarray, np.ndarray], levels: np.ndarray) -> np.ndarray:

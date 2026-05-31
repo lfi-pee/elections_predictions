@@ -31,9 +31,8 @@ cd report_app && python -m http.server 8000   # http://localhost:8000
 ```
 
 Carte de fond CARTO + bibliothèque MapLibre via CDN (accès réseau requis à
-l'affichage). Pour une diffusion privée, héberger le dossier derrière un accès
-protégé ; aucune donnée ne quitte le navigateur (recherche et recomposition de
-scénario 100 % côté client).
+l'affichage). La recherche de commune et la recomposition de scénario s'exécutent
+intégralement côté client.
 
 ## Comment ça marche
 

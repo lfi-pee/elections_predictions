@@ -17,7 +17,9 @@ Best clean raw R² (LOO-selected on training, single val forward pass):
 Usage:
     python3 -m src.cross_type_dev
 """
+
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*SettingWithCopy.*")
 
@@ -33,26 +35,40 @@ from src.load_elections import load_election_tokens
 from src.load_demographics import load_demographic_tokens
 from src.load_polls import load_poll_tokens
 from src.cross_type_ridge import (
-    _vectorized_block_mapping, _build_block_scores,
-    _build_same_type_national_agg, _build_national_poll_features,
-    _add_demographics, TARGET_BLOCKS, TARGET_COLS,
-    T1_TYPES, TYPE_ONEHOT,
+    _vectorized_block_mapping,
+    _build_block_scores,
+    _build_same_type_national_agg,
+    _build_national_poll_features,
+    _add_demographics,
+    TARGET_BLOCKS,
+    TARGET_COLS,
+    T1_TYPES,
+    TYPE_ONEHOT,
 )
 
 BLOCKS_ABS = TARGET_BLOCKS + ["Abstention"]
-ABBR = {"Gauche": "G", "Centre+Droite": "CD",
-        "Extreme_Droite": "ED", "Abstention": "Ab"}
+ABBR = {
+    "Gauche": "G",
+    "Centre+Droite": "CD",
+    "Extreme_Droite": "ED",
+    "Abstention": "Ab",
+}
 ALPHAS = np.logspace(-2, 6, 20)
 VAL_DATE = 2024.5
 VAL_TYPE = "Legislatives_T1"
 
 # ── Best clean (raw R², raw poll est, no val tuning) ───────────────
 # LOO-selected on training (preregistered.py), single val forward pass
-PREV_RAW = {"Gauche": 0.7317, "Centre+Droite": 0.5977,
-            "Extreme_Droite": 0.8052, "Abstention": 0.7295}
+PREV_RAW = {
+    "Gauche": 0.7317,
+    "Centre+Droite": 0.5977,
+    "Extreme_Droite": 0.8052,
+    "Abstention": 0.7295,
+}
 
 
 # ── Evaluation ───────────────────────────────────────────────────────
+
 
 def evaluate_full(y_true, pred):
     """Raw R², oracle (bias-corrected), and affine R²."""
@@ -60,11 +76,12 @@ def evaluate_full(y_true, pred):
     bias = np.mean(y_true - pred)
     r2_orc = r2_score(y_true, pred + bias)
     corr = np.corrcoef(y_true, pred)[0, 1]
-    r2_aff = float(corr ** 2) if not np.isnan(corr) else r2_orc
+    r2_aff = float(corr**2) if not np.isnan(corr) else r2_orc
     return dict(raw=r2_raw, orc=r2_orc, aff=r2_aff)
 
 
 # ── National abstention estimator ───────────────────────────────────
+
 
 def estimate_national_abstention_from_gaps(national_means, val_date=VAL_DATE):
     """Estimate national abstention from inter-election gap model.
@@ -115,17 +132,21 @@ def estimate_national_abstention_from_gaps(national_means, val_date=VAL_DATE):
     pred = float(lr.predict([[gap_2024]])[0])
 
     print(f"\n  Abstention gap model (gap_years → national abs):")
-    print(f"    {n} training elections, slope={lr.coef_[0]:.2f} pp/yr, "
-          f"intercept={lr.intercept_:.1f}%")
+    print(
+        f"    {n} training elections, slope={lr.coef_[0]:.2f} pp/yr, "
+        f"intercept={lr.intercept_:.1f}%"
+    )
     print(f"    LOO RMSE = {loo_rmse:.1f} pp")
     print(f"    LOO predictions:")
     for i in range(n):
         et = train.iloc[i]["election_type"]
         dt = train.iloc[i]["date_float"]
         g = train.iloc[i]["gap_years"]
-        print(f"      {et:25s} {dt:.2f}  gap={g:.2f}yr  "
-              f"actual={y[i]:.1f}  pred={loo_preds[i]:.1f}  "
-              f"err={loo_preds[i] - y[i]:+.1f}")
+        print(
+            f"      {et:25s} {dt:.2f}  gap={g:.2f}yr  "
+            f"actual={y[i]:.1f}  pred={loo_preds[i]:.1f}  "
+            f"err={loo_preds[i] - y[i]:+.1f}"
+        )
     print(f"    2024: gap={gap_2024:.2f}yr → predicted abs = {pred:.1f}%")
 
     return pred, loo_rmse
@@ -133,20 +154,19 @@ def estimate_national_abstention_from_gaps(national_means, val_date=VAL_DATE):
 
 # ── Data builders ────────────────────────────────────────────────────
 
+
 def build_per_type_national_means(block_scores):
     """National mean block scores per (election_type, date)."""
     return (
-        block_scores
-        .groupby(["election_type", "date_float"])[TARGET_COLS]
-        .mean().reset_index()
+        block_scores.groupby(["election_type", "date_float"])[TARGET_COLS]
+        .mean()
+        .reset_index()
     )
 
 
 def add_deviation_targets(df, national_means):
     """dev_<block> = BV_score − national_mean(election_type, date)."""
-    nm = national_means.rename(
-        columns={c: f"natmean_{c}" for c in TARGET_COLS}
-    )
+    nm = national_means.rename(columns={c: f"natmean_{c}" for c in TARGET_COLS})
     df = df.merge(nm, on=["election_type", "date_float"], how="left")
     for c in TARGET_COLS:
         df[f"dev_{c}"] = df[c] - df[f"natmean_{c}"]
@@ -185,11 +205,11 @@ def add_election_type_onehot(df):
 
 # ── Model runners ────────────────────────────────────────────────────
 
+
 def split_tv(df):
     """Split: train = everything except 2024 Legi T1, val = 2024 Legi T1."""
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     train = df[~val_mask]
     val = df[val_mask]
@@ -207,8 +227,10 @@ def run_model(name, df, feat_cols, national_est_val):
     scaler = StandardScaler()
     X_tr = scaler.fit_transform(train[feat_cols].values.astype(np.float64))
     X_v = scaler.transform(val[feat_cols].values.astype(np.float64))
-    print(f"\n  {name}: train={len(X_tr):,} val={len(X_v):,} feat={len(feat_cols)}"
-          f" dates={sorted(train['date_float'].unique())}")
+    print(
+        f"\n  {name}: train={len(X_tr):,} val={len(X_v):,} feat={len(feat_cols)}"
+        f" dates={sorted(train['date_float'].unique())}"
+    )
 
     res, preds = {}, {}
     for tc in TARGET_COLS:
@@ -224,8 +246,10 @@ def run_model(name, df, feat_cols, national_est_val):
         ev = evaluate_full(y_true, final_pred)
         ev["alpha"] = m.alpha_
         res[tc] = ev
-        print(f"    {tc:20s} RAW={ev['raw']:.4f} orc={ev['orc']:.4f} "
-              f"α={m.alpha_:.1e}  nat_est={national_est_val.get(tc, 0):.1f}")
+        print(
+            f"    {tc:20s} RAW={ev['raw']:.4f} orc={ev['orc']:.4f} "
+            f"α={m.alpha_:.1e}  nat_est={national_est_val.get(tc, 0):.1f}"
+        )
 
     return res, preds, val
 
@@ -248,8 +272,10 @@ def run_pca_model(name, df, demo_cols, non_demo_cols, national_est_val, k):
     X_tr = np.hstack([pca.transform(X_tr[:, :n_d]), X_tr[:, n_d:]])
     X_v = np.hstack([pca.transform(X_v[:, :n_d]), X_v[:, n_d:]])
     total_f = X_tr.shape[1]
-    print(f"\n  {name}: PCA-{k}, total feat={total_f}, "
-          f"train={len(X_tr):,} val={len(X_v):,}")
+    print(
+        f"\n  {name}: PCA-{k}, total feat={total_f}, "
+        f"train={len(X_tr):,} val={len(X_v):,}"
+    )
 
     res, preds = {}, {}
     for tc in TARGET_COLS:
@@ -266,6 +292,7 @@ def run_pca_model(name, df, demo_cols, non_demo_cols, national_est_val, k):
 
 
 # ── Main ─────────────────────────────────────────────────────────────
+
 
 def load_cross_type_data(data_dir):
     """Load and build cross-type dataset with caching."""
@@ -312,8 +339,10 @@ def load_cross_type_data(data_dir):
     for etype in CROSS_TYPES:
         sub = ct_elections[ct_elections["election_type"] == etype]
         dates = sorted(sub["date_float"].unique())
-        print(f"    {etype:30s}  {len(dates)} dates: "
-              f"{[round(float(d), 2) for d in dates]}")
+        print(
+            f"    {etype:30s}  {len(dates)} dates: "
+            f"{[round(float(d), 2) for d in dates]}"
+        )
 
     print("  Building block scores...")
     block_scores = _build_block_scores(ct_elections)
@@ -322,9 +351,11 @@ def load_cross_type_data(data_dir):
     national_means = build_per_type_national_means(block_scores)
     print("  National means per (type, date):")
     for _, row in national_means.iterrows():
-        print(f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
-              f"G={row['Gauche']:.1f}  C+D={row['Centre+Droite']:.1f}  "
-              f"ED={row['Extreme_Droite']:.1f}  Abs={row['Abstention']:.1f}")
+        print(
+            f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
+            f"G={row['Gauche']:.1f}  C+D={row['Centre+Droite']:.1f}  "
+            f"ED={row['Extreme_Droite']:.1f}  Abs={row['Abstention']:.1f}"
+        )
 
     print("  Adding deviation targets...")
     df = add_deviation_targets(block_scores, national_means)
@@ -344,7 +375,9 @@ def load_cross_type_data(data_dir):
         df[col] = df[col].fillna(0.0)
     df["has_polls"] = df["has_polls"].fillna(0.0)
 
-    geo = ct_elections[["location", "latitude", "longitude"]].drop_duplicates("location")
+    geo = ct_elections[["location", "latitude", "longitude"]].drop_duplicates(
+        "location"
+    )
     df = df.merge(geo, on="location", how="left")
     df["latitude"] = df["latitude"].fillna(46.2276)
     df["longitude"] = df["longitude"].fillna(2.2137)
@@ -409,16 +442,13 @@ def main():
             est[b] = float(poll_2024[f"poll_{b}"].iloc[0])
 
     # Abstention: gap-based turnout model (trained on training elections only)
-    abs_pred, abs_loo_rmse = estimate_national_abstention_from_gaps(
-        national_means
-    )
+    abs_pred, abs_loo_rmse = estimate_national_abstention_from_gaps(national_means)
     est["Abstention"] = abs_pred
     print(f"  Raw poll estimates: {est}")
 
     # Oracle (for reference only)
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     oracle_est = {tc: float(df.loc[val_mask, tc].mean()) for tc in TARGET_COLS}
     print(f"  Oracle estimates:   {oracle_est}")
@@ -433,21 +463,34 @@ def main():
         subset=raw_lag1 + raw_lag2 + avail(dev_lag1) + avail(dev_lag2)
     )
 
-    n_tr = lambda d: len(d) - int((
-        np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
-        & (d["election_type"] == VAL_TYPE)
-    ).sum())
-    n_vl = lambda d: int((
-        np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
-        & (d["election_type"] == VAL_TYPE)
-    ).sum())
-    tr_dates = lambda d: sorted(d[
-        ~(np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
-          & (d["election_type"] == VAL_TYPE))
-    ]["date_float"].unique())
+    n_tr = lambda d: (
+        len(d)
+        - int(
+            (
+                np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
+                & (d["election_type"] == VAL_TYPE)
+            ).sum()
+        )
+    )
+    n_vl = lambda d: int(
+        (
+            np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
+            & (d["election_type"] == VAL_TYPE)
+        ).sum()
+    )
+    tr_dates = lambda d: sorted(
+        d[
+            ~(
+                np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
+                & (d["election_type"] == VAL_TYPE)
+            )
+        ]["date_float"].unique()
+    )
 
-    print(f"\n  V1-2lag: total={len(df_v1_2lag):,} "
-          f"(train={n_tr(df_v1_2lag):,} val={n_vl(df_v1_2lag):,})")
+    print(
+        f"\n  V1-2lag: total={len(df_v1_2lag):,} "
+        f"(train={n_tr(df_v1_2lag):,} val={n_vl(df_v1_2lag):,})"
+    )
     print(f"    Train dates: {tr_dates(df_v1_2lag)}")
 
     all_res = {}
@@ -456,9 +499,9 @@ def main():
     # ════════════════════════════════════════════════════════════════
     # 5. Cross-type models
     # ════════════════════════════════════════════════════════════════
-    print(f"\n{'─'*60}")
+    print(f"\n{'─' * 60}")
     print("CROSS-TYPE DEVIATION MODELS")
-    print(f"{'─'*60}")
+    print(f"{'─' * 60}")
 
     nd_dev = geo_time + dl1 + dl2 + type_cols
 
@@ -469,31 +512,35 @@ def main():
     all_preds["CT-devlag"] = p
 
     # PCA3-devlag
-    r, p, v = run_pca_model("CT-PCA3-devlag", df_v1_2lag,
-                            demo_indicators, nd_dev, est, 3)
+    r, p, v = run_pca_model(
+        "CT-PCA3-devlag", df_v1_2lag, demo_indicators, nd_dev, est, 3
+    )
     all_res["CT-PCA3-devlag"] = r
     all_preds["CT-PCA3-devlag"] = p
 
     # PCA5-devlag
-    r, p, v = run_pca_model("CT-PCA5-devlag", df_v1_2lag,
-                            demo_indicators, nd_dev, est, 5)
+    r, p, v = run_pca_model(
+        "CT-PCA5-devlag", df_v1_2lag, demo_indicators, nd_dev, est, 5
+    )
     all_res["CT-PCA5-devlag"] = r
     all_preds["CT-PCA5-devlag"] = p
 
     # ════════════════════════════════════════════════════════════════
     # 6. Legi-only models
     # ════════════════════════════════════════════════════════════════
-    print(f"\n{'─'*60}")
+    print(f"\n{'─' * 60}")
     print("LEGI-ONLY DEVIATION MODELS")
-    print(f"{'─'*60}")
+    print(f"{'─' * 60}")
 
     df_legi = df[df["election_type"] == VAL_TYPE].copy()
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
     df_legi_v1_2 = df_legi_v1.dropna(
         subset=raw_lag1 + raw_lag2 + avail(dev_lag1) + avail(dev_lag2)
     )
-    print(f"  Legi V1-2lag: {len(df_legi_v1_2):,} "
-          f"(train={n_tr(df_legi_v1_2):,} val={n_vl(df_legi_v1_2):,})")
+    print(
+        f"  Legi V1-2lag: {len(df_legi_v1_2):,} "
+        f"(train={n_tr(df_legi_v1_2):,} val={n_vl(df_legi_v1_2):,})"
+    )
     print(f"    Train dates: {tr_dates(df_legi_v1_2)}")
 
     nd_dev_legi = geo_time + dl1 + dl2  # no type one-hot for legi-only
@@ -505,46 +552,50 @@ def main():
     all_preds["Legi-devlag"] = p
 
     # PCA3-devlag
-    r, p, v = run_pca_model("Legi-PCA3-devlag", df_legi_v1_2,
-                            demo_indicators, nd_dev_legi, est, 3)
+    r, p, v = run_pca_model(
+        "Legi-PCA3-devlag", df_legi_v1_2, demo_indicators, nd_dev_legi, est, 3
+    )
     all_res["Legi-PCA3-devlag"] = r
     all_preds["Legi-PCA3-devlag"] = p
 
     # PCA5-devlag (best C+D)
-    r, p, v = run_pca_model("Legi-PCA5-devlag", df_legi_v1_2,
-                            demo_indicators, nd_dev_legi, est, 5)
+    r, p, v = run_pca_model(
+        "Legi-PCA5-devlag", df_legi_v1_2, demo_indicators, nd_dev_legi, est, 5
+    )
     all_res["Legi-PCA5-devlag"] = r
     all_preds["Legi-PCA5-devlag"] = p
 
     # ════════════════════════════════════════════════════════════════
     # SUMMARY
     # ════════════════════════════════════════════════════════════════
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("RAW R² SUMMARY (all clean — raw poll est, no val tuning)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     print(f"\n{'Model':30s} {'G raw':>7s} {'CD raw':>7s} {'ED raw':>7s} {'Ab raw':>7s}")
     print("-" * 65)
-    print(f"{'PREV BEST':30s} "
-          + " ".join(f"{PREV_RAW[tc]:7.3f}" for tc in TARGET_COLS))
+    print(
+        f"{'PREV BEST':30s} " + " ".join(f"{PREV_RAW[tc]:7.3f}" for tc in TARGET_COLS)
+    )
     print("-" * 65)
 
     for mname in sorted(all_res.keys()):
         raws = []
         for tc in TARGET_COLS:
             v = all_res[mname].get(tc, {})
-            raws.append(v.get("raw", float("nan")) if isinstance(v, dict) else float("nan"))
+            raws.append(
+                v.get("raw", float("nan")) if isinstance(v, dict) else float("nan")
+            )
         marks = []
         for tc, r in zip(TARGET_COLS, raws):
             marks.append("+" if r > PREV_RAW[tc] + 0.001 else " ")
-        line = (f"{mname:30s} "
-                + " ".join(f"{r:6.3f}{m}" for r, m in zip(raws, marks)))
+        line = f"{mname:30s} " + " ".join(f"{r:6.3f}{m}" for r, m in zip(raws, marks))
         print(line)
 
     # Per-block best
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("PER-BLOCK BEST RAW R²")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     for tc in TARGET_COLS:
         bn, br = "", -999
         for mn, mr in all_res.items():

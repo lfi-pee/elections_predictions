@@ -19,7 +19,9 @@ confidence intervals, saved as predictions_with_intervals.csv.
 Usage:
     python3 -u -m src.conformal
 """
+
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*SettingWithCopy.*")
 
@@ -33,12 +35,19 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 
 from src.cross_type_dev import (
-    load_cross_type_data, add_election_type_onehot,
+    load_cross_type_data,
+    add_election_type_onehot,
     estimate_national_abstention_from_gaps,
-    BLOCKS_ABS, ABBR, ALPHAS, VAL_DATE, VAL_TYPE, TARGET_COLS,
+    BLOCKS_ABS,
+    ABBR,
+    ALPHAS,
+    VAL_DATE,
+    VAL_TYPE,
+    TARGET_COLS,
 )
 from src.cross_type_ridge import TARGET_BLOCKS
 from src.beat_it import build_extended_data
+
 DOM3 = {"971", "972", "973", "974", "975", "976", "977", "978"}
 POLY3 = {"986", "987", "988"}
 
@@ -56,20 +65,22 @@ def territory_class(loc):
         return "polynesia"
     return "mainland"
 
+
 ALPHA_GRID = np.logspace(-2, 6, 20)
 
 # Best Ridge configs per block (from preregistered.py LOO selection)
 BEST_RIDGE = {
-    "Gauche":         ("Legi-PCA5-devlag",  "legi_v1_2", "legi", {"pca_k": 5}),
-    "Centre+Droite":  ("Legi-PCA7-devlag",  "legi_v1_2", "legi", {"pca_k": 7}),
-    "Extreme_Droite": ("CT-PCA5-devlag",    "ct_v1_2",   "ct",   {"pca_k": 5}),
-    "Abstention":     ("CT-PCA10-devlag",   "ct_v1_2",   "ct",   {"pca_k": 10}),
+    "Gauche": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
+    "Centre+Droite": ("Legi-PCA7-devlag", "legi_v1_2", "legi", {"pca_k": 7}),
+    "Extreme_Droite": ("CT-PCA5-devlag", "ct_v1_2", "ct", {"pca_k": 5}),
+    "Abstention": ("CT-PCA10-devlag", "ct_v1_2", "ct", {"pca_k": 10}),
 }
 
 INTERVAL_ALPHAS = [0.20, 0.10, 0.05]  # 80%, 90%, 95% intervals
 
 
 # ── Core conformal functions ────────────────────────────────────────
+
 
 def conformal_quantile(abs_residuals, alpha):
     """Compute conformal quantile with finite-sample correction."""
@@ -91,8 +102,9 @@ def evaluate_coverage(y_true, lower, upper):
     }
 
 
-def per_territory_intervals(cal_residuals, cal_territories, val_territories,
-                             alpha, min_n=50):
+def per_territory_intervals(
+    cal_residuals, cal_territories, val_territories, alpha, min_n=50
+):
     """Conformal intervals stratified by territory class.
 
     Each (mainland / DOM / polynesia / corsica / abroad) gets its own
@@ -116,14 +128,11 @@ def per_territory_intervals(cal_residuals, cal_territories, val_territories,
         else:
             per_terr_q[cls] = global_q
 
-    half_widths = np.array(
-        [per_terr_q.get(t, global_q) for t in val_territories]
-    )
+    half_widths = np.array([per_terr_q.get(t, global_q) for t in val_territories])
     return half_widths, per_terr_q
 
 
-def adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_preds,
-                        alpha, n_bins=5):
+def adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_preds, alpha, n_bins=5):
     """Adaptive conformal intervals: width varies by deviation magnitude.
 
     BVs with extreme predicted deviations may have larger residuals
@@ -162,10 +171,10 @@ def adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_preds,
 
 # ── LOO + conformal pipeline ───────────────────────────────────────
 
+
 def split_tv(df):
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     return df[~val_mask], df[val_mask]
 
@@ -176,9 +185,17 @@ def _apply_pca(X, pca, n_demo):
     return np.hstack([pca.transform(X[:, :n_demo]), X[:, n_demo:]])
 
 
-def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
-                            national_est_val, national_means,
-                            cfg, loo_national_ests=None):
+def run_conformal_for_block(
+    tc,
+    train,
+    val,
+    feat_cols,
+    demo_cols,
+    national_est_val,
+    national_means,
+    cfg,
+    loo_national_ests=None,
+):
     """Run Ridge LOO, collect calibration residuals, compute intervals.
 
     Args:
@@ -193,10 +210,8 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
 
     # Scale
     scaler = StandardScaler()
-    X_tr_raw = scaler.fit_transform(
-        train[feat_cols].values.astype(np.float64))
-    X_v_raw = scaler.transform(
-        val[feat_cols].values.astype(np.float64))
+    X_tr_raw = scaler.fit_transform(train[feat_cols].values.astype(np.float64))
+    X_v_raw = scaler.transform(val[feat_cols].values.astype(np.float64))
 
     # PCA
     if pca_k:
@@ -217,12 +232,13 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
     train_dates = train["date_float"].values
     train_td = (
         train[["election_type", "date_float"]]
-        .drop_duplicates().sort_values("date_float").values.tolist()
+        .drop_duplicates()
+        .sort_values("date_float")
+        .values.tolist()
     )
     fold_masks, fold_nats = [], []
     for etype, ddate in train_td:
-        mask = (np.isclose(train_dates, ddate, atol=1e-3)
-                & (train_types == etype))
+        mask = np.isclose(train_dates, ddate, atol=1e-3) & (train_types == etype)
         fold_masks.append(mask)
         nm_row = national_means[
             (national_means["election_type"] == etype)
@@ -230,7 +246,9 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
         ]
         fold_nats.append(
             {tc2: float(nm_row[tc2].iloc[0]) for tc2 in TARGET_COLS}
-            if len(nm_row) > 0 else {tc2: 0.0 for tc2 in TARGET_COLS})
+            if len(nm_row) > 0
+            else {tc2: 0.0 for tc2 in TARGET_COLS}
+        )
 
     # ── Full Ridge → val prediction ──
     ridge_full = RidgeCV(alphas=ALPHA_GRID)
@@ -247,8 +265,7 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
     for f_idx, held_mask in enumerate(fold_masks):
         not_held = ~held_mask
         if pca_k:
-            pca_fold = PCA(n_components=pca_k).fit(
-                X_tr_raw[not_held, :n_demo])
+            pca_fold = PCA(n_components=pca_k).fit(X_tr_raw[not_held, :n_demo])
         else:
             pca_fold = None
         X_ft = _apply_pca(X_tr_raw[not_held], pca_fold, n_demo)
@@ -273,17 +290,14 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
         cal_residuals.append(residuals)
         cal_dev_preds.append(dev_pred)
         cal_territories.append(
-            np.array([territory_class(loc)
-                      for loc in train_locations[held_mask]])
+            np.array([territory_class(loc) for loc in train_locations[held_mask]])
         )
 
     cal_residuals = np.concatenate(cal_residuals)
     cal_dev_preds = np.concatenate(cal_dev_preds)
     cal_territories = np.concatenate(cal_territories)
     abs_cal_res = np.abs(cal_residuals)
-    val_territories = np.array(
-        [territory_class(loc) for loc in val["location"].values]
-    )
+    val_territories = np.array([territory_class(loc) for loc in val["location"].values])
 
     # ── Compute intervals for each alpha ──
     intervals = {}
@@ -297,15 +311,15 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
         std_cov = evaluate_coverage(y_true_val, std_lower, std_upper)
 
         # Adaptive
-        adap_hw = adaptive_intervals(
-            cal_residuals, cal_dev_preds, val_dev_pred, alpha)
+        adap_hw = adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_pred, alpha)
         adap_lower = val_pred - adap_hw
         adap_upper = val_pred + adap_hw
         adap_cov = evaluate_coverage(y_true_val, adap_lower, adap_upper)
 
         # Per-territory stratified
         terr_hw, per_terr_q = per_territory_intervals(
-            cal_residuals, cal_territories, val_territories, alpha)
+            cal_residuals, cal_territories, val_territories, alpha
+        )
         terr_lower = val_pred - terr_hw
         terr_upper = val_pred + terr_hw
         terr_cov = evaluate_coverage(y_true_val, terr_lower, terr_upper)
@@ -344,6 +358,7 @@ def run_conformal_for_block(tc, train, val, feat_cols, demo_cols,
 
 # ── Main pipeline ──────────────────────────────────────────────────
 
+
 def main():
     data_dir = Path("data")
     t0 = time.time()
@@ -355,17 +370,21 @@ def main():
 
     # ── Load data ──
     print("\nLoading data...")
-    df, demo_indicators, national_means, poll_feats = \
-        load_cross_type_data(data_dir)
+    df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
     # ── National estimates for 2024 (raw polls — preserves PREV_RAW baseline) ──
     print("\nSetting up national estimates...")
     abs_pred, _ = estimate_national_abstention_from_gaps(national_means)
 
-    val_est = {b: float(poll_feats[
-        np.isclose(poll_feats["date_float"], VAL_DATE, atol=0.1)
-        & (poll_feats["election_type"] == VAL_TYPE)
-    ][f"poll_{b}"].iloc[0]) for b in TARGET_BLOCKS}
+    val_est = {
+        b: float(
+            poll_feats[
+                np.isclose(poll_feats["date_float"], VAL_DATE, atol=0.1)
+                & (poll_feats["election_type"] == VAL_TYPE)
+            ][f"poll_{b}"].iloc[0]
+        )
+        for b in TARGET_BLOCKS
+    }
     val_est["Abstention"] = abs_pred
 
     print(f"  2024 national estimates (raw polls + gap model):")
@@ -389,8 +408,7 @@ def main():
     train_nm = nm[nm["date_float"] < VAL_DATE - 0.1].copy()
     train_nm_gap = train_nm.copy()
     train_nm_gap["gap_years"] = train_nm_gap["date_float"].diff()
-    train_nm_gap = train_nm_gap.dropna(
-        subset=["gap_years"]).reset_index(drop=True)
+    train_nm_gap = train_nm_gap.dropna(subset=["gap_years"]).reset_index(drop=True)
     X_gap = train_nm_gap[["gap_years"]].values
     y_gap = train_nm_gap["Abstention"].values
     for i in range(len(train_nm_gap)):
@@ -416,13 +434,11 @@ def main():
     dev_lag2 = [f"dev_{b}_lag2" for b in BLOCKS_ABS]
 
     df_v1 = df.dropna(subset=demo_indicators)
-    df_v1_2lag = df_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_v1_2lag = df_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
     df_legi = df[df["election_type"] == VAL_TYPE].copy()
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
-    df_legi_v1_2 = df_legi_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_legi_v1_2 = df_legi_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
     nd_ct = dev_lag1 + dev_lag2 + type_cols
     nd_legi = dev_lag1 + dev_lag2
@@ -432,16 +448,14 @@ def main():
         "legi_v1_2": df_legi_v1_2,
     }
     feat_maps = {
-        "ct": (demo_indicators, nd_ct,
-               demo_indicators + nd_ct, national_means),
-        "legi": (demo_indicators, nd_legi,
-                 demo_indicators + nd_legi, national_means),
+        "ct": (demo_indicators, nd_ct, demo_indicators + nd_ct, national_means),
+        "legi": (demo_indicators, nd_legi, demo_indicators + nd_legi, national_means),
     }
 
     # ── Run conformal for each block ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("CONFORMAL INTERVALS PER BLOCK")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     all_results = {}
     output_frames = []
@@ -459,50 +473,68 @@ def main():
         train_clean = train[ok_tr].copy()
         val_clean = val[ok_v].copy()
 
-        print(f"\n{'─'*60}")
+        print(f"\n{'─' * 60}")
         print(f"  {ABBR[tc]} ({tc}) — {ridge_name}")
-        print(f"  train={len(train_clean):,} val={len(val_clean):,} "
-              f"feat={len(all_cols)}")
+        print(
+            f"  train={len(train_clean):,} val={len(val_clean):,} feat={len(all_cols)}"
+        )
 
         t1 = time.time()
 
         # Run with Bayesian national estimates (realistic calibration)
         res = run_conformal_for_block(
-            tc, train_clean, val_clean, all_cols, demo_cols,
-            val_est, nm, cfg,
+            tc,
+            train_clean,
+            val_clean,
+            all_cols,
+            demo_cols,
+            val_est,
+            nm,
+            cfg,
             loo_national_ests=loo_nat_ests,
         )
 
         elapsed = time.time() - t1
         all_results[tc] = res
 
-        print(f"  R² = {res['r2']:.4f}  "
-              f"({res['n_cal']:,} cal residuals, {res['n_folds']} folds, "
-              f"{elapsed:.0f}s)")
-        print(f"  Cal residual stats: "
-              f"mean={np.mean(res['cal_residuals']):.2f}, "
-              f"std={np.std(res['cal_residuals']):.2f}, "
-              f"median|r|={np.median(np.abs(res['cal_residuals'])):.2f}")
+        print(
+            f"  R² = {res['r2']:.4f}  "
+            f"({res['n_cal']:,} cal residuals, {res['n_folds']} folds, "
+            f"{elapsed:.0f}s)"
+        )
+        print(
+            f"  Cal residual stats: "
+            f"mean={np.mean(res['cal_residuals']):.2f}, "
+            f"std={np.std(res['cal_residuals']):.2f}, "
+            f"median|r|={np.median(np.abs(res['cal_residuals'])):.2f}"
+        )
 
         for pct, iv in sorted(res["intervals"].items()):
             sc = iv["std_coverage"]
             ac = iv["adap_coverage"]
             tc_cov = iv["terr_coverage"]
-            print(f"  {pct}% standard:  "
-                  f"coverage={sc['coverage']:.3f}  "
-                  f"mean_width={sc['mean_width']:.2f}pp  "
-                  f"q={iv['std_quantile']:.2f}pp")
-            print(f"  {pct}% adaptive:  "
-                  f"coverage={ac['coverage']:.3f}  "
-                  f"mean_width={ac['mean_width']:.2f}pp  "
-                  f"median_width={ac['median_width']:.2f}pp")
-            print(f"  {pct}% terr-strat:"
-                  f"coverage={tc_cov['coverage']:.3f}  "
-                  f"mean_width={tc_cov['mean_width']:.2f}pp  "
-                  f"q_per_class: " +
-                  ", ".join(f"{c[0]}={iv['terr_quantiles'][c]:.1f}"
-                            for c in ("mainland", "DOM", "polynesia",
-                                      "corsica", "abroad")))
+            print(
+                f"  {pct}% standard:  "
+                f"coverage={sc['coverage']:.3f}  "
+                f"mean_width={sc['mean_width']:.2f}pp  "
+                f"q={iv['std_quantile']:.2f}pp"
+            )
+            print(
+                f"  {pct}% adaptive:  "
+                f"coverage={ac['coverage']:.3f}  "
+                f"mean_width={ac['mean_width']:.2f}pp  "
+                f"median_width={ac['median_width']:.2f}pp"
+            )
+            print(
+                f"  {pct}% terr-strat:"
+                f"coverage={tc_cov['coverage']:.3f}  "
+                f"mean_width={tc_cov['mean_width']:.2f}pp  "
+                f"q_per_class: "
+                + ", ".join(
+                    f"{c[0]}={iv['terr_quantiles'][c]:.1f}"
+                    for c in ("mainland", "DOM", "polynesia", "corsica", "abroad")
+                )
+            )
 
         # Per-territory coverage at 90% (the most useful level)
         iv90 = res["intervals"][90]
@@ -513,51 +545,57 @@ def main():
             m = terr_arr == cls
             if m.sum() < 2:
                 continue
-            cov = float(np.mean(
-                (y[m] >= iv90["terr_lower"][m]) &
-                (y[m] <= iv90["terr_upper"][m])
-            ))
+            cov = float(
+                np.mean(
+                    (y[m] >= iv90["terr_lower"][m]) & (y[m] <= iv90["terr_upper"][m])
+                )
+            )
             w = float(np.mean(iv90["terr_upper"][m] - iv90["terr_lower"][m]))
-            print(f"    {cls:12s} n={int(m.sum()):5d}  "
-                  f"cov={cov:.3f}  width={w:.1f}pp")
+            print(f"    {cls:12s} n={int(m.sum()):5d}  cov={cov:.3f}  width={w:.1f}pp")
 
         # Build output frame for this block
         iv90 = res["intervals"][90]
         iv95 = res["intervals"][95]
         iv80 = res["intervals"][80]
-        block_df = pd.DataFrame({
-            "location": res["val_locations"],
-            "block": tc,
-            "prediction": res["val_pred"],
-            "actual": res["y_true_val"],
-            "residual": res["y_true_val"] - res["val_pred"],
-            "lower_80": iv80["adap_lower"],
-            "upper_80": iv80["adap_upper"],
-            "lower_90": iv90["adap_lower"],
-            "upper_90": iv90["adap_upper"],
-            "lower_95": iv95["adap_lower"],
-            "upper_95": iv95["adap_upper"],
-        })
+        block_df = pd.DataFrame(
+            {
+                "location": res["val_locations"],
+                "block": tc,
+                "prediction": res["val_pred"],
+                "actual": res["y_true_val"],
+                "residual": res["y_true_val"] - res["val_pred"],
+                "lower_80": iv80["adap_lower"],
+                "upper_80": iv80["adap_upper"],
+                "lower_90": iv90["adap_lower"],
+                "upper_90": iv90["adap_upper"],
+                "lower_95": iv95["adap_lower"],
+                "upper_95": iv95["adap_upper"],
+            }
+        )
         output_frames.append(block_df)
 
     # ── Summary table ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("SUMMARY: Conformal Interval Coverage and Width")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
-    print(f"\n  {'Block':15s} {'R²':>6s}  "
-          f"{'90% cov':>8s} {'90% width':>10s}  "
-          f"{'95% cov':>8s} {'95% width':>10s}")
+    print(
+        f"\n  {'Block':15s} {'R²':>6s}  "
+        f"{'90% cov':>8s} {'90% width':>10s}  "
+        f"{'95% cov':>8s} {'95% width':>10s}"
+    )
     print("  " + "-" * 65)
     for tc in TARGET_COLS:
         r = all_results[tc]
         iv90 = r["intervals"][90]
         iv95 = r["intervals"][95]
-        print(f"  {ABBR[tc]:15s} {r['r2']:6.4f}  "
-              f"{iv90['adap_coverage']['coverage']:8.3f} "
-              f"{iv90['adap_coverage']['mean_width']:9.2f}pp  "
-              f"{iv95['adap_coverage']['coverage']:8.3f} "
-              f"{iv95['adap_coverage']['mean_width']:9.2f}pp")
+        print(
+            f"  {ABBR[tc]:15s} {r['r2']:6.4f}  "
+            f"{iv90['adap_coverage']['coverage']:8.3f} "
+            f"{iv90['adap_coverage']['mean_width']:9.2f}pp  "
+            f"{iv95['adap_coverage']['coverage']:8.3f} "
+            f"{iv95['adap_coverage']['mean_width']:9.2f}pp"
+        )
 
     # ── Save output ──
     output = pd.concat(output_frames, ignore_index=True)
@@ -566,9 +604,9 @@ def main():
     print(f"\n  Saved {len(output):,} rows to {out_path}")
 
     # ── Useful stats for the party ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("ACTIONABLE STATISTICS FOR POLITICAL STRATEGY")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     for tc in TARGET_COLS:
         r = all_results[tc]
@@ -578,8 +616,9 @@ def main():
         print(f"\n  {tc}:")
         print(f"    Mean predicted: {np.mean(pred):.1f}%")
         print(f"    Std predicted:  {np.std(pred):.1f}%")
-        print(f"    Mean 90% interval width: "
-              f"{iv90['adap_coverage']['mean_width']:.1f}pp")
+        print(
+            f"    Mean 90% interval width: {iv90['adap_coverage']['mean_width']:.1f}pp"
+        )
 
         # Threshold analysis: BVs where block > X%
         for threshold in [30, 40, 50]:
@@ -588,8 +627,10 @@ def main():
             # Confidence: BVs where LOWER bound > threshold
             n_confident = np.sum(iv90["adap_lower"] > threshold)
             if n_above > 0:
-                print(f"    BVs > {threshold}%: {n_above:,} ({pct_above:.1f}%)  "
-                      f"confidently > {threshold}%: {n_confident:,}")
+                print(
+                    f"    BVs > {threshold}%: {n_above:,} ({pct_above:.1f}%)  "
+                    f"confidently > {threshold}%: {n_confident:,}"
+                )
 
     # ── Battleground BVs (narrow margins) ──
     print(f"\n  Battleground BVs (prediction within ±3pp of key thresholds):")
@@ -598,10 +639,12 @@ def main():
         pred = r["val_pred"]
         national = val_est[tc]
         near_national = np.abs(pred - national) < 3.0
-        print(f"    {ABBR[tc]}: {np.sum(near_national):,} BVs within "
-              f"±3pp of national avg ({national:.1f}%)")
+        print(
+            f"    {ABBR[tc]}: {np.sum(near_national):,} BVs within "
+            f"±3pp of national avg ({national:.1f}%)"
+        )
 
-    print(f"\n  Total time: {time.time()-t0:.0f}s")
+    print(f"\n  Total time: {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

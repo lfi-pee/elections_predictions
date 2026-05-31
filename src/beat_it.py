@@ -18,7 +18,9 @@ Current best (raw R², no val tuning):
 Usage:
     python3 -m src.beat_it
 """
+
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*SettingWithCopy.*")
 
@@ -34,30 +36,45 @@ from scipy.optimize import nnls
 
 from src.cross_type_dev import (
     load_cross_type_data,
-    build_per_type_national_means, add_deviation_targets,
-    add_cross_type_local_lags, add_election_type_onehot,
-    evaluate_full, estimate_national_abstention_from_gaps,
-    BLOCKS_ABS, ABBR, ALPHAS, VAL_DATE, VAL_TYPE, TARGET_COLS,
+    build_per_type_national_means,
+    add_deviation_targets,
+    add_cross_type_local_lags,
+    add_election_type_onehot,
+    evaluate_full,
+    estimate_national_abstention_from_gaps,
+    BLOCKS_ABS,
+    ABBR,
+    ALPHAS,
+    VAL_DATE,
+    VAL_TYPE,
+    TARGET_COLS,
 )
 from src.cross_type_ridge import (
-    _vectorized_block_mapping, _build_block_scores,
-    _build_national_poll_features, _add_demographics,
-    TARGET_BLOCKS, TYPE_ONEHOT,
+    _vectorized_block_mapping,
+    _build_block_scores,
+    _build_national_poll_features,
+    _add_demographics,
+    TARGET_BLOCKS,
+    TYPE_ONEHOT,
 )
 from src.load_polls import load_poll_tokens
 
 # LOO-selected on training (preregistered.py), single val forward pass
-PREV_RAW = {"Gauche": 0.7317, "Centre+Droite": 0.5977,
-            "Extreme_Droite": 0.8052, "Abstention": 0.7295}
+PREV_RAW = {
+    "Gauche": 0.7317,
+    "Centre+Droite": 0.5977,
+    "Extreme_Droite": 0.8052,
+    "Abstention": 0.7295,
+}
 ALPHA_GRID = np.logspace(-2, 6, 20)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
+
 def split_tv(df):
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     return df[~val_mask], df[val_mask]
 
@@ -75,8 +92,10 @@ def run_ridge(name, df, feat_cols, national_est, quiet=False):
 
     if not quiet:
         dates = sorted(train["date_float"].unique())
-        print(f"  {name}: train={len(X_tr):,} val={len(X_v):,} "
-              f"feat={len(feat_cols)} dates={len(dates)}")
+        print(
+            f"  {name}: train={len(X_tr):,} val={len(X_v):,} "
+            f"feat={len(feat_cols)} dates={len(dates)}"
+        )
 
     res, preds = {}, {}
     for tc in TARGET_COLS:
@@ -92,8 +111,7 @@ def run_ridge(name, df, feat_cols, national_est, quiet=False):
     return res, preds, val
 
 
-def run_pca_ridge(name, df, demo_cols, non_demo_cols, national_est, k,
-                  quiet=False):
+def run_pca_ridge(name, df, demo_cols, non_demo_cols, national_est, k, quiet=False):
     """PCA on demographics + Ridge on deviations."""
     train, val = split_tv(df)
     all_cols = demo_cols + non_demo_cols
@@ -111,8 +129,10 @@ def run_pca_ridge(name, df, demo_cols, non_demo_cols, national_est, k,
     X_v = np.hstack([pca.transform(X_v[:, :n_d]), X_v[:, n_d:]])
 
     if not quiet:
-        print(f"  {name}: PCA-{k}, feat={X_tr.shape[1]}, "
-              f"train={len(X_tr):,} val={len(X_v):,}")
+        print(
+            f"  {name}: PCA-{k}, feat={X_tr.shape[1]}, "
+            f"train={len(X_tr):,} val={len(X_v):,}"
+        )
 
     res, preds = {}, {}
     for tc in TARGET_COLS:
@@ -130,22 +150,24 @@ def run_pca_ridge(name, df, demo_cols, non_demo_cols, national_est, k,
 
 # ── LOO Blend ────────────────────────────────────────────────────────
 
+
 def _fold_pca(X_ft, X_fh, cfg):
     """Apply PCA transform within a LOO fold."""
     if cfg.get("transform") == "pca":
         n_d = cfg["n_demo"]
         k = cfg["k"]
         pca = PCA(n_components=k).fit(X_ft[:, :n_d])
-        return (np.hstack([pca.transform(X_ft[:, :n_d]), X_ft[:, n_d:]]),
-                np.hstack([pca.transform(X_fh[:, :n_d]), X_fh[:, n_d:]]))
+        return (
+            np.hstack([pca.transform(X_ft[:, :n_d]), X_ft[:, n_d:]]),
+            np.hstack([pca.transform(X_fh[:, :n_d]), X_fh[:, n_d:]]),
+        )
     return X_ft, X_fh
 
 
 def loo_blend(blend_name, df, configs, national_means, val_est):
     """LOO stacking blend with Ridge + NNLS meta-learners."""
-    val_mask = (
-        np.isclose(df["date_float"].values, VAL_DATE, atol=1e-3)
-        & (df["election_type"].values == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"].values, VAL_DATE, atol=1e-3) & (
+        df["election_type"].values == VAL_TYPE
     )
     df_train, df_val = df[~val_mask], df[val_mask]
 
@@ -153,14 +175,18 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
     train_dates = df_train["date_float"].values
     train_td = (
         df_train[["election_type", "date_float"]]
-        .drop_duplicates().sort_values("date_float").values.tolist()
+        .drop_duplicates()
+        .sort_values("date_float")
+        .values.tolist()
     )
     n_folds = len(train_td)
     n_models = len(configs)
     n_train, n_val = len(df_train), len(df_val)
 
-    print(f"\n  {blend_name}: {n_models} models × {n_folds} folds, "
-          f"train={n_train:,} val={n_val:,}")
+    print(
+        f"\n  {blend_name}: {n_models} models × {n_folds} folds, "
+        f"train={n_train:,} val={n_val:,}"
+    )
 
     # Pre-scale features
     model_data = []
@@ -171,18 +197,16 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
         X_v = scaler.transform(df_val[cols].values.astype(np.float64))
         model_data.append((X_tr, X_v))
 
-    dev_targets = {tc: df_train[f"dev_{tc}"].values.astype(np.float64)
-                   for tc in TARGET_COLS}
-    true_train = {tc: df_train[tc].values.astype(np.float64)
-                  for tc in TARGET_COLS}
-    true_val = {tc: df_val[tc].values.astype(np.float64)
-                for tc in TARGET_COLS}
+    dev_targets = {
+        tc: df_train[f"dev_{tc}"].values.astype(np.float64) for tc in TARGET_COLS
+    }
+    true_train = {tc: df_train[tc].values.astype(np.float64) for tc in TARGET_COLS}
+    true_val = {tc: df_val[tc].values.astype(np.float64) for tc in TARGET_COLS}
 
     # Fold masks + national means per fold
     fold_masks, fold_nats = [], []
     for etype, ddate in train_td:
-        mask = (np.isclose(train_dates, ddate, atol=1e-3)
-                & (train_types == etype))
+        mask = np.isclose(train_dates, ddate, atol=1e-3) & (train_types == etype)
         fold_masks.append(mask)
         nm_row = national_means[
             (national_means["election_type"] == etype)
@@ -190,7 +214,9 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
         ]
         fold_nats.append(
             {tc: float(nm_row[tc].iloc[0]) for tc in TARGET_COLS}
-            if len(nm_row) > 0 else {tc: 0.0 for tc in TARGET_COLS})
+            if len(nm_row) > 0
+            else {tc: 0.0 for tc in TARGET_COLS}
+        )
 
     # OOF + val predictions
     oof = {tc: np.full((n_train, n_models), np.nan) for tc in TARGET_COLS}
@@ -205,8 +231,7 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
         for tc in TARGET_COLS:
             ridge = RidgeCV(alphas=ALPHA_GRID)
             ridge.fit(X_tr_t, dev_targets[tc])
-            vpred[tc][:, m_idx] = (
-                ridge.predict(X_v_t) + val_est.get(tc, 0.0))
+            vpred[tc][:, m_idx] = ridge.predict(X_v_t) + val_est.get(tc, 0.0)
             best_alpha[tc] = ridge.alpha_
 
         # LOO folds
@@ -217,8 +242,7 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
             for tc in TARGET_COLS:
                 ridge = Ridge(alpha=best_alpha[tc], solver="cholesky")
                 ridge.fit(X_ft_t, dev_targets[tc][not_held])
-                oof[tc][held_mask, m_idx] = (
-                    ridge.predict(X_fh_t) + fold_nats[f_idx][tc])
+                oof[tc][held_mask, m_idx] = ridge.predict(X_fh_t) + fold_nats[f_idx][tc]
 
     # Meta-learners per block
     results = {}
@@ -249,8 +273,7 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
         ev_avg = evaluate_full(y_val, val_X.mean(axis=1))
 
         # Best single
-        best_single = max(
-            r2_score(y_val, val_X[:, i]) for i in range(n_models))
+        best_single = max(r2_score(y_val, val_X[:, i]) for i in range(n_models))
 
         results[tc] = {
             "best_single": best_single,
@@ -259,9 +282,11 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
             "ridge": ev_ridge["raw"],
         }
         best_blend = max(ev_ridge["raw"], ev_nnls["raw"])
-        print(f"    {tc:20s} single={best_single:.4f} "
-              f"avg={ev_avg['raw']:.4f} nnls={ev_nnls['raw']:.4f} "
-              f"ridge={ev_ridge['raw']:.4f}")
+        print(
+            f"    {tc:20s} single={best_single:.4f} "
+            f"avg={ev_avg['raw']:.4f} nnls={ev_nnls['raw']:.4f} "
+            f"ridge={ev_ridge['raw']:.4f}"
+        )
 
     return results
 
@@ -269,17 +294,20 @@ def loo_blend(blend_name, df, configs, national_means, val_est):
 # ── Extended cross-type data builder ─────────────────────────────────
 
 EXTENDED_TYPES = [
-    "Legislatives_T1", "Presidentielle_T1",
-    "Europeennes_T1", "Regionales_T1",
-    "Departementales_T1", "Cantonales_T1",
+    "Legislatives_T1",
+    "Presidentielle_T1",
+    "Europeennes_T1",
+    "Regionales_T1",
+    "Departementales_T1",
+    "Cantonales_T1",
 ]
 
 # Exclude dates with poor block mapping (>15% Other) or in val period
 EXCLUDE_DATES = {
-    ("Europeennes_T1", 1999.5),    # 12.8% Other
-    ("Europeennes_T1", 2004.5),    # 17.3% Other
-    ("Europeennes_T1", 2024.5),    # val period overlap
-    ("Regionales_T1", 2021.5),     # 24.4% Other
+    ("Europeennes_T1", 1999.5),  # 12.8% Other
+    ("Europeennes_T1", 2004.5),  # 17.3% Other
+    ("Europeennes_T1", 2024.5),  # val period overlap
+    ("Regionales_T1", 2021.5),  # 24.4% Other
 }
 
 
@@ -323,8 +351,10 @@ def build_extended_data(data_dir):
         if len(sub) == 0:
             continue
         dates = sorted(sub["date_float"].unique())
-        print(f"    {etype:30s}  {len(dates)} dates: "
-              f"{[round(float(d), 2) for d in dates]}")
+        print(
+            f"    {etype:30s}  {len(dates)} dates: "
+            f"{[round(float(d), 2) for d in dates]}"
+        )
 
     # Build block scores
     print("  Building block scores...", flush=True)
@@ -335,9 +365,11 @@ def build_extended_data(data_dir):
     national_means = build_per_type_national_means(block_scores)
     print("  National means (sample):")
     for _, row in national_means.head(5).iterrows():
-        print(f"    {row['election_type']:25s} {row['date_float']:.2f}: "
-              f"G={row['Gauche']:.1f} CD={row['Centre+Droite']:.1f} "
-              f"ED={row['Extreme_Droite']:.1f} Ab={row['Abstention']:.1f}")
+        print(
+            f"    {row['election_type']:25s} {row['date_float']:.2f}: "
+            f"G={row['Gauche']:.1f} CD={row['Centre+Droite']:.1f} "
+            f"ED={row['Extreme_Droite']:.1f} Ab={row['Abstention']:.1f}"
+        )
 
     # Deviation targets + cross-type lags
     print("  Adding deviations and lags...", flush=True)
@@ -374,13 +406,13 @@ def build_extended_data(data_dir):
     ind_cache.write_text("\n".join(indicators))
     national_means.to_parquet(nm_cache, index=False)
     poll_feats.to_parquet(poll_cache, index=False)
-    print(f"  Extended data built in {time.time()-t0:.0f}s, "
-          f"cached to {cache_path}")
+    print(f"  Extended data built in {time.time() - t0:.0f}s, cached to {cache_path}")
 
     return df, indicators, national_means, poll_feats
 
 
 # ── Main ─────────────────────────────────────────────────────────────
+
 
 def run_phase1(data_dir):
     """Phase 1: experiments on existing Legi+Pres cached data."""
@@ -389,8 +421,7 @@ def run_phase1(data_dir):
     print("=" * 70)
 
     all_results = {}
-    df, demo_indicators, national_means, poll_feats = \
-        load_cross_type_data(data_dir)
+    df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
 
     # ── Feature groups ──
@@ -423,17 +454,16 @@ def run_phase1(data_dir):
     df_v1_1lag = df_v1.dropna(subset=raw_lag1 + dev_lag1)
     df_legi = df[df["election_type"] == VAL_TYPE].copy()
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
-    df_legi_v1_2 = df_legi_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_legi_v1_2 = df_legi_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
     df_legi_v1_1 = df_legi_v1.dropna(subset=raw_lag1 + dev_lag1)
 
     # ── Feature sets ──
-    nd_ct = geo_time + dev_lag1 + dev_lag2 + type_cols      # non-demo CT
-    nd_ct_trend = nd_ct + dev_trend                          # + trends
-    nd_ct_1lag = geo_time + dev_lag1 + type_cols             # 1-lag CT
-    nd_legi = geo_time + dev_lag1 + dev_lag2                 # non-demo Legi
-    nd_legi_trend = nd_legi + dev_trend                      # + trends
-    nd_legi_1lag = geo_time + dev_lag1                       # 1-lag Legi
+    nd_ct = geo_time + dev_lag1 + dev_lag2 + type_cols  # non-demo CT
+    nd_ct_trend = nd_ct + dev_trend  # + trends
+    nd_ct_1lag = geo_time + dev_lag1 + type_cols  # 1-lag CT
+    nd_legi = geo_time + dev_lag1 + dev_lag2  # non-demo Legi
+    nd_legi_trend = nd_legi + dev_trend  # + trends
+    nd_legi_1lag = geo_time + dev_lag1  # 1-lag Legi
 
     feat_ct = demo_indicators + nd_ct
     feat_ct_trend = demo_indicators + nd_ct_trend
@@ -443,9 +473,9 @@ def run_phase1(data_dir):
     feat_legi_1lag = demo_indicators + nd_legi_1lag
 
     # ── Run individual models ──
-    print(f"\n{'─'*70}")
+    print(f"\n{'─' * 70}")
     print("INDIVIDUAL MODELS (Legi+Pres)")
-    print(f"{'─'*70}")
+    print(f"{'─' * 70}")
 
     # Cross-type 2-lag models
     for name, feats, data in [
@@ -457,13 +487,13 @@ def run_phase1(data_dir):
 
     for k in [3, 5, 7, 10]:
         name = f"CT-PCA{k}-devlag"
-        r, p, v = run_pca_ridge(name, df_v1_2lag, demo_indicators, nd_ct,
-                                est, k)
+        r, p, v = run_pca_ridge(name, df_v1_2lag, demo_indicators, nd_ct, est, k)
         all_results[name] = r
 
         name_t = f"CT-PCA{k}-devlag+trend"
-        r, p, v = run_pca_ridge(name_t, df_v1_2lag, demo_indicators,
-                                nd_ct_trend, est, k)
+        r, p, v = run_pca_ridge(
+            name_t, df_v1_2lag, demo_indicators, nd_ct_trend, est, k
+        )
         all_results[name_t] = r
 
     # Cross-type 1-lag models
@@ -471,8 +501,7 @@ def run_phase1(data_dir):
     all_results["CT-devlag-1lag"] = r
     for k in [3, 5, 7]:
         name = f"CT-PCA{k}-1lag"
-        r, p, v = run_pca_ridge(name, df_v1_1lag, demo_indicators,
-                                nd_ct_1lag, est, k)
+        r, p, v = run_pca_ridge(name, df_v1_1lag, demo_indicators, nd_ct_1lag, est, k)
         all_results[name] = r
 
     # Legi-only 2-lag models
@@ -485,13 +514,13 @@ def run_phase1(data_dir):
 
     for k in [3, 5, 7, 10]:
         name = f"Legi-PCA{k}-devlag"
-        r, p, v = run_pca_ridge(name, df_legi_v1_2, demo_indicators,
-                                nd_legi, est, k)
+        r, p, v = run_pca_ridge(name, df_legi_v1_2, demo_indicators, nd_legi, est, k)
         all_results[name] = r
 
         name_t = f"Legi-PCA{k}-devlag+trend"
-        r, p, v = run_pca_ridge(name_t, df_legi_v1_2, demo_indicators,
-                                nd_legi_trend, est, k)
+        r, p, v = run_pca_ridge(
+            name_t, df_legi_v1_2, demo_indicators, nd_legi_trend, est, k
+        )
         all_results[name_t] = r
 
     # Legi-only 1-lag models
@@ -499,43 +528,65 @@ def run_phase1(data_dir):
     all_results["Legi-devlag-1lag"] = r
     for k in [3, 5]:
         name = f"Legi-PCA{k}-1lag"
-        r, p, v = run_pca_ridge(name, df_legi_v1_1, demo_indicators,
-                                nd_legi_1lag, est, k)
+        r, p, v = run_pca_ridge(
+            name, df_legi_v1_1, demo_indicators, nd_legi_1lag, est, k
+        )
         all_results[name] = r
 
     # ── LOO Blends ──
-    print(f"\n{'─'*70}")
+    print(f"\n{'─' * 70}")
     print("LOO BLENDS (Legi+Pres data)")
-    print(f"{'─'*70}")
+    print(f"{'─' * 70}")
 
     # CT blend configs
     ct_configs = [
-        {"name": "devlag", "transform": "standard",
-         "cols": feat_ct},
-        {"name": "devlag+trend", "transform": "standard",
-         "cols": feat_ct_trend},
-        {"name": "PCA3", "transform": "pca",
-         "cols": demo_indicators + nd_ct,
-         "n_demo": len(demo_indicators), "k": 3},
-        {"name": "PCA5", "transform": "pca",
-         "cols": demo_indicators + nd_ct,
-         "n_demo": len(demo_indicators), "k": 5},
-        {"name": "PCA7", "transform": "pca",
-         "cols": demo_indicators + nd_ct,
-         "n_demo": len(demo_indicators), "k": 7},
-        {"name": "PCA10", "transform": "pca",
-         "cols": demo_indicators + nd_ct,
-         "n_demo": len(demo_indicators), "k": 10},
-        {"name": "PCA3+trend", "transform": "pca",
-         "cols": demo_indicators + nd_ct_trend,
-         "n_demo": len(demo_indicators), "k": 3},
-        {"name": "PCA5+trend", "transform": "pca",
-         "cols": demo_indicators + nd_ct_trend,
-         "n_demo": len(demo_indicators), "k": 5},
+        {"name": "devlag", "transform": "standard", "cols": feat_ct},
+        {"name": "devlag+trend", "transform": "standard", "cols": feat_ct_trend},
+        {
+            "name": "PCA3",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct,
+            "n_demo": len(demo_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct,
+            "n_demo": len(demo_indicators),
+            "k": 5,
+        },
+        {
+            "name": "PCA7",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct,
+            "n_demo": len(demo_indicators),
+            "k": 7,
+        },
+        {
+            "name": "PCA10",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct,
+            "n_demo": len(demo_indicators),
+            "k": 10,
+        },
+        {
+            "name": "PCA3+trend",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct_trend,
+            "n_demo": len(demo_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5+trend",
+            "transform": "pca",
+            "cols": demo_indicators + nd_ct_trend,
+            "n_demo": len(demo_indicators),
+            "k": 5,
+        },
     ]
 
-    ct_blend = loo_blend("CT-LOO-8mod", df_v1_2lag, ct_configs,
-                         national_means, est)
+    ct_blend = loo_blend("CT-LOO-8mod", df_v1_2lag, ct_configs, national_means, est)
     all_results["CT-LOO-blend"] = {
         tc: {"raw": max(ct_blend[tc]["nnls"], ct_blend[tc]["ridge"])}
         for tc in TARGET_COLS
@@ -543,32 +594,55 @@ def run_phase1(data_dir):
 
     # Legi blend configs
     legi_configs = [
-        {"name": "devlag", "transform": "standard",
-         "cols": feat_legi},
-        {"name": "devlag+trend", "transform": "standard",
-         "cols": feat_legi_trend},
-        {"name": "PCA3", "transform": "pca",
-         "cols": demo_indicators + nd_legi,
-         "n_demo": len(demo_indicators), "k": 3},
-        {"name": "PCA5", "transform": "pca",
-         "cols": demo_indicators + nd_legi,
-         "n_demo": len(demo_indicators), "k": 5},
-        {"name": "PCA7", "transform": "pca",
-         "cols": demo_indicators + nd_legi,
-         "n_demo": len(demo_indicators), "k": 7},
-        {"name": "PCA10", "transform": "pca",
-         "cols": demo_indicators + nd_legi,
-         "n_demo": len(demo_indicators), "k": 10},
-        {"name": "PCA3+trend", "transform": "pca",
-         "cols": demo_indicators + nd_legi_trend,
-         "n_demo": len(demo_indicators), "k": 3},
-        {"name": "PCA5+trend", "transform": "pca",
-         "cols": demo_indicators + nd_legi_trend,
-         "n_demo": len(demo_indicators), "k": 5},
+        {"name": "devlag", "transform": "standard", "cols": feat_legi},
+        {"name": "devlag+trend", "transform": "standard", "cols": feat_legi_trend},
+        {
+            "name": "PCA3",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi,
+            "n_demo": len(demo_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi,
+            "n_demo": len(demo_indicators),
+            "k": 5,
+        },
+        {
+            "name": "PCA7",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi,
+            "n_demo": len(demo_indicators),
+            "k": 7,
+        },
+        {
+            "name": "PCA10",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi,
+            "n_demo": len(demo_indicators),
+            "k": 10,
+        },
+        {
+            "name": "PCA3+trend",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi_trend,
+            "n_demo": len(demo_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5+trend",
+            "transform": "pca",
+            "cols": demo_indicators + nd_legi_trend,
+            "n_demo": len(demo_indicators),
+            "k": 5,
+        },
     ]
 
-    legi_blend = loo_blend("Legi-LOO-8mod", df_legi_v1_2, legi_configs,
-                           national_means, est)
+    legi_blend = loo_blend(
+        "Legi-LOO-8mod", df_legi_v1_2, legi_configs, national_means, est
+    )
     all_results["Legi-LOO-blend"] = {
         tc: {"raw": max(legi_blend[tc]["nnls"], legi_blend[tc]["ridge"])}
         for tc in TARGET_COLS
@@ -580,7 +654,7 @@ def run_phase1(data_dir):
 def run_phase2(data_dir, est=None):
     """Phase 2: extended cross-type with more election types."""
     all_results = {}
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("PHASE 2: EXTENDED CROSS-TYPE (Legi+Pres+Euro+Regi+Dept+Cant)")
     print("=" * 70)
 
@@ -591,8 +665,7 @@ def run_phase2(data_dir, est=None):
 
     # Add lag trends
     for b in BLOCKS_ABS:
-        df_ext[f"dev_{b}_trend"] = (
-            df_ext[f"dev_{b}_lag1"] - df_ext[f"dev_{b}_lag2"])
+        df_ext[f"dev_{b}_trend"] = df_ext[f"dev_{b}_lag1"] - df_ext[f"dev_{b}_lag2"]
 
     # National estimates (raw polls + gap model)
     # Use Legi+Pres-only national means for gap model (other types add noise)
@@ -607,8 +680,9 @@ def run_phase2(data_dir, est=None):
         for b in TARGET_BLOCKS:
             ext_est[b] = float(poll_2024[f"poll_{b}"].iloc[0])
         # Gap model: only Legi+Pres national means (stable relationship)
-        lp_nm = ext_nm[ext_nm["election_type"].isin(
-            ["Legislatives_T1", "Presidentielle_T1"])]
+        lp_nm = ext_nm[
+            ext_nm["election_type"].isin(["Legislatives_T1", "Presidentielle_T1"])
+        ]
         ext_abs_pred, _ = estimate_national_abstention_from_gaps(lp_nm)
         ext_est["Abstention"] = ext_abs_pred
     print(f"Extended national estimates: {ext_est}")
@@ -622,29 +696,36 @@ def run_phase2(data_dir, est=None):
     ext_dev_trend = [f"dev_{b}_trend" for b in BLOCKS_ABS]
 
     ext_v1_2 = ext_v1.dropna(
-        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2)
+        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2
+    )
     ext_v1_1 = ext_v1.dropna(subset=ext_raw_lag1 + ext_dev_lag1)
 
-    n_tr = lambda d: len(d[~(
-        np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
-        & (d["election_type"] == VAL_TYPE)
-    )])
-    print(f"\n  Ext V1-2lag: {len(ext_v1_2):,} rows "
-          f"(train={n_tr(ext_v1_2):,})")
-    train_dates = ext_v1_2[~(
-        np.isclose(ext_v1_2["date_float"], VAL_DATE, atol=1e-3)
-        & (ext_v1_2["election_type"] == VAL_TYPE)
-    )]
+    n_tr = lambda d: len(
+        d[
+            ~(
+                np.isclose(d["date_float"], VAL_DATE, atol=1e-3)
+                & (d["election_type"] == VAL_TYPE)
+            )
+        ]
+    )
+    print(f"\n  Ext V1-2lag: {len(ext_v1_2):,} rows (train={n_tr(ext_v1_2):,})")
+    train_dates = ext_v1_2[
+        ~(
+            np.isclose(ext_v1_2["date_float"], VAL_DATE, atol=1e-3)
+            & (ext_v1_2["election_type"] == VAL_TYPE)
+        )
+    ]
     print(f"  Train dates ({len(train_dates['date_float'].unique())}):")
     for et, dt in sorted(
-        train_dates[["election_type", "date_float"]]
-        .drop_duplicates().values.tolist(),
+        train_dates[["election_type", "date_float"]].drop_duplicates().values.tolist(),
         key=lambda x: x[1],
     ):
-        n = len(train_dates[
-            (train_dates["election_type"] == et)
-            & np.isclose(train_dates["date_float"], dt, atol=1e-3)
-        ])
+        n = len(
+            train_dates[
+                (train_dates["election_type"] == et)
+                & np.isclose(train_dates["date_float"], dt, atol=1e-3)
+            ]
+        )
         print(f"    {et:30s} {dt:.2f}: {n:>6,}")
 
     # Feature sets
@@ -656,9 +737,9 @@ def run_phase2(data_dir, est=None):
     ext_feat_trend = ext_indicators + ext_nd_trend
     ext_feat_1lag = ext_indicators + ext_nd_1lag
 
-    print(f"\n{'─'*70}")
+    print(f"\n{'─' * 70}")
     print("EXTENDED INDIVIDUAL MODELS")
-    print(f"{'─'*70}")
+    print(f"{'─' * 70}")
 
     for name, feats, data in [
         ("Ext-devlag", ext_feat, ext_v1_2),
@@ -670,48 +751,69 @@ def run_phase2(data_dir, est=None):
 
     for k in [3, 5, 7, 10]:
         name = f"Ext-PCA{k}-devlag"
-        r, p, v = run_pca_ridge(name, ext_v1_2, ext_indicators, ext_nd,
-                                ext_est, k)
+        r, p, v = run_pca_ridge(name, ext_v1_2, ext_indicators, ext_nd, ext_est, k)
         all_results[name] = r
 
     for k in [3, 5, 7]:
         name = f"Ext-PCA{k}-devlag+trend"
-        r, p, v = run_pca_ridge(name, ext_v1_2, ext_indicators,
-                                ext_nd_trend, ext_est, k)
+        r, p, v = run_pca_ridge(
+            name, ext_v1_2, ext_indicators, ext_nd_trend, ext_est, k
+        )
         all_results[name] = r
 
     # Extended LOO blend
-    print(f"\n{'─'*70}")
+    print(f"\n{'─' * 70}")
     print("EXTENDED LOO BLEND")
-    print(f"{'─'*70}")
+    print(f"{'─' * 70}")
 
     ext_configs = [
-        {"name": "devlag", "transform": "standard",
-         "cols": ext_feat},
-        {"name": "devlag+trend", "transform": "standard",
-         "cols": ext_feat_trend},
-        {"name": "PCA3", "transform": "pca",
-         "cols": ext_indicators + ext_nd,
-         "n_demo": len(ext_indicators), "k": 3},
-        {"name": "PCA5", "transform": "pca",
-         "cols": ext_indicators + ext_nd,
-         "n_demo": len(ext_indicators), "k": 5},
-        {"name": "PCA7", "transform": "pca",
-         "cols": ext_indicators + ext_nd,
-         "n_demo": len(ext_indicators), "k": 7},
-        {"name": "PCA10", "transform": "pca",
-         "cols": ext_indicators + ext_nd,
-         "n_demo": len(ext_indicators), "k": 10},
-        {"name": "PCA3+trend", "transform": "pca",
-         "cols": ext_indicators + ext_nd_trend,
-         "n_demo": len(ext_indicators), "k": 3},
-        {"name": "PCA5+trend", "transform": "pca",
-         "cols": ext_indicators + ext_nd_trend,
-         "n_demo": len(ext_indicators), "k": 5},
+        {"name": "devlag", "transform": "standard", "cols": ext_feat},
+        {"name": "devlag+trend", "transform": "standard", "cols": ext_feat_trend},
+        {
+            "name": "PCA3",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd,
+            "n_demo": len(ext_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd,
+            "n_demo": len(ext_indicators),
+            "k": 5,
+        },
+        {
+            "name": "PCA7",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd,
+            "n_demo": len(ext_indicators),
+            "k": 7,
+        },
+        {
+            "name": "PCA10",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd,
+            "n_demo": len(ext_indicators),
+            "k": 10,
+        },
+        {
+            "name": "PCA3+trend",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd_trend,
+            "n_demo": len(ext_indicators),
+            "k": 3,
+        },
+        {
+            "name": "PCA5+trend",
+            "transform": "pca",
+            "cols": ext_indicators + ext_nd_trend,
+            "n_demo": len(ext_indicators),
+            "k": 5,
+        },
     ]
 
-    ext_blend = loo_blend("Ext-LOO-8mod", ext_v1_2, ext_configs,
-                          ext_nm, ext_est)
+    ext_blend = loo_blend("Ext-LOO-8mod", ext_v1_2, ext_configs, ext_nm, ext_est)
     all_results["Ext-LOO-blend"] = {
         tc: {"raw": max(ext_blend[tc]["nnls"], ext_blend[tc]["ridge"])}
         for tc in TARGET_COLS
@@ -725,14 +827,15 @@ def print_summary(all_results):
     # ================================================================
     # SUMMARY
     # ================================================================
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("RAW R² SUMMARY — ALL EXPERIMENTS")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     print(f"\n{'Model':30s} {'G':>7s} {'CD':>7s} {'ED':>7s} {'Ab':>7s}")
     print("─" * 62)
-    print(f"{'PREV BEST':30s} "
-          + " ".join(f"{PREV_RAW[tc]:7.4f}" for tc in TARGET_COLS))
+    print(
+        f"{'PREV BEST':30s} " + " ".join(f"{PREV_RAW[tc]:7.4f}" for tc in TARGET_COLS)
+    )
     print("─" * 62)
 
     for mname in sorted(all_results.keys()):
@@ -744,13 +847,12 @@ def print_summary(all_results):
         marks = []
         for tc, r in zip(TARGET_COLS, raws):
             marks.append("+" if r > PREV_RAW[tc] + 0.0005 else " ")
-        print(f"{mname:30s} "
-              + " ".join(f"{r:6.4f}{m}" for r, m in zip(raws, marks)))
+        print(f"{mname:30s} " + " ".join(f"{r:6.4f}{m}" for r, m in zip(raws, marks)))
 
     # Per-block best
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("PER-BLOCK BEST")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     for tc in TARGET_COLS:
         best_name, best_r2 = "", -999
         for mn, mr in all_results.items():
@@ -789,5 +891,6 @@ def main(phase=0):
 
 if __name__ == "__main__":
     import sys
+
     phase = int(sys.argv[1]) if len(sys.argv) > 1 else 0
     main(phase=phase)

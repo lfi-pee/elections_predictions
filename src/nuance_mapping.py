@@ -89,21 +89,22 @@ def expand_nuance_group(nuance: str) -> set[str]:
         result |= NUANCE_EQUIVALENCES[nuance]
     return result
 
+
 def map_coalition_to_nuance(coalition: str) -> str:
     """Map a poll coalition string to a primary nuance code.
-    
+
     e.g. 'PS - PCF - LÉ' -> 'LDVG' (based on primary party PS)
     """
     if not coalition or coalition == "nan":
         return "UNKNOWN"
-    
+
     # Take the first party in the coalition as the primary
     primary = coalition.split("-")[0].strip()
-    
+
     # Handle specific common names
     if "LÉ" in primary:
         primary = "LÉ"
     if "MODEM" in primary:
         primary = "MODEM"
-        
+
     return PARTY_TO_NUANCE.get(primary, "UNKNOWN")

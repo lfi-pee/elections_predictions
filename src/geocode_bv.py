@@ -25,6 +25,7 @@ Outputs:
     data/geo/zz_consular_coords.parquet    — geocoded overseas posts
     data/geo/bv_coords.parquet             — FINAL: only BVs with exact coords
 """
+
 from __future__ import annotations
 
 import csv
@@ -54,33 +55,107 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 
 # Département name lookup for Nominatim queries
 DEPT_NAMES: dict[str, str] = {
-    "01": "Ain", "02": "Aisne", "03": "Allier", "04": "Alpes-de-Haute-Provence",
-    "05": "Hautes-Alpes", "06": "Alpes-Maritimes", "07": "Ardèche", "08": "Ardennes",
-    "09": "Ariège", "10": "Aube", "11": "Aude", "12": "Aveyron",
-    "13": "Bouches-du-Rhône", "14": "Calvados", "15": "Cantal", "16": "Charente",
-    "17": "Charente-Maritime", "18": "Cher", "19": "Corrèze", "2A": "Corse-du-Sud",
-    "2B": "Haute-Corse", "21": "Côte-d'Or", "22": "Côtes-d'Armor", "23": "Creuse",
-    "24": "Dordogne", "25": "Doubs", "26": "Drôme", "27": "Eure",
-    "28": "Eure-et-Loir", "29": "Finistère", "30": "Gard", "31": "Haute-Garonne",
-    "32": "Gers", "33": "Gironde", "34": "Hérault", "35": "Ille-et-Vilaine",
-    "36": "Indre", "37": "Indre-et-Loire", "38": "Isère", "39": "Jura",
-    "40": "Landes", "41": "Loir-et-Cher", "42": "Loire", "43": "Haute-Loire",
-    "44": "Loire-Atlantique", "45": "Loiret", "46": "Lot", "47": "Lot-et-Garonne",
-    "48": "Lozère", "49": "Maine-et-Loire", "50": "Manche", "51": "Marne",
-    "52": "Haute-Marne", "53": "Mayenne", "54": "Meurthe-et-Moselle", "55": "Meuse",
-    "56": "Morbihan", "57": "Moselle", "58": "Nièvre", "59": "Nord",
-    "60": "Oise", "61": "Orne", "62": "Pas-de-Calais", "63": "Puy-de-Dôme",
-    "64": "Pyrénées-Atlantiques", "65": "Hautes-Pyrénées", "66": "Pyrénées-Orientales",
-    "67": "Bas-Rhin", "68": "Haut-Rhin", "69": "Rhône", "70": "Haute-Saône",
-    "71": "Saône-et-Loire", "72": "Sarthe", "73": "Savoie", "74": "Haute-Savoie",
-    "75": "Paris", "76": "Seine-Maritime", "77": "Seine-et-Marne", "78": "Yvelines",
-    "79": "Deux-Sèvres", "80": "Somme", "81": "Tarn", "82": "Tarn-et-Garonne",
-    "83": "Var", "84": "Vaucluse", "85": "Vendée", "86": "Vienne",
-    "87": "Haute-Vienne", "88": "Vosges", "89": "Yonne", "90": "Territoire de Belfort",
-    "91": "Essonne", "92": "Hauts-de-Seine", "93": "Seine-Saint-Denis",
-    "94": "Val-de-Marne", "95": "Val-d'Oise",
-    "971": "Guadeloupe", "972": "Martinique", "973": "Guyane",
-    "974": "La Réunion", "976": "Mayotte",
+    "01": "Ain",
+    "02": "Aisne",
+    "03": "Allier",
+    "04": "Alpes-de-Haute-Provence",
+    "05": "Hautes-Alpes",
+    "06": "Alpes-Maritimes",
+    "07": "Ardèche",
+    "08": "Ardennes",
+    "09": "Ariège",
+    "10": "Aube",
+    "11": "Aude",
+    "12": "Aveyron",
+    "13": "Bouches-du-Rhône",
+    "14": "Calvados",
+    "15": "Cantal",
+    "16": "Charente",
+    "17": "Charente-Maritime",
+    "18": "Cher",
+    "19": "Corrèze",
+    "2A": "Corse-du-Sud",
+    "2B": "Haute-Corse",
+    "21": "Côte-d'Or",
+    "22": "Côtes-d'Armor",
+    "23": "Creuse",
+    "24": "Dordogne",
+    "25": "Doubs",
+    "26": "Drôme",
+    "27": "Eure",
+    "28": "Eure-et-Loir",
+    "29": "Finistère",
+    "30": "Gard",
+    "31": "Haute-Garonne",
+    "32": "Gers",
+    "33": "Gironde",
+    "34": "Hérault",
+    "35": "Ille-et-Vilaine",
+    "36": "Indre",
+    "37": "Indre-et-Loire",
+    "38": "Isère",
+    "39": "Jura",
+    "40": "Landes",
+    "41": "Loir-et-Cher",
+    "42": "Loire",
+    "43": "Haute-Loire",
+    "44": "Loire-Atlantique",
+    "45": "Loiret",
+    "46": "Lot",
+    "47": "Lot-et-Garonne",
+    "48": "Lozère",
+    "49": "Maine-et-Loire",
+    "50": "Manche",
+    "51": "Marne",
+    "52": "Haute-Marne",
+    "53": "Mayenne",
+    "54": "Meurthe-et-Moselle",
+    "55": "Meuse",
+    "56": "Morbihan",
+    "57": "Moselle",
+    "58": "Nièvre",
+    "59": "Nord",
+    "60": "Oise",
+    "61": "Orne",
+    "62": "Pas-de-Calais",
+    "63": "Puy-de-Dôme",
+    "64": "Pyrénées-Atlantiques",
+    "65": "Hautes-Pyrénées",
+    "66": "Pyrénées-Orientales",
+    "67": "Bas-Rhin",
+    "68": "Haut-Rhin",
+    "69": "Rhône",
+    "70": "Haute-Saône",
+    "71": "Saône-et-Loire",
+    "72": "Sarthe",
+    "73": "Savoie",
+    "74": "Haute-Savoie",
+    "75": "Paris",
+    "76": "Seine-Maritime",
+    "77": "Seine-et-Marne",
+    "78": "Yvelines",
+    "79": "Deux-Sèvres",
+    "80": "Somme",
+    "81": "Tarn",
+    "82": "Tarn-et-Garonne",
+    "83": "Var",
+    "84": "Vaucluse",
+    "85": "Vendée",
+    "86": "Vienne",
+    "87": "Haute-Vienne",
+    "88": "Vosges",
+    "89": "Yonne",
+    "90": "Territoire de Belfort",
+    "91": "Essonne",
+    "92": "Hauts-de-Seine",
+    "93": "Seine-Saint-Denis",
+    "94": "Val-de-Marne",
+    "95": "Val-d'Oise",
+    "971": "Guadeloupe",
+    "972": "Martinique",
+    "973": "Guyane",
+    "974": "La Réunion",
+    "976": "Mayotte",
 }
 
 # Complete ZZ → consular city mapping (232 codes)
@@ -346,11 +421,15 @@ def compute_elector_centroids(reu_addr_path: Path, cache_path: Path) -> pd.DataF
     )
     print(f"    Loaded {len(addr)} elector addresses")
 
-    bv = addr.groupby("id_brut_bv_reu").agg(
-        latitude=("latitude", "mean"),
-        longitude=("longitude", "mean"),
-        n_addresses=("latitude", "count"),
-    ).reset_index()
+    bv = (
+        addr.groupby("id_brut_bv_reu")
+        .agg(
+            latitude=("latitude", "mean"),
+            longitude=("longitude", "mean"),
+            n_addresses=("latitude", "count"),
+        )
+        .reset_index()
+    )
 
     # Convert REU id format (01001_1) → MIOM format (01001_0001)
     def reu_to_miom(reu_id: str) -> str:
@@ -396,12 +475,14 @@ def extract_contour_centroids(geojson_path: Path) -> pd.DataFrame:
             lons = [p[0] for p in ring]
             lats = [p[1] for p in ring]
 
-            records.append({
-                "id_brut_miom": code_bv,
-                "code_commune": code_commune,
-                "latitude": sum(lats) / len(lats),
-                "longitude": sum(lons) / len(lons),
-            })
+            records.append(
+                {
+                    "id_brut_miom": code_bv,
+                    "code_commune": code_commune,
+                    "latitude": sum(lats) / len(lats),
+                    "longitude": sum(lons) / len(lons),
+                }
+            )
 
             if len(records) % 10000 == 0:
                 print(f"    {len(records)} features processed...")
@@ -436,7 +517,10 @@ def _geocode_historical_communes(
     if cache_path.exists():
         df_cache = pd.read_parquet(cache_path)
         cached = dict(
-            zip(df_cache["code_commune"], zip(df_cache["latitude"], df_cache["longitude"]))
+            zip(
+                df_cache["code_commune"],
+                zip(df_cache["latitude"], df_cache["longitude"]),
+            )
         )
         print(f"    Loaded {len(cached)} cached historical commune coords")
 
@@ -486,7 +570,12 @@ def _geocode_historical_communes(
             try:
                 r = requests.get(
                     BAN_API_URL,
-                    params={"q": name, "type": "municipality", "citycode": code, "limit": 1},
+                    params={
+                        "q": name,
+                        "type": "municipality",
+                        "citycode": code,
+                        "limit": 1,
+                    },
                     timeout=10,
                 )
                 if r.status_code == 200:
@@ -509,7 +598,8 @@ def _geocode_historical_communes(
                 if r.status_code == 200:
                     features = r.json().get("features", [])
                     dept_matches = [
-                        f for f in features
+                        f
+                        for f in features
                         if str(f["properties"].get("citycode", "")).startswith(dept)
                     ]
                     if dept_matches:
@@ -557,10 +647,12 @@ def _geocode_historical_communes(
 
     # Merge with cache and save
     all_coords = {**cached, **resolved}
-    df_all = pd.DataFrame([
-        {"code_commune": c, "latitude": lat, "longitude": lon}
-        for c, (lat, lon) in all_coords.items()
-    ])
+    df_all = pd.DataFrame(
+        [
+            {"code_commune": c, "latitude": lat, "longitude": lon}
+            for c, (lat, lon) in all_coords.items()
+        ]
+    )
     df_all["latitude"] = df_all["latitude"].astype(np.float32)
     df_all["longitude"] = df_all["longitude"].astype(np.float32)
     df_all.to_parquet(cache_path, index=False)
@@ -637,7 +729,10 @@ def _geocode_zz_consular(
     if cache_path.exists():
         df_cache = pd.read_parquet(cache_path)
         cached = dict(
-            zip(df_cache["code_commune"], zip(df_cache["latitude"], df_cache["longitude"]))
+            zip(
+                df_cache["code_commune"],
+                zip(df_cache["latitude"], df_cache["longitude"]),
+            )
         )
         print(f"    Loaded {len(cached)} cached ZZ consular coords")
 
@@ -678,10 +773,12 @@ def _geocode_zz_consular(
     print(f"    Geocoded {len(resolved)}/{len(need)} ZZ consular posts")
 
     all_coords = {**cached, **resolved}
-    df_all = pd.DataFrame([
-        {"code_commune": c, "latitude": lat, "longitude": lon}
-        for c, (lat, lon) in all_coords.items()
-    ])
+    df_all = pd.DataFrame(
+        [
+            {"code_commune": c, "latitude": lat, "longitude": lon}
+            for c, (lat, lon) in all_coords.items()
+        ]
+    )
     df_all["latitude"] = df_all["latitude"].astype(np.float32)
     df_all["longitude"] = df_all["longitude"].astype(np.float32)
     df_all.to_parquet(cache_path, index=False)
@@ -716,8 +813,10 @@ def build_bv_coords(
     # --- Build lookups ---
     # 1. REU elector centroids (best source)
     elector_lookup = dict(
-        zip(elector_centroids["id_brut_miom"],
-            zip(elector_centroids["latitude"], elector_centroids["longitude"]))
+        zip(
+            elector_centroids["id_brut_miom"],
+            zip(elector_centroids["latitude"], elector_centroids["longitude"]),
+        )
     )
 
     # 2. REU BV polling station geocoded addresses
@@ -733,15 +832,16 @@ def build_bv_coords(
 
     # 3. Contour centroids
     contour_lookup = dict(
-        zip(contours["id_brut_miom"],
-            zip(contours["latitude"], contours["longitude"]))
+        zip(contours["id_brut_miom"], zip(contours["latitude"], contours["longitude"]))
     )
 
     # 4. Single-BV commune lookups (REU + contour)
     reu_communes = elector_centroids.groupby("code_commune")["id_brut_miom"].count()
     single_bv_reu = set(reu_communes[reu_communes == 1].index)
     reu_single_lookup: dict[str, tuple[float, float]] = {}
-    for _, row in elector_centroids[elector_centroids["code_commune"].isin(single_bv_reu)].iterrows():
+    for _, row in elector_centroids[
+        elector_centroids["code_commune"].isin(single_bv_reu)
+    ].iterrows():
         reu_single_lookup[row["code_commune"]] = (row["latitude"], row["longitude"])
 
     contour_commune_counts = contours.groupby("code_commune").size()
@@ -753,7 +853,9 @@ def build_bv_coords(
     # --- Historical communes ---
     print("\n  Resolving historical communes...")
     hist_commune_codes: set[str] = set()
-    all_known_communes = set(elector_centroids["code_commune"]) | set(contours["code_commune"])
+    all_known_communes = set(elector_centroids["code_commune"]) | set(
+        contours["code_commune"]
+    )
     for code in set(election_bvs["code_commune"]):
         if code.startswith("ZZ"):
             continue
@@ -805,7 +907,9 @@ def build_bv_coords(
         # Re-audit
         still_bad = _audit_historical_coords(hist_coords)
         if still_bad:
-            print(f"    ⚠️  {len(still_bad)} STILL fail after re-geocoding — will be DROPPED")
+            print(
+                f"    ⚠️  {len(still_bad)} STILL fail after re-geocoding — will be DROPPED"
+            )
             for code in still_bad:
                 hist_coords.pop(code, None)
         else:
@@ -872,14 +976,16 @@ def build_bv_coords(
         # NO FALLBACK — drop if we can't verify the location
         if lat is not None and source is not None:
             stats[source] = stats.get(source, 0) + 1
-            records.append({
-                "code_commune": code,
-                "code_bv": row["code_bv"],
-                "id_brut_miom": bv_id,
-                "latitude": lat,
-                "longitude": lon,
-                "source": source,
-            })
+            records.append(
+                {
+                    "code_commune": code,
+                    "code_bv": row["code_bv"],
+                    "id_brut_miom": bv_id,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "source": source,
+                }
+            )
         else:
             stats["DROPPED"] = stats.get("DROPPED", 0) + 1
 
@@ -897,8 +1003,8 @@ def build_bv_coords(
     total = len(election_bvs)
     kept = len(df)
     dropped = total - kept
-    print(f"\n  📊 Kept: {kept}/{total} ({kept/total*100:.1f}%)")
-    print(f"  📊 Dropped: {dropped}/{total} ({dropped/total*100:.1f}%)")
+    print(f"\n  📊 Kept: {kept}/{total} ({kept / total * 100:.1f}%)")
+    print(f"  📊 Dropped: {dropped}/{total} ({dropped / total * 100:.1f}%)")
     print(f"  📊 Unique positions: {df.groupby(['latitude', 'longitude']).ngroups}")
 
     return df
@@ -926,7 +1032,9 @@ def main():
     reu_addr_path = GEO_DIR / "table-adresses-reu.parquet"
     if not reu_addr_path.exists():
         print(f"ERROR: {reu_addr_path} not found. Download from:")
-        print("  https://static.data.gouv.fr/resources/bureaux-de-vote-et-adresses-de-leurs-electeurs/20230626-135723/table-adresses-reu.parquet")
+        print(
+            "  https://static.data.gouv.fr/resources/bureaux-de-vote-et-adresses-de-leurs-electeurs/20230626-135723/table-adresses-reu.parquet"
+        )
         return
     elector_centroids = compute_elector_centroids(
         reu_addr_path,
@@ -955,13 +1063,19 @@ def main():
     bv_coords_out.to_parquet(output_path, index=False)
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"FINAL: {len(bv_coords_out)} BVs with EXACT verified coordinates")
-    print(f"Unique positions: {bv_coords_out.groupby(['latitude', 'longitude']).ngroups}")
-    print(f"Lat range: [{bv_coords_out['latitude'].min():.4f}, {bv_coords_out['latitude'].max():.4f}]")
-    print(f"Lon range: [{bv_coords_out['longitude'].min():.4f}, {bv_coords_out['longitude'].max():.4f}]")
+    print(
+        f"Unique positions: {bv_coords_out.groupby(['latitude', 'longitude']).ngroups}"
+    )
+    print(
+        f"Lat range: [{bv_coords_out['latitude'].min():.4f}, {bv_coords_out['latitude'].max():.4f}]"
+    )
+    print(
+        f"Lon range: [{bv_coords_out['longitude'].min():.4f}, {bv_coords_out['longitude'].max():.4f}]"
+    )
     print(f"Saved to {output_path}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Source breakdown
     print("\nSource breakdown:")

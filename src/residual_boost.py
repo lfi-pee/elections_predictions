@@ -17,7 +17,9 @@ predicts held-out fold. No validation tuning.
 Usage:
     python3 -u -m src.residual_boost
 """
+
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*SettingWithCopy.*")
 
@@ -32,35 +34,49 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import r2_score
 
 from src.cross_type_dev import (
-    load_cross_type_data, add_election_type_onehot,
+    load_cross_type_data,
+    add_election_type_onehot,
     estimate_national_abstention_from_gaps,
-    BLOCKS_ABS, ABBR, ALPHAS, VAL_DATE, VAL_TYPE, TARGET_COLS,
+    BLOCKS_ABS,
+    ABBR,
+    ALPHAS,
+    VAL_DATE,
+    VAL_TYPE,
+    TARGET_COLS,
 )
 from src.cross_type_ridge import TARGET_BLOCKS
 from src.beat_it import build_extended_data
 
 ALPHA_GRID = np.logspace(-2, 6, 20)
-PREV_RAW = {"Gauche": 0.7414, "Centre+Droite": 0.5947,
-            "Extreme_Droite": 0.8092, "Abstention": 0.7328}
+PREV_RAW = {
+    "Gauche": 0.7414,
+    "Centre+Droite": 0.5947,
+    "Extreme_Droite": 0.8092,
+    "Abstention": 0.7328,
+}
 
 # Best Ridge configs per block (from preregistered.py LOO selection)
 # Each: (name, data_key, feat_key, cfg)
 BEST_RIDGE = {
-    "Gauche":          ("Legi-PCA5-devlag",  "legi_v1_2", "legi", {"pca_k": 5}),
-    "Centre+Droite":   ("Legi-PCA7-devlag",  "legi_v1_2", "legi", {"pca_k": 7}),
-    "Extreme_Droite":  ("CT-PCA5-devlag",    "ct_v1_2",   "ct",   {"pca_k": 5}),
-    "Abstention":      ("CT-PCA10-devlag",   "ct_v1_2",   "ct",   {"pca_k": 10}),
+    "Gauche": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
+    "Centre+Droite": ("Legi-PCA7-devlag", "legi_v1_2", "legi", {"pca_k": 7}),
+    "Extreme_Droite": ("CT-PCA5-devlag", "ct_v1_2", "ct", {"pca_k": 5}),
+    "Abstention": ("CT-PCA10-devlag", "ct_v1_2", "ct", {"pca_k": 10}),
 }
 
 # Single fixed config — no LOO selection, eliminates selection noise
-XGB_FIXED = {"max_depth": 3, "learning_rate": 0.05, "max_iter": 100,
-             "min_samples_leaf": 500, "l2_regularization": 1.0}
+XGB_FIXED = {
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "max_iter": 100,
+    "min_samples_leaf": 500,
+    "l2_regularization": 1.0,
+}
 
 
 def split_tv(df):
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     return df[~val_mask], df[val_mask]
 
@@ -77,12 +93,13 @@ def _build_fold_info(train, national_means):
     train_dates = train["date_float"].values
     train_td = (
         train[["election_type", "date_float"]]
-        .drop_duplicates().sort_values("date_float").values.tolist()
+        .drop_duplicates()
+        .sort_values("date_float")
+        .values.tolist()
     )
     fold_masks, fold_nats = [], []
     for etype, ddate in train_td:
-        mask = (np.isclose(train_dates, ddate, atol=1e-3)
-                & (train_types == etype))
+        mask = np.isclose(train_dates, ddate, atol=1e-3) & (train_types == etype)
         fold_masks.append(mask)
         nm_row = national_means[
             (national_means["election_type"] == etype)
@@ -90,12 +107,15 @@ def _build_fold_info(train, national_means):
         ]
         fold_nats.append(
             {tc: float(nm_row[tc].iloc[0]) for tc in TARGET_COLS}
-            if len(nm_row) > 0 else {tc: 0.0 for tc in TARGET_COLS})
+            if len(nm_row) > 0
+            else {tc: 0.0 for tc in TARGET_COLS}
+        )
     return fold_masks, fold_nats
 
 
-def run_residual_boost(tc, train, val, feat_cols, demo_cols, national_est,
-                       national_means, cfg):
+def run_residual_boost(
+    tc, train, val, feat_cols, demo_cols, national_est, national_means, cfg
+):
     """Ridge + XGB residual stacking for one block.
 
     Returns dict with ridge-only and combined results.
@@ -149,11 +169,14 @@ def run_residual_boost(tc, train, val, feat_cols, demo_cols, national_est,
     oof_residuals = dev_y - oof_ridge_dev
 
     # Ridge-only LOO R²
-    oof_ridge_pred = np.array([
-        oof_ridge_dev[m] + fold_nats[i][tc]
-        for i, m in enumerate(fold_masks)
-        for _ in [None]  # unpack trick
-    ], dtype=object)
+    oof_ridge_pred = np.array(
+        [
+            oof_ridge_dev[m] + fold_nats[i][tc]
+            for i, m in enumerate(fold_masks)
+            for _ in [None]  # unpack trick
+        ],
+        dtype=object,
+    )
     # Flatten properly
     oof_ridge_abs = np.full(len(train), np.nan)
     for i, m in enumerate(fold_masks):
@@ -173,19 +196,24 @@ def run_residual_boost(tc, train, val, feat_cols, demo_cols, national_est,
         if train_res_ok.sum() < 100:
             continue
         xgb = HistGradientBoostingRegressor(
-            early_stopping=False, random_state=42, **XGB_FIXED)
+            early_stopping=False, random_state=42, **XGB_FIXED
+        )
         xgb.fit(X_tr_xgb[train_res_ok], oof_residuals[train_res_ok])
         xgb_resid_pred = xgb.predict(X_tr_xgb[held_mask])
         oof_combined[held_mask] = (
-            oof_ridge_dev[held_mask] + xgb_resid_pred + fold_nats[f_idx][tc])
+            oof_ridge_dev[held_mask] + xgb_resid_pred + fold_nats[f_idx][tc]
+        )
 
     ok = ~np.isnan(oof_combined)
-    best_xgb_oof_r2 = r2_score(y_true_train[ok], oof_combined[ok]) if ok.sum() > 100 else ridge_oof_r2
+    best_xgb_oof_r2 = (
+        r2_score(y_true_train[ok], oof_combined[ok]) if ok.sum() > 100 else ridge_oof_r2
+    )
 
     # ── Step 4: Final val prediction ──
     ok_res = ~np.isnan(oof_residuals)
     xgb_final = HistGradientBoostingRegressor(
-        early_stopping=False, random_state=42, **XGB_FIXED)
+        early_stopping=False, random_state=42, **XGB_FIXED
+    )
     xgb_final.fit(X_tr_xgb[ok_res], oof_residuals[ok_res])
     xgb_val_resid = xgb_final.predict(X_v_xgb)
     combined_val_pred = ridge_val_pred + xgb_val_resid
@@ -207,8 +235,7 @@ def main():
     t0 = time.time()
 
     # ── Load data ──
-    df, demo_indicators, national_means, poll_feats = \
-        load_cross_type_data(data_dir)
+    df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
 
     df_ext, ext_indicators, ext_nm, ext_pf = build_extended_data(data_dir)
@@ -234,13 +261,11 @@ def main():
 
     # ── Datasets ──
     df_v1 = df.dropna(subset=demo_indicators)
-    df_v1_2lag = df_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_v1_2lag = df_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
     df_legi = df[df["election_type"] == VAL_TYPE].copy()
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
-    df_legi_v1_2 = df_legi_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_legi_v1_2 = df_legi_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
     ext_raw_lag1 = [f"{b}_lag1" for b in BLOCKS_ABS]
     ext_raw_lag2 = [f"{b}_lag2" for b in BLOCKS_ABS]
@@ -248,7 +273,8 @@ def main():
     ext_dev_lag2 = [f"dev_{b}_lag2" for b in BLOCKS_ABS]
     ext_v1 = df_ext.dropna(subset=ext_indicators)
     ext_v1_2 = ext_v1.dropna(
-        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2)
+        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2
+    )
 
     nd_ct = geo_time + dev_lag1 + dev_lag2 + type_cols
     nd_legi = geo_time + dev_lag1 + dev_lag2
@@ -261,9 +287,9 @@ def main():
         "ext_v1_2": ext_v1_2,
     }
     feat_maps = {
-        "ct":   (demo_indicators, nd_ct, demo_indicators + nd_ct, national_means),
+        "ct": (demo_indicators, nd_ct, demo_indicators + nd_ct, national_means),
         "legi": (demo_indicators, nd_legi, demo_indicators + nd_legi, national_means),
-        "ext":  (ext_indicators, ext_nd, ext_indicators + ext_nd, ext_nm),
+        "ext": (ext_indicators, ext_nd, ext_indicators + ext_nd, ext_nm),
     }
     est_maps = {
         "ct": est,
@@ -292,48 +318,61 @@ def main():
         train_clean = train[ok_tr].copy()
         val_clean = val[ok_v].copy()
 
-        print(f"\n{'─'*60}")
+        print(f"\n{'─' * 60}")
         print(f"  {ABBR[tc]} ({tc}) — base Ridge: {ridge_name}")
-        print(f"  train={len(train_clean):,} val={len(val_clean):,} "
-              f"feat={len(all_cols)} "
-              f"dates={sorted(train_clean['date_float'].unique())}")
+        print(
+            f"  train={len(train_clean):,} val={len(val_clean):,} "
+            f"feat={len(all_cols)} "
+            f"dates={sorted(train_clean['date_float'].unique())}"
+        )
         print(f"  Fixed XGB config: {XGB_FIXED}")
 
         t1 = time.time()
         res = run_residual_boost(
-            tc, train_clean, val_clean, all_cols, demo_cols,
-            nat_est, nm, cfg)
+            tc, train_clean, val_clean, all_cols, demo_cols, nat_est, nm, cfg
+        )
         elapsed = time.time() - t1
 
         results[tc] = res
         delta = res["combined_val_r2"] - res["ridge_val_r2"]
-        print(f"  Ridge-only:  OOF={res['ridge_oof_r2']:.4f}  "
-              f"Val={res['ridge_val_r2']:.4f}")
-        print(f"  Ridge+XGB:   OOF={res['combined_oof_r2']:.4f}  "
-              f"Val={res['combined_val_r2']:.4f}  "
-              f"(Δ={delta:+.4f})")
+        print(
+            f"  Ridge-only:  OOF={res['ridge_oof_r2']:.4f}  "
+            f"Val={res['ridge_val_r2']:.4f}"
+        )
+        print(
+            f"  Ridge+XGB:   OOF={res['combined_oof_r2']:.4f}  "
+            f"Val={res['combined_val_r2']:.4f}  "
+            f"(Δ={delta:+.4f})"
+        )
         print(f"  XGB params: {res['xgb_params']}")
         print(f"  ({elapsed:.0f}s)")
 
     # ── Summary ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("SUMMARY: Ridge vs Ridge+XGB residual boost")
-    print(f"{'='*70}")
-    print(f"\n{'Block':20s} {'Ridge Val':>10s} {'+XGB Val':>10s} "
-          f"{'Δ':>7s} {'prev':>7s} {'vs prev':>8s}")
+    print(f"{'=' * 70}")
+    print(
+        f"\n{'Block':20s} {'Ridge Val':>10s} {'+XGB Val':>10s} "
+        f"{'Δ':>7s} {'prev':>7s} {'vs prev':>8s}"
+    )
     print("-" * 65)
 
     for tc in TARGET_COLS:
         r = results[tc]
         delta = r["combined_val_r2"] - r["ridge_val_r2"]
         vs_prev = r["combined_val_r2"] - PREV_RAW[tc]
-        mark = "BEAT" if vs_prev > 0.0005 else (
-            "~tie" if abs(vs_prev) <= 0.0005 else "miss")
-        print(f"  {tc:20s} {r['ridge_val_r2']:9.4f} "
-              f"{r['combined_val_r2']:9.4f}  {delta:+.4f} "
-              f"{PREV_RAW[tc]:6.4f}  {vs_prev:+.4f} [{mark}]")
+        mark = (
+            "BEAT"
+            if vs_prev > 0.0005
+            else ("~tie" if abs(vs_prev) <= 0.0005 else "miss")
+        )
+        print(
+            f"  {tc:20s} {r['ridge_val_r2']:9.4f} "
+            f"{r['combined_val_r2']:9.4f}  {delta:+.4f} "
+            f"{PREV_RAW[tc]:6.4f}  {vs_prev:+.4f} [{mark}]"
+        )
 
-    print(f"\n  Total time: {time.time()-t0:.0f}s")
+    print(f"\n  Total time: {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

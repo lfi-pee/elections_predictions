@@ -11,7 +11,9 @@ kind enters the model selection or fitting pipeline.
 Usage:
     python3 -u -m src.preregistered
 """
+
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*SettingWithCopy.*")
 
@@ -26,26 +28,41 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import r2_score
 
 from src.cross_type_dev import (
-    load_cross_type_data, add_election_type_onehot,
-    evaluate_full, estimate_national_abstention_from_gaps,
-    BLOCKS_ABS, ABBR, ALPHAS, VAL_DATE, VAL_TYPE, TARGET_COLS,
+    load_cross_type_data,
+    add_election_type_onehot,
+    evaluate_full,
+    estimate_national_abstention_from_gaps,
+    BLOCKS_ABS,
+    ABBR,
+    ALPHAS,
+    VAL_DATE,
+    VAL_TYPE,
+    TARGET_COLS,
 )
 from src.cross_type_ridge import TARGET_BLOCKS
 from src.beat_it import build_extended_data
 
 ALPHA_GRID = np.logspace(-2, 6, 20)
-PREV_RAW = {"Gauche": 0.7414, "Centre+Droite": 0.5947,
-            "Extreme_Droite": 0.8092, "Abstention": 0.7328}
+PREV_RAW = {
+    "Gauche": 0.7414,
+    "Centre+Droite": 0.5947,
+    "Extreme_Droite": 0.8092,
+    "Abstention": 0.7328,
+}
 
 # Fixed XGB config for residual boosting (no selection, no val tuning)
-XGB_FIXED = {"max_depth": 3, "learning_rate": 0.05, "max_iter": 100,
-             "min_samples_leaf": 500, "l2_regularization": 1.0}
+XGB_FIXED = {
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "max_iter": 100,
+    "min_samples_leaf": 500,
+    "l2_regularization": 1.0,
+}
 
 
 def split_tv(df):
-    val_mask = (
-        np.isclose(df["date_float"], VAL_DATE, atol=1e-3)
-        & (df["election_type"] == VAL_TYPE)
+    val_mask = np.isclose(df["date_float"], VAL_DATE, atol=1e-3) & (
+        df["election_type"] == VAL_TYPE
     )
     return df[~val_mask], df[val_mask]
 
@@ -56,12 +73,15 @@ def _apply_pca(X_tr, X_v, cfg):
     n_d = cfg["n_demo"]
     k = cfg["pca_k"]
     pca = PCA(n_components=k).fit(X_tr[:, :n_d])
-    return (np.hstack([pca.transform(X_tr[:, :n_d]), X_tr[:, n_d:]]),
-            np.hstack([pca.transform(X_v[:, :n_d]), X_v[:, n_d:]]))
+    return (
+        np.hstack([pca.transform(X_tr[:, :n_d]), X_tr[:, n_d:]]),
+        np.hstack([pca.transform(X_v[:, :n_d]), X_v[:, n_d:]]),
+    )
 
 
-def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg,
-                    xgb_boost=False):
+def run_loo_and_val(
+    name, df, feat_cols, national_est, national_means, cfg, xgb_boost=False
+):
     """Run LOO on training + single forward pass on val.
 
     Returns: dict per block with 'oof_r2', 'val_r2'.
@@ -80,15 +100,16 @@ def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg,
     train_dates = train["date_float"].values
     train_td = (
         train[["election_type", "date_float"]]
-        .drop_duplicates().sort_values("date_float").values.tolist()
+        .drop_duplicates()
+        .sort_values("date_float")
+        .values.tolist()
     )
     n_folds = len(train_td)
 
     # Fold masks + national means
     fold_masks, fold_nats = [], []
     for etype, ddate in train_td:
-        mask = (np.isclose(train_dates, ddate, atol=1e-3)
-                & (train_types == etype))
+        mask = np.isclose(train_dates, ddate, atol=1e-3) & (train_types == etype)
         fold_masks.append(mask)
         nm_row = national_means[
             (national_means["election_type"] == etype)
@@ -96,7 +117,9 @@ def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg,
         ]
         fold_nats.append(
             {tc: float(nm_row[tc].iloc[0]) for tc in TARGET_COLS}
-            if len(nm_row) > 0 else {tc: 0.0 for tc in TARGET_COLS})
+            if len(nm_row) > 0
+            else {tc: 0.0 for tc in TARGET_COLS}
+        )
 
     results = {}
     for tc in TARGET_COLS:
@@ -139,20 +162,27 @@ def run_loo_and_val(name, df, feat_cols, national_est, national_means, cfg,
                 if train_ok.sum() < 100:
                     continue
                 xgb = HistGradientBoostingRegressor(
-                    early_stopping=False, random_state=42, **XGB_FIXED)
+                    early_stopping=False, random_state=42, **XGB_FIXED
+                )
                 xgb.fit(X_tr[train_ok], oof_residuals[train_ok])
                 oof_combined[held_mask] = (
-                    oof_ridge_dev[held_mask] + xgb.predict(X_tr[held_mask])
-                    + fold_nats[f_idx][tc])
+                    oof_ridge_dev[held_mask]
+                    + xgb.predict(X_tr[held_mask])
+                    + fold_nats[f_idx][tc]
+                )
 
             ok_c = ~np.isnan(oof_combined)
-            xgb_oof_r2 = (r2_score(train[tc].values[ok_c], oof_combined[ok_c])
-                          if ok_c.sum() > 100 else oof_r2)
+            xgb_oof_r2 = (
+                r2_score(train[tc].values[ok_c], oof_combined[ok_c])
+                if ok_c.sum() > 100
+                else oof_r2
+            )
 
             # Val: XGB trained on all OOF residuals
             ok_res = ~np.isnan(oof_residuals)
             xgb_final = HistGradientBoostingRegressor(
-                early_stopping=False, random_state=42, **XGB_FIXED)
+                early_stopping=False, random_state=42, **XGB_FIXED
+            )
             xgb_final.fit(X_tr[ok_res], oof_residuals[ok_res])
             combined_val_pred = ridge_val_pred + xgb_final.predict(X_v)
             xgb_val_r2 = r2_score(val[tc].values, combined_val_pred)
@@ -170,8 +200,7 @@ def main():
     t0 = time.time()
 
     # ── Load data ──
-    df, demo_indicators, national_means, poll_feats = \
-        load_cross_type_data(data_dir)
+    df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
 
     df_ext, ext_indicators, ext_nm, ext_pf = build_extended_data(data_dir)
@@ -197,14 +226,12 @@ def main():
 
     # ── Datasets ──
     df_v1 = df.dropna(subset=demo_indicators)
-    df_v1_2lag = df_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_v1_2lag = df_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
     df_v1_1lag = df_v1.dropna(subset=raw_lag1 + dev_lag1)
 
     df_legi = df[df["election_type"] == VAL_TYPE].copy()
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
-    df_legi_v1_2 = df_legi_v1.dropna(
-        subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
+    df_legi_v1_2 = df_legi_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
     ext_raw_lag1 = [f"{b}_lag1" for b in BLOCKS_ABS]
     ext_raw_lag2 = [f"{b}_lag2" for b in BLOCKS_ABS]
@@ -212,7 +239,8 @@ def main():
     ext_dev_lag2 = [f"dev_{b}_lag2" for b in BLOCKS_ABS]
     ext_v1 = df_ext.dropna(subset=ext_indicators)
     ext_v1_2 = ext_v1.dropna(
-        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2)
+        subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2
+    )
 
     # ── Candidate model configs (pre-registered) ──
     nd_ct = dev_lag1 + dev_lag2 + type_cols
@@ -222,48 +250,113 @@ def main():
 
     configs = [
         # Cross-type Legi+Pres, 2-lag
-        ("CT-devlag", df_v1_2lag,
-         demo_indicators + nd_ct, est, national_means,
-         {"n_demo": len(demo_indicators)}),
-        ("CT-PCA5-devlag", df_v1_2lag,
-         demo_indicators + nd_ct, est, national_means,
-         {"pca_k": 5, "n_demo": len(demo_indicators)}),
-        ("CT-PCA7-devlag", df_v1_2lag,
-         demo_indicators + nd_ct, est, national_means,
-         {"pca_k": 7, "n_demo": len(demo_indicators)}),
-        ("CT-PCA10-devlag", df_v1_2lag,
-         demo_indicators + nd_ct, est, national_means,
-         {"pca_k": 10, "n_demo": len(demo_indicators)}),
+        (
+            "CT-devlag",
+            df_v1_2lag,
+            demo_indicators + nd_ct,
+            est,
+            national_means,
+            {"n_demo": len(demo_indicators)},
+        ),
+        (
+            "CT-PCA5-devlag",
+            df_v1_2lag,
+            demo_indicators + nd_ct,
+            est,
+            national_means,
+            {"pca_k": 5, "n_demo": len(demo_indicators)},
+        ),
+        (
+            "CT-PCA7-devlag",
+            df_v1_2lag,
+            demo_indicators + nd_ct,
+            est,
+            national_means,
+            {"pca_k": 7, "n_demo": len(demo_indicators)},
+        ),
+        (
+            "CT-PCA10-devlag",
+            df_v1_2lag,
+            demo_indicators + nd_ct,
+            est,
+            national_means,
+            {"pca_k": 10, "n_demo": len(demo_indicators)},
+        ),
         # Cross-type Legi+Pres, 1-lag
-        ("CT-devlag-1lag", df_v1_1lag,
-         demo_indicators + nd_ct_1lag, est, national_means,
-         {"n_demo": len(demo_indicators)}),
+        (
+            "CT-devlag-1lag",
+            df_v1_1lag,
+            demo_indicators + nd_ct_1lag,
+            est,
+            national_means,
+            {"n_demo": len(demo_indicators)},
+        ),
         # Legi-only, 2-lag
-        ("Legi-devlag", df_legi_v1_2,
-         demo_indicators + nd_legi, est, national_means,
-         {"n_demo": len(demo_indicators)}),
-        ("Legi-PCA5-devlag", df_legi_v1_2,
-         demo_indicators + nd_legi, est, national_means,
-         {"pca_k": 5, "n_demo": len(demo_indicators)}),
-        ("Legi-PCA7-devlag", df_legi_v1_2,
-         demo_indicators + nd_legi, est, national_means,
-         {"pca_k": 7, "n_demo": len(demo_indicators)}),
-        ("Legi-PCA10-devlag", df_legi_v1_2,
-         demo_indicators + nd_legi, est, national_means,
-         {"pca_k": 10, "n_demo": len(demo_indicators)}),
+        (
+            "Legi-devlag",
+            df_legi_v1_2,
+            demo_indicators + nd_legi,
+            est,
+            national_means,
+            {"n_demo": len(demo_indicators)},
+        ),
+        (
+            "Legi-PCA5-devlag",
+            df_legi_v1_2,
+            demo_indicators + nd_legi,
+            est,
+            national_means,
+            {"pca_k": 5, "n_demo": len(demo_indicators)},
+        ),
+        (
+            "Legi-PCA7-devlag",
+            df_legi_v1_2,
+            demo_indicators + nd_legi,
+            est,
+            national_means,
+            {"pca_k": 7, "n_demo": len(demo_indicators)},
+        ),
+        (
+            "Legi-PCA10-devlag",
+            df_legi_v1_2,
+            demo_indicators + nd_legi,
+            est,
+            national_means,
+            {"pca_k": 10, "n_demo": len(demo_indicators)},
+        ),
         # Extended 6-type, 2-lag
-        ("Ext-devlag", ext_v1_2,
-         ext_indicators + ext_nd, ext_est, ext_nm,
-         {"n_demo": len(ext_indicators)}),
-        ("Ext-PCA3-devlag", ext_v1_2,
-         ext_indicators + ext_nd, ext_est, ext_nm,
-         {"pca_k": 3, "n_demo": len(ext_indicators)}),
-        ("Ext-PCA5-devlag", ext_v1_2,
-         ext_indicators + ext_nd, ext_est, ext_nm,
-         {"pca_k": 5, "n_demo": len(ext_indicators)}),
-        ("Ext-PCA7-devlag", ext_v1_2,
-         ext_indicators + ext_nd, ext_est, ext_nm,
-         {"pca_k": 7, "n_demo": len(ext_indicators)}),
+        (
+            "Ext-devlag",
+            ext_v1_2,
+            ext_indicators + ext_nd,
+            ext_est,
+            ext_nm,
+            {"n_demo": len(ext_indicators)},
+        ),
+        (
+            "Ext-PCA3-devlag",
+            ext_v1_2,
+            ext_indicators + ext_nd,
+            ext_est,
+            ext_nm,
+            {"pca_k": 3, "n_demo": len(ext_indicators)},
+        ),
+        (
+            "Ext-PCA5-devlag",
+            ext_v1_2,
+            ext_indicators + ext_nd,
+            ext_est,
+            ext_nm,
+            {"pca_k": 5, "n_demo": len(ext_indicators)},
+        ),
+        (
+            "Ext-PCA7-devlag",
+            ext_v1_2,
+            ext_indicators + ext_nd,
+            ext_est,
+            ext_nm,
+            {"pca_k": 7, "n_demo": len(ext_indicators)},
+        ),
     ]
 
     # ── Run all models: LOO on training + val forward pass ──
@@ -280,14 +373,13 @@ def main():
         res = run_loo_and_val(name, data, feats, nat_est, nat_means, cfg)
         all_results[name] = res
         elapsed = time.time() - t1
-        oof_str = " ".join(
-            f"{ABBR[tc]}={res[tc]['oof_r2']:.3f}" for tc in TARGET_COLS)
+        oof_str = " ".join(f"{ABBR[tc]}={res[tc]['oof_r2']:.3f}" for tc in TARGET_COLS)
         print(f" ({elapsed:.0f}s) OOF: {oof_str}")
 
     # ── Phase 1: Select per-block best on LOO OOF R² ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("STEP 1: MODEL SELECTION (LOO OOF R² — training data only)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     print(f"\n{'Model':25s} ", end="")
     for tc in TARGET_COLS:
@@ -304,7 +396,7 @@ def main():
 
     # Select best per block
     selected = {}
-    print(f"\n{'─'*60}")
+    print(f"\n{'─' * 60}")
     print("SELECTED (best LOO OOF R² per block):")
     for tc in TARGET_COLS:
         best_name, best_oof = "", -999
@@ -316,10 +408,10 @@ def main():
         print(f"  {tc:20s} → {best_name:25s} (OOF R²={best_oof:.4f})")
 
     # ── Phase 2: Residual boost on LOO-selected Ridge models ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("STEP 2: RESIDUAL BOOST (Ridge+XGB, fixed config, no val tuning)")
     print(f"  XGB config: {XGB_FIXED}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     # Re-run selected models with xgb_boost=True
     xgb_results = {}
@@ -331,17 +423,17 @@ def main():
                 print(f"\n  {ABBR[tc]} ({sel_name})...", end="", flush=True)
                 t1 = time.time()
                 res = run_loo_and_val(
-                    cname, cdata, cfeats, cest, cnm, ccfg,
-                    xgb_boost=True)
+                    cname, cdata, cfeats, cest, cnm, ccfg, xgb_boost=True
+                )
                 xgb_results[tc] = res[tc]
                 elapsed = time.time() - t1
                 print(f" ({elapsed:.0f}s)")
                 break
 
     # ── Phase 3: Report final results ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("STEP 3: VALIDATION (single forward pass, no feedback)")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     for tc in TARGET_COLS:
         name = selected[tc]
@@ -356,22 +448,27 @@ def main():
             best_val, best_tag = ridge_val, "Ridge"
         prev = PREV_RAW[tc]
         delta = best_val - prev
-        mark = "BEAT" if delta > 0.0005 else ("~tie" if abs(delta) <= 0.0005
-                                                else "miss")
-        print(f"  {tc:20s}  Val R²={best_val:.4f}  "
-              f"(prev={prev:.4f}  Δ={delta:+.4f})  [{mark}] [{best_tag}]")
-        print(f"  {'':20s}  model={name}  "
-              f"Ridge: OOF={ridge_oof:.4f} Val={ridge_val:.4f}  "
-              f"+XGB: OOF={xgb_oof:.4f} Val={xgb_val:.4f}")
+        mark = (
+            "BEAT" if delta > 0.0005 else ("~tie" if abs(delta) <= 0.0005 else "miss")
+        )
+        print(
+            f"  {tc:20s}  Val R²={best_val:.4f}  "
+            f"(prev={prev:.4f}  Δ={delta:+.4f})  [{mark}] [{best_tag}]"
+        )
+        print(
+            f"  {'':20s}  model={name}  "
+            f"Ridge: OOF={ridge_oof:.4f} Val={ridge_val:.4f}  "
+            f"+XGB: OOF={xgb_oof:.4f} Val={xgb_val:.4f}"
+        )
 
     # ── Also show full table for transparency ──
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("FULL RESULTS TABLE (all Ridge models, all blocks)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     print(f"\n{'Model':25s} ", end="")
     for tc in TARGET_COLS:
-        print(f"  {ABBR[tc]+'_oof':>7s} {ABBR[tc]+'_val':>7s}", end="")
+        print(f"  {ABBR[tc] + '_oof':>7s} {ABBR[tc] + '_val':>7s}", end="")
     print()
     print("-" * 90)
 
@@ -385,7 +482,7 @@ def main():
             print(f"  {oof:7.4f} {val:7.4f}{sel}", end="")
         print()
 
-    print(f"\n  Total time: {time.time()-t0:.0f}s")
+    print(f"\n  Total time: {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

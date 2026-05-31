@@ -10,6 +10,7 @@ Outputs:
     data/geo/commune_coords.parquet   — raw commune centroids
     data/geo/location_coords.parquet  — unified lookup (location → lat, lon)
 """
+
 from __future__ import annotations
 
 import json
@@ -30,66 +31,120 @@ OVERSEAS_LON = 0.0
 # Département → Région mapping (2016 redrawing)
 DEPT_TO_REGION: dict[str, str] = {
     # Auvergne-Rhône-Alpes
-    "01": "Auvergne-Rhône-Alpes", "03": "Auvergne-Rhône-Alpes",
-    "07": "Auvergne-Rhône-Alpes", "15": "Auvergne-Rhône-Alpes",
-    "26": "Auvergne-Rhône-Alpes", "38": "Auvergne-Rhône-Alpes",
-    "42": "Auvergne-Rhône-Alpes", "43": "Auvergne-Rhône-Alpes",
-    "63": "Auvergne-Rhône-Alpes", "69": "Auvergne-Rhône-Alpes",
-    "73": "Auvergne-Rhône-Alpes", "74": "Auvergne-Rhône-Alpes",
+    "01": "Auvergne-Rhône-Alpes",
+    "03": "Auvergne-Rhône-Alpes",
+    "07": "Auvergne-Rhône-Alpes",
+    "15": "Auvergne-Rhône-Alpes",
+    "26": "Auvergne-Rhône-Alpes",
+    "38": "Auvergne-Rhône-Alpes",
+    "42": "Auvergne-Rhône-Alpes",
+    "43": "Auvergne-Rhône-Alpes",
+    "63": "Auvergne-Rhône-Alpes",
+    "69": "Auvergne-Rhône-Alpes",
+    "73": "Auvergne-Rhône-Alpes",
+    "74": "Auvergne-Rhône-Alpes",
     # Bourgogne-Franche-Comté
-    "21": "Bourgogne-Franche-Comté", "25": "Bourgogne-Franche-Comté",
-    "39": "Bourgogne-Franche-Comté", "58": "Bourgogne-Franche-Comté",
-    "70": "Bourgogne-Franche-Comté", "71": "Bourgogne-Franche-Comté",
-    "89": "Bourgogne-Franche-Comté", "90": "Bourgogne-Franche-Comté",
+    "21": "Bourgogne-Franche-Comté",
+    "25": "Bourgogne-Franche-Comté",
+    "39": "Bourgogne-Franche-Comté",
+    "58": "Bourgogne-Franche-Comté",
+    "70": "Bourgogne-Franche-Comté",
+    "71": "Bourgogne-Franche-Comté",
+    "89": "Bourgogne-Franche-Comté",
+    "90": "Bourgogne-Franche-Comté",
     # Bretagne
-    "22": "Bretagne", "29": "Bretagne", "35": "Bretagne", "56": "Bretagne",
+    "22": "Bretagne",
+    "29": "Bretagne",
+    "35": "Bretagne",
+    "56": "Bretagne",
     # Centre-Val de Loire
-    "18": "Centre-Val de Loire", "28": "Centre-Val de Loire",
-    "36": "Centre-Val de Loire", "37": "Centre-Val de Loire",
-    "41": "Centre-Val de Loire", "45": "Centre-Val de Loire",
+    "18": "Centre-Val de Loire",
+    "28": "Centre-Val de Loire",
+    "36": "Centre-Val de Loire",
+    "37": "Centre-Val de Loire",
+    "41": "Centre-Val de Loire",
+    "45": "Centre-Val de Loire",
     # Corse
-    "2A": "Corse", "2B": "Corse",
+    "2A": "Corse",
+    "2B": "Corse",
     # Grand Est
-    "08": "Grand Est", "10": "Grand Est", "51": "Grand Est",
-    "52": "Grand Est", "54": "Grand Est", "55": "Grand Est",
-    "57": "Grand Est", "67": "Grand Est", "68": "Grand Est",
+    "08": "Grand Est",
+    "10": "Grand Est",
+    "51": "Grand Est",
+    "52": "Grand Est",
+    "54": "Grand Est",
+    "55": "Grand Est",
+    "57": "Grand Est",
+    "67": "Grand Est",
+    "68": "Grand Est",
     "88": "Grand Est",
     # Hauts-de-France
-    "02": "Hauts-de-France", "59": "Hauts-de-France",
-    "60": "Hauts-de-France", "62": "Hauts-de-France",
+    "02": "Hauts-de-France",
+    "59": "Hauts-de-France",
+    "60": "Hauts-de-France",
+    "62": "Hauts-de-France",
     "80": "Hauts-de-France",
     # Île-de-France
-    "75": "Île-de-France", "77": "Île-de-France",
-    "78": "Île-de-France", "91": "Île-de-France",
-    "92": "Île-de-France", "93": "Île-de-France",
-    "94": "Île-de-France", "95": "Île-de-France",
+    "75": "Île-de-France",
+    "77": "Île-de-France",
+    "78": "Île-de-France",
+    "91": "Île-de-France",
+    "92": "Île-de-France",
+    "93": "Île-de-France",
+    "94": "Île-de-France",
+    "95": "Île-de-France",
     # Normandie
-    "14": "Normandie", "27": "Normandie", "50": "Normandie",
-    "61": "Normandie", "76": "Normandie",
+    "14": "Normandie",
+    "27": "Normandie",
+    "50": "Normandie",
+    "61": "Normandie",
+    "76": "Normandie",
     # Nouvelle-Aquitaine
-    "16": "Nouvelle-Aquitaine", "17": "Nouvelle-Aquitaine",
-    "19": "Nouvelle-Aquitaine", "23": "Nouvelle-Aquitaine",
-    "24": "Nouvelle-Aquitaine", "33": "Nouvelle-Aquitaine",
-    "40": "Nouvelle-Aquitaine", "47": "Nouvelle-Aquitaine",
-    "64": "Nouvelle-Aquitaine", "79": "Nouvelle-Aquitaine",
-    "86": "Nouvelle-Aquitaine", "87": "Nouvelle-Aquitaine",
+    "16": "Nouvelle-Aquitaine",
+    "17": "Nouvelle-Aquitaine",
+    "19": "Nouvelle-Aquitaine",
+    "23": "Nouvelle-Aquitaine",
+    "24": "Nouvelle-Aquitaine",
+    "33": "Nouvelle-Aquitaine",
+    "40": "Nouvelle-Aquitaine",
+    "47": "Nouvelle-Aquitaine",
+    "64": "Nouvelle-Aquitaine",
+    "79": "Nouvelle-Aquitaine",
+    "86": "Nouvelle-Aquitaine",
+    "87": "Nouvelle-Aquitaine",
     # Occitanie
-    "09": "Occitanie", "11": "Occitanie", "12": "Occitanie",
-    "30": "Occitanie", "31": "Occitanie", "32": "Occitanie",
-    "34": "Occitanie", "46": "Occitanie", "48": "Occitanie",
-    "65": "Occitanie", "66": "Occitanie", "81": "Occitanie",
+    "09": "Occitanie",
+    "11": "Occitanie",
+    "12": "Occitanie",
+    "30": "Occitanie",
+    "31": "Occitanie",
+    "32": "Occitanie",
+    "34": "Occitanie",
+    "46": "Occitanie",
+    "48": "Occitanie",
+    "65": "Occitanie",
+    "66": "Occitanie",
+    "81": "Occitanie",
     "82": "Occitanie",
     # Pays de la Loire
-    "44": "Pays de la Loire", "49": "Pays de la Loire",
-    "53": "Pays de la Loire", "72": "Pays de la Loire",
+    "44": "Pays de la Loire",
+    "49": "Pays de la Loire",
+    "53": "Pays de la Loire",
+    "72": "Pays de la Loire",
     "85": "Pays de la Loire",
     # Provence-Alpes-Côte d'Azur
-    "04": "Provence-Alpes-Côte d'Azur", "05": "Provence-Alpes-Côte d'Azur",
-    "06": "Provence-Alpes-Côte d'Azur", "13": "Provence-Alpes-Côte d'Azur",
-    "83": "Provence-Alpes-Côte d'Azur", "84": "Provence-Alpes-Côte d'Azur",
+    "04": "Provence-Alpes-Côte d'Azur",
+    "05": "Provence-Alpes-Côte d'Azur",
+    "06": "Provence-Alpes-Côte d'Azur",
+    "13": "Provence-Alpes-Côte d'Azur",
+    "83": "Provence-Alpes-Côte d'Azur",
+    "84": "Provence-Alpes-Côte d'Azur",
     # DOM-TOM
-    "971": "Guadeloupe", "972": "Martinique", "973": "Guyane",
-    "974": "La Réunion", "976": "Mayotte",
+    "971": "Guadeloupe",
+    "972": "Martinique",
+    "973": "Guyane",
+    "974": "La Réunion",
+    "976": "Mayotte",
 }
 
 
@@ -115,7 +170,9 @@ def fetch_commune_centroids() -> pd.DataFrame:
         centre = commune.get("centre")
         if centre and centre.get("coordinates"):
             lon, lat = centre["coordinates"]
-            rows.append({"code_commune": code, "nom": nom, "latitude": lat, "longitude": lon})
+            rows.append(
+                {"code_commune": code, "nom": nom, "latitude": lat, "longitude": lon}
+            )
 
     # Also fetch arrondissements municipaux (Paris, Lyon, Marseille)
     arr_url = "https://geo.api.gouv.fr/communes?type=arrondissement-municipal&fields=code,nom,centre"
@@ -130,7 +187,14 @@ def fetch_commune_centroids() -> pd.DataFrame:
             centre = commune.get("centre")
             if centre and centre.get("coordinates"):
                 lon, lat = centre["coordinates"]
-                rows.append({"code_commune": code, "nom": nom, "latitude": lat, "longitude": lon})
+                rows.append(
+                    {
+                        "code_commune": code,
+                        "nom": nom,
+                        "latitude": lat,
+                        "longitude": lon,
+                    }
+                )
         print(f"  Fetched {len(arr_data)} arrondissements municipaux.")
     except Exception as e:
         print(f"  Warning: could not fetch arrondissements: {e}")
@@ -172,11 +236,13 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
 
     # 1. Communes — location key is code_commune
     for _, row in commune_df.iterrows():
-        records.append({
-            "location": row["code_commune"],
-            "latitude": row["latitude"],
-            "longitude": row["longitude"],
-        })
+        records.append(
+            {
+                "location": row["code_commune"],
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+            }
+        )
 
     # Load election general results to get inscrits for weighting
     general_path = data_dir / "elections" / "agregees" / "general_results.parquet"
@@ -189,7 +255,9 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
     # Merge commune coords with inscrits for weighting
     commune_with_weight = commune_df.merge(gen, on="code_commune", how="left")
     commune_with_weight["inscrits"] = commune_with_weight["inscrits"].fillna(1.0)
-    commune_with_weight["dept"] = commune_with_weight["code_commune"].apply(_extract_dept_from_commune)
+    commune_with_weight["dept"] = commune_with_weight["code_commune"].apply(
+        _extract_dept_from_commune
+    )
 
     # 2. Départements — weighted average of commune centroids
     dept_groups = commune_with_weight.groupby("dept")
@@ -213,7 +281,9 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
     for dept, (lat, lon) in dept_coords.items():
         region = DEPT_TO_REGION.get(dept)
         if region:
-            dept_inscrits = commune_with_weight[commune_with_weight["dept"] == dept]["inscrits"].sum()
+            dept_inscrits = commune_with_weight[commune_with_weight["dept"] == dept][
+                "inscrits"
+            ].sum()
             region_lats.setdefault(region, []).append(lat)
             region_lons.setdefault(region, []).append(lon)
             region_weights.setdefault(region, []).append(dept_inscrits)
@@ -232,8 +302,12 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
     # 4. Bureaux de vote — exact BV coordinates from bv_coords.parquet
     bv_path = data_dir / "geo" / "bv_coords.parquet"
     if bv_path.exists():
-        bv_df = pd.read_parquet(bv_path, columns=["id_brut_miom", "latitude", "longitude"])
-        bv_records = bv_df.rename(columns={"id_brut_miom": "location"}).to_dict("records")
+        bv_df = pd.read_parquet(
+            bv_path, columns=["id_brut_miom", "latitude", "longitude"]
+        )
+        bv_records = bv_df.rename(columns={"id_brut_miom": "location"}).to_dict(
+            "records"
+        )
         records.extend(bv_records)
         print(f"  Added {len(bv_records)} BV-level coordinates from bv_coords.parquet")
 
@@ -252,7 +326,8 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
             cand["dept"] = cand["code_commune"].apply(_extract_dept_from_commune)
             cand_with_coords = cand.merge(
                 commune_df[["code_commune", "latitude", "longitude"]],
-                on="code_commune", how="inner",
+                on="code_commune",
+                how="inner",
             )
             # Cantons
             if "code_canton" in cand_with_coords.columns:
@@ -260,7 +335,13 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
                 for (dept, canton), g in canton_grp:
                     lat = g["latitude"].mean()
                     lon = g["longitude"].mean()
-                    records.append({"location": f"{dept}_{canton}", "latitude": lat, "longitude": lon})
+                    records.append(
+                        {
+                            "location": f"{dept}_{canton}",
+                            "latitude": lat,
+                            "longitude": lon,
+                        }
+                    )
 
             # Circonscriptions
             if "code_circonscription" in cand_with_coords.columns:
@@ -268,14 +349,22 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
                 for (dept, circo), g in circo_grp:
                     lat = g["latitude"].mean()
                     lon = g["longitude"].mean()
-                    records.append({"location": f"{dept}_circo_{circo}", "latitude": lat, "longitude": lon})
+                    records.append(
+                        {
+                            "location": f"{dept}_circo_{circo}",
+                            "latitude": lat,
+                            "longitude": lon,
+                        }
+                    )
 
     # 6. National
-    records.append({
-        "location": "National",
-        "latitude": FRANCE_CENTER_LAT,
-        "longitude": FRANCE_CENTER_LON,
-    })
+    records.append(
+        {
+            "location": "National",
+            "latitude": FRANCE_CENTER_LAT,
+            "longitude": FRANCE_CENTER_LON,
+        }
+    )
 
     result = pd.DataFrame(records)
     # Deduplicate — keep first occurrence (communes take priority)
@@ -286,7 +375,8 @@ def build_location_coords(data_dir: Path, commune_df: pd.DataFrame) -> pd.DataFr
 
 
 def _resolve_historical_communes(
-    result: pd.DataFrame, data_dir: Path,
+    result: pd.DataFrame,
+    data_dir: Path,
     historical_mapping: dict[str, str],
     dept_coords: dict[str, tuple[float, float]],
 ) -> pd.DataFrame:
@@ -380,16 +470,20 @@ def _resolve_historical_communes(
             dept = _extract_dept_from_commune(code)
             if dept in dept_coords:
                 lat, lon = dept_coords[dept]
-                new_records.append({"location": code, "latitude": lat, "longitude": lon})
+                new_records.append(
+                    {"location": code, "latitude": lat, "longitude": lon}
+                )
                 resolved_dept += 1
                 continue
 
         # Strategy 5: France center — last resort
-        new_records.append({
-            "location": code,
-            "latitude": FRANCE_CENTER_LAT,
-            "longitude": FRANCE_CENTER_LON,
-        })
+        new_records.append(
+            {
+                "location": code,
+                "latitude": FRANCE_CENTER_LAT,
+                "longitude": FRANCE_CENTER_LON,
+            }
+        )
         resolved_national += 1
 
     print(f"    Resolved via geocoded historical: {resolved_hist}")
@@ -427,7 +521,9 @@ def main():
 
     # Step 4: Build dept_coords lookup for fallback resolution
     commune_with_dept = commune_df.copy()
-    commune_with_dept["dept"] = commune_with_dept["code_commune"].apply(_extract_dept_from_commune)
+    commune_with_dept["dept"] = commune_with_dept["code_commune"].apply(
+        _extract_dept_from_commune
+    )
     dept_coords: dict[str, tuple[float, float]] = {}
     for dept, grp in commune_with_dept.groupby("dept"):
         dept_coords[dept] = (grp["latitude"].mean(), grp["longitude"].mean())
@@ -458,7 +554,9 @@ def main():
     # Spot-check Paris
     paris = location_df[location_df["location"] == "75056"]
     if not paris.empty:
-        print(f"\nParis (75056): lat={paris.iloc[0]['latitude']:.4f}, lon={paris.iloc[0]['longitude']:.4f}")
+        print(
+            f"\nParis (75056): lat={paris.iloc[0]['latitude']:.4f}, lon={paris.iloc[0]['longitude']:.4f}"
+        )
 
 
 if __name__ == "__main__":

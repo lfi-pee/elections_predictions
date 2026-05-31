@@ -205,9 +205,18 @@ def _parse_wiki_poll_csv(path: Path, election_type: str) -> pd.DataFrame | None:
 
 
 _FRENCH_MONTHS = {
-    "janvier": 1, "février": 2, "mars": 3, "avril": 4,
-    "mai": 5, "juin": 6, "juillet": 7, "août": 8,
-    "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12,
+    "janvier": 1,
+    "février": 2,
+    "mars": 3,
+    "avril": 4,
+    "mai": 5,
+    "juin": 6,
+    "juillet": 7,
+    "août": 8,
+    "septembre": 9,
+    "octobre": 10,
+    "novembre": 11,
+    "décembre": 12,
 }
 
 
@@ -229,9 +238,7 @@ def _parse_french_date(s: str) -> float | None:
     months_found.sort()
     month = months_found[-1][1]
     days = [
-        int(d)
-        for d in re.findall(r"(\d{1,2})", s)
-        if int(d) <= 31 and d != str(year)
+        int(d) for d in re.findall(r"(\d{1,2})", s) if int(d) <= 31 and d != str(year)
     ]
     day = days[-1] if days else 15
     return year + (month - 1 + day / 30.0) / 12.0
@@ -282,7 +289,7 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
         city_name = _extract_city_from_filename(csv_path.name)
         # Use code_commune if known, otherwise fallback to the city name
         city_location = CITY_TO_CODE_COMMUNE.get(city_name, city_name)
-        
+
         fname_lower = csv_path.name.lower()
 
         # Determine round from table structure (even-indexed = T1, odd = T2
@@ -294,8 +301,7 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
 
         meta_cols = {"Source", "Date de réalisation", "Échantillon", "Autres"}
         candidate_cols = [
-            c for c in df.columns
-            if c not in meta_cols and "Unnamed" not in str(c)
+            c for c in df.columns if c not in meta_cols and "Unnamed" not in str(c)
         ]
         if not candidate_cols:
             continue
@@ -303,7 +309,11 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
         # Determine election round. Heuristic: if columns contain coalition
         # strings with " - " separators AND <= 6 candidate cols, it's T2.
         coalition_cols = sum(1 for c in candidate_cols if " - " in c)
-        etype = "Municipales_T2" if (coalition_cols > len(candidate_cols) * 0.5 and len(candidate_cols) <= 8) else "Municipales_T1"
+        etype = (
+            "Municipales_T2"
+            if (coalition_cols > len(candidate_cols) * 0.5 and len(candidate_cols) <= 8)
+            else "Municipales_T1"
+        )
 
         for _, row in df.iterrows():
             date_str = str(row.get("Date de réalisation", ""))
@@ -323,19 +333,20 @@ def _load_municipales_polls(data_dir: Path) -> pd.DataFrame:
                 # Use the first component as the primary party for the party field
                 party_label = cand_col.strip()
                 nuance_code = map_coalition_to_nuance(party_label)
-                
-                rows.append({
-                    "date_float": np.float32(date_float),
-                    "election_type": etype,
-                    "location": city_location,
-                    "candidate": cand_col.strip().upper(),
-                    "party": nuance_code,
-                    "metric_type": f"Poll_{institute}",
-                    "value": np.float32(val),
-                })
+
+                rows.append(
+                    {
+                        "date_float": np.float32(date_float),
+                        "election_type": etype,
+                        "location": city_location,
+                        "candidate": cand_col.strip().upper(),
+                        "party": nuance_code,
+                        "metric_type": f"Poll_{institute}",
+                        "value": np.float32(val),
+                    }
+                )
 
     return pd.DataFrame(rows) if rows else pd.DataFrame()
-
 
 
 def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
@@ -343,7 +354,9 @@ def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
     coords_path = data_dir / "geo" / "location_coords.parquet"
     if coords_path.exists():
         coords = pd.read_parquet(coords_path)
-        df = df.merge(coords[["location", "latitude", "longitude"]], on="location", how="left")
+        df = df.merge(
+            coords[["location", "latitude", "longitude"]], on="location", how="left"
+        )
     else:
         df["latitude"] = np.float32(np.nan)
         df["longitude"] = np.float32(np.nan)

@@ -13,6 +13,7 @@ Publication calendar (approximate):
   Census vintage Y → pools surveys Y-4 to Y, centred ~Y-1.5
                    → detailed commune data published ~June Y+3
 """
+
 from __future__ import annotations
 
 import re
@@ -25,9 +26,16 @@ import pandas as pd
 def _empty_df() -> pd.DataFrame:
     return pd.DataFrame(
         columns=[
-            "date_float", "availability_date", "election_type", "location",
-            "candidate", "party", "metric_type", "value",
-            "latitude", "longitude",
+            "date_float",
+            "availability_date",
+            "election_type",
+            "location",
+            "candidate",
+            "party",
+            "metric_type",
+            "value",
+            "latitude",
+            "longitude",
         ]
     )
 
@@ -44,8 +52,10 @@ def _read_insee_file(path: Path) -> pd.DataFrame | None:
                 for skip in [0, 5]:
                     try:
                         df = pd.read_excel(
-                            xls, sheet_name=sheet_name,
-                            skiprows=skip, dtype={"CODGEO": str},
+                            xls,
+                            sheet_name=sheet_name,
+                            skiprows=skip,
+                            dtype={"CODGEO": str},
                         )
                         if "CODGEO" in df.columns:
                             return df
@@ -55,7 +65,9 @@ def _read_insee_file(path: Path) -> pd.DataFrame | None:
         else:
             for sep in [";", ",", "\t"]:
                 try:
-                    df = pd.read_csv(path, sep=sep, dtype={"CODGEO": str}, low_memory=False)
+                    df = pd.read_csv(
+                        path, sep=sep, dtype={"CODGEO": str}, low_memory=False
+                    )
                     if "CODGEO" in df.columns:
                         return df
                 except Exception:
@@ -81,7 +93,7 @@ def _detect_prefix(df: pd.DataFrame) -> str | None:
     Returns the 2-digit string (e.g. '21') or None.
     """
     for col in df.columns:
-        m = re.match(r'^[PC](\d{2})_', col)
+        m = re.match(r"^[PC](\d{2})_", col)
         if m:
             return m.group(1)
     return None
@@ -102,16 +114,18 @@ def _make_tokens(
     mask = values.notna() & np.isfinite(values)
     if not mask.any():
         return pd.DataFrame()
-    return pd.DataFrame({
-        "date_float": np.float32(date_float),
-        "availability_date": np.float32(availability_date),
-        "election_type": "",
-        "location": codgeo[mask].values,
-        "candidate": indicator,
-        "party": "",
-        "metric_type": "Demographics",
-        "value": values[mask].astype(np.float32).values,
-    })
+    return pd.DataFrame(
+        {
+            "date_float": np.float32(date_float),
+            "availability_date": np.float32(availability_date),
+            "election_type": "",
+            "location": codgeo[mask].values,
+            "candidate": indicator,
+            "party": "",
+            "metric_type": "Demographics",
+            "value": values[mask].astype(np.float32).values,
+        }
+    )
 
 
 def _glob_first(directory: Path, *patterns: str) -> Path | None:
@@ -129,14 +143,21 @@ def _glob_first(directory: Path, *patterns: str) -> Path | None:
 # Census loaders — parametrised by vintage prefix
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _load_census_activity_vintage(
-    vintage_dir: Path, date_float: float, avail_date: float,
+    vintage_dir: Path,
+    date_float: float,
+    avail_date: float,
 ) -> pd.DataFrame:
     """Unemployment rate, % ouvriers, % cadres from a single vintage dir."""
     path = _glob_first(
         vintage_dir,
-        "*emploi*pop*activ*", "*emploi*pop*act*",
-        "*activ*", "*ACT*", "*carac*emploi*", "*caract*emploi*",
+        "*emploi*pop*activ*",
+        "*emploi*pop*act*",
+        "*activ*",
+        "*ACT*",
+        "*carac*emploi*",
+        "*caract*emploi*",
     )
     if path is None:
         return _empty_df()
@@ -156,11 +177,16 @@ def _load_census_activity_vintage(
     chom = _find_col(df, f"P{yy}_CHOM1564")
     act = _find_col(df, f"P{yy}_ACT1564")
     if chom and act:
-        rate = _safe_ratio(
-            pd.to_numeric(df[chom], errors="coerce"),
-            pd.to_numeric(df[act], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Taux_Chomage", rate, date_float, avail_date))
+        rate = (
+            _safe_ratio(
+                pd.to_numeric(df[chom], errors="coerce"),
+                pd.to_numeric(df[act], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Taux_Chomage", rate, date_float, avail_date)
+        )
 
     # CSP breakdown — column pattern is C{yy}_ACT1564_CS{i}
     csp_series: dict[int, pd.Series] = {}
@@ -174,35 +200,65 @@ def _load_census_activity_vintage(
         # CS1=agriculteurs, CS2=artisans, CS3=cadres, CS4=prof.intermédiaires,
         # CS5=employés, CS6=ouvriers
         if 6 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Ouvriers",
-                _safe_ratio(csp_series[6], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Ouvriers",
+                    _safe_ratio(csp_series[6], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
         if 3 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Cadres",
-                _safe_ratio(csp_series[3], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Cadres",
+                    _safe_ratio(csp_series[3], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
         if 5 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Employes",
-                _safe_ratio(csp_series[5], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Employes",
+                    _safe_ratio(csp_series[5], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
         if 4 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Prof_Intermediaires",
-                _safe_ratio(csp_series[4], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Prof_Intermediaires",
+                    _safe_ratio(csp_series[4], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
         if 1 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Agriculteurs",
-                _safe_ratio(csp_series[1], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Agriculteurs",
+                    _safe_ratio(csp_series[1], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
         if 2 in csp_series:
-            frames.append(_make_tokens(
-                codgeo, "Pct_Artisans",
-                _safe_ratio(csp_series[2], total_csp) * 100.0, date_float, avail_date,
-            ))
+            frames.append(
+                _make_tokens(
+                    codgeo,
+                    "Pct_Artisans",
+                    _safe_ratio(csp_series[2], total_csp) * 100.0,
+                    date_float,
+                    avail_date,
+                )
+            )
 
     # Employment by sector
     emplt = _find_col(df, f"C{yy}_EMPLT")
@@ -216,34 +272,56 @@ def _load_census_activity_vintage(
         ]:
             sector_col = _find_col(df, f"C{yy}_EMPLT_{sector_suffix}")
             if sector_col:
-                pct = _safe_ratio(pd.to_numeric(df[sector_col], errors="coerce"), emplt_total) * 100.0
-                frames.append(_make_tokens(codgeo, indicator, pct, date_float, avail_date))
+                pct = (
+                    _safe_ratio(
+                        pd.to_numeric(df[sector_col], errors="coerce"), emplt_total
+                    )
+                    * 100.0
+                )
+                frames.append(
+                    _make_tokens(codgeo, indicator, pct, date_float, avail_date)
+                )
 
     # Retired, student, and other inactive rates
     retr = _find_col(df, f"P{yy}_RETR1564")
     pop1564 = _find_col(df, f"P{yy}_POP1564")
     if retr and pop1564:
-        pct = _safe_ratio(
-            pd.to_numeric(df[retr], errors="coerce"),
-            pd.to_numeric(df[pop1564], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Retraites", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[retr], errors="coerce"),
+                pd.to_numeric(df[pop1564], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Pct_Retraites", pct, date_float, avail_date)
+        )
 
     etud = _find_col(df, f"P{yy}_ETUD1564")
     if etud and pop1564:
-        pct = _safe_ratio(
-            pd.to_numeric(df[etud], errors="coerce"),
-            pd.to_numeric(df[pop1564], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Etudiants", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[etud], errors="coerce"),
+                pd.to_numeric(df[pop1564], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Pct_Etudiants", pct, date_float, avail_date)
+        )
 
     ainact = _find_col(df, f"P{yy}_AINACT1564")
     if ainact and pop1564:
-        pct = _safe_ratio(
-            pd.to_numeric(df[ainact], errors="coerce"),
-            pd.to_numeric(df[pop1564], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Autres_Inactifs", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[ainact], errors="coerce"),
+                pd.to_numeric(df[pop1564], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Pct_Autres_Inactifs", pct, date_float, avail_date)
+        )
 
     if not frames:
         return _empty_df()
@@ -251,12 +329,17 @@ def _load_census_activity_vintage(
 
 
 def _load_census_education_vintage(
-    vintage_dir: Path, date_float: float, avail_date: float,
+    vintage_dir: Path,
+    date_float: float,
+    avail_date: float,
 ) -> pd.DataFrame:
     """% sans diplôme, % bac+5 from a single vintage dir."""
     path = _glob_first(
         vintage_dir,
-        "*diplom*", "*DIPL*", "*form*", "*FOR*",
+        "*diplom*",
+        "*DIPL*",
+        "*form*",
+        "*FOR*",
     )
     if path is None:
         return _empty_df()
@@ -278,16 +361,22 @@ def _load_census_education_vintage(
     denom = pd.to_numeric(df[denom_col], errors="coerce")
 
     # No diploma: DIPLMIN (2013+) or DIPL0 (2010-2012)
-    nodip = _find_col(df, f"P{yy}_NSCOL15P_DIPLMIN") or _find_col(df, f"P{yy}_NSCOL15P_DIPL0")
+    nodip = _find_col(df, f"P{yy}_NSCOL15P_DIPLMIN") or _find_col(
+        df, f"P{yy}_NSCOL15P_DIPL0"
+    )
     if nodip:
         pct = _safe_ratio(pd.to_numeric(df[nodip], errors="coerce"), denom) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Sans_Diplome", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Sans_Diplome", pct, date_float, avail_date)
+        )
 
     # Higher education: SUP5 (2013+, bac+5 specifically) or SUP (2010-2012, all higher ed)
     sup5 = _find_col(df, f"P{yy}_NSCOL15P_SUP5") or _find_col(df, f"P{yy}_NSCOL15P_SUP")
     if sup5:
         pct = _safe_ratio(pd.to_numeric(df[sup5], errors="coerce"), denom) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Bac_Plus_5", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Bac_Plus_5", pct, date_float, avail_date)
+        )
 
     # BAC level
     bac = _find_col(df, f"P{yy}_NSCOL15P_BAC")
@@ -305,13 +394,17 @@ def _load_census_education_vintage(
     sup2 = _find_col(df, f"P{yy}_NSCOL15P_SUP2")
     if sup2:
         pct = _safe_ratio(pd.to_numeric(df[sup2], errors="coerce"), denom) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Bac_Plus_2", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Bac_Plus_2", pct, date_float, avail_date)
+        )
 
     # SUP34 (bac+3/4) — only available in 2017+ vintages
     sup34 = _find_col(df, f"P{yy}_NSCOL15P_SUP34")
     if sup34:
         pct = _safe_ratio(pd.to_numeric(df[sup34], errors="coerce"), denom) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Bac_Plus_3_4", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Bac_Plus_3_4", pct, date_float, avail_date)
+        )
 
     # BEPC level
     bepc = _find_col(df, f"P{yy}_NSCOL15P_BEPC")
@@ -325,12 +418,16 @@ def _load_census_education_vintage(
 
 
 def _load_census_population_vintage(
-    vintage_dir: Path, date_float: float, avail_date: float,
+    vintage_dir: Path,
+    date_float: float,
+    avail_date: float,
 ) -> pd.DataFrame:
     """% age 15-24, % age 60+, % immigrants from a single vintage dir."""
     path = _glob_first(
         vintage_dir,
-        "*evol*struct*pop*", "*pop*", "*POP*",
+        "*evol*struct*pop*",
+        "*pop*",
+        "*POP*",
     )
     if path is None:
         return _empty_df()
@@ -355,7 +452,9 @@ def _load_census_population_vintage(
     young = _find_col(df, f"P{yy}_POP1524") or _find_col(df, f"P{yy}_POP1529")
     if young:
         pct = _safe_ratio(pd.to_numeric(df[young], errors="coerce"), pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_18_24", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_18_24", pct, date_float, avail_date)
+        )
 
     # Elderly population: POP6074 + POP75P (post-2017) or POP7589 + POP90P (pre-2017)
     e60 = _find_col(df, f"P{yy}_POP6074")
@@ -373,29 +472,38 @@ def _load_census_population_vintage(
     if e60 and len(elder_parts) >= 2:
         elder = sum(elder_parts)
         pct = _safe_ratio(elder, pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_60_Plus", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_60_Plus", pct, date_float, avail_date)
+        )
 
     # Immigration: IRAN2 = immigrés (born foreign abroad)
     # POP01P_IRAN2 is available in population file from 2013+ vintages
     imm = _find_col(df, f"P{yy}_POP01P_IRAN2")
     pop01p = _find_col(df, f"P{yy}_POP01P")
     if imm and pop01p:
-        pct = _safe_ratio(
-            pd.to_numeric(df[imm], errors="coerce"),
-            pd.to_numeric(df[pop01p], errors="coerce"),
-        ) * 100.0
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[imm], errors="coerce"),
+                pd.to_numeric(df[pop01p], errors="coerce"),
+            )
+            * 100.0
+        )
         frames.append(_make_tokens(codgeo, "Pct_Immigres", pct, date_float, avail_date))
 
     # Middle-age brackets: 30-44, 45-59
     m3044 = _find_col(df, f"P{yy}_POP3044")
     if m3044:
         pct = _safe_ratio(pd.to_numeric(df[m3044], errors="coerce"), pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_30_44", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_30_44", pct, date_float, avail_date)
+        )
 
     m4559 = _find_col(df, f"P{yy}_POP4559")
     if m4559:
         pct = _safe_ratio(pd.to_numeric(df[m4559], errors="coerce"), pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_45_59", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_45_59", pct, date_float, avail_date)
+        )
 
     # Under-15 (minors)
     m0014 = _find_col(df, f"P{yy}_POP0014")
@@ -406,12 +514,17 @@ def _load_census_population_vintage(
     # Very elderly (75+)
     if e75:
         pct = _safe_ratio(pd.to_numeric(df[e75], errors="coerce"), pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_75_Plus", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_75_Plus", pct, date_float, avail_date)
+        )
     elif e7589 and e90:
-        elder75 = (pd.to_numeric(df[e7589], errors="coerce") +
-                   pd.to_numeric(df[e90], errors="coerce"))
+        elder75 = pd.to_numeric(df[e7589], errors="coerce") + pd.to_numeric(
+            df[e90], errors="coerce"
+        )
         pct = _safe_ratio(elder75, pop) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Age_75_Plus", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Age_75_Plus", pct, date_float, avail_date)
+        )
 
     if not frames:
         return _empty_df()
@@ -419,12 +532,16 @@ def _load_census_population_vintage(
 
 
 def _load_census_housing_vintage(
-    vintage_dir: Path, date_float: float, avail_date: float,
+    vintage_dir: Path,
+    date_float: float,
+    avail_date: float,
 ) -> pd.DataFrame:
     """% HLM, % propriétaires, % logements vacants from a single vintage dir."""
     path = _glob_first(
         vintage_dir,
-        "*logement*", "*LOG*", "*log*",
+        "*logement*",
+        "*LOG*",
+        "*log*",
     )
     if path is None:
         return _empty_df()
@@ -450,7 +567,9 @@ def _load_census_housing_vintage(
     prop = _find_col(df, f"P{yy}_RP_PROP")
     if prop:
         pct = _safe_ratio(pd.to_numeric(df[prop], errors="coerce"), rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Proprietaires", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Proprietaires", pct, date_float, avail_date)
+        )
 
     # HLM (social housing) — column name varies: LOCHLM (pre-2017) or LOCHLMV (2017+)
     hlm = _find_col(df, f"P{yy}_RP_LOCHLMV") or _find_col(df, f"P{yy}_RP_LOCHLM")
@@ -462,17 +581,24 @@ def _load_census_housing_vintage(
     loc = _find_col(df, f"P{yy}_RP_LOC")
     if loc:
         pct = _safe_ratio(pd.to_numeric(df[loc], errors="coerce"), rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Locataires", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Locataires", pct, date_float, avail_date)
+        )
 
     # Vacant dwellings
     log_col = _find_col(df, f"P{yy}_LOG")
     vac = _find_col(df, f"P{yy}_LOGVAC")
     if log_col and vac:
-        pct = _safe_ratio(
-            pd.to_numeric(df[vac], errors="coerce"),
-            pd.to_numeric(df[log_col], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Logements_Vacants", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[vac], errors="coerce"),
+                pd.to_numeric(df[log_col], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Pct_Logements_Vacants", pct, date_float, avail_date)
+        )
 
     # Houses vs apartments
     maison = _find_col(df, f"P{yy}_RPMAISON")
@@ -484,22 +610,29 @@ def _load_census_housing_vintage(
     rp1 = _find_col(df, f"P{yy}_RP_1P")
     rp2 = _find_col(df, f"P{yy}_RP_2P")
     if rp1 and rp2:
-        small = (pd.to_numeric(df[rp1], errors="coerce") +
-                 pd.to_numeric(df[rp2], errors="coerce"))
+        small = pd.to_numeric(df[rp1], errors="coerce") + pd.to_numeric(
+            df[rp2], errors="coerce"
+        )
         pct = _safe_ratio(small, rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Petits_Logements", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Petits_Logements", pct, date_float, avail_date)
+        )
 
     # Large dwellings (5+ rooms)
     rp5 = _find_col(df, f"P{yy}_RP_5PP")
     if rp5:
         pct = _safe_ratio(pd.to_numeric(df[rp5], errors="coerce"), rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Grands_Logements", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Grands_Logements", pct, date_float, avail_date)
+        )
 
     # Heating type — extract for primary prefix AND any embedded historical prefixes
     # (e.g. the 2022 file embeds P11_ and P16_ comparison columns for heating)
-    _HEAT_SUFFIXES = [("CELEC", "Pct_Chauff_Elec"),
-                      ("CFIOUL", "Pct_Chauff_Fioul"),
-                      ("CGAZB", "Pct_Chauff_Gaz")]
+    _HEAT_SUFFIXES = [
+        ("CELEC", "Pct_Chauff_Elec"),
+        ("CFIOUL", "Pct_Chauff_Fioul"),
+        ("CGAZB", "Pct_Chauff_Gaz"),
+    ]
     for heat_col_name, indicator in _HEAT_SUFFIXES:
         col = _find_col(df, f"P{yy}_RP_{heat_col_name}")
         if col:
@@ -509,7 +642,7 @@ def _load_census_housing_vintage(
     # Extract heating from embedded historical prefixes (only in recent files)
     embedded_prefixes = set()
     for c in df.columns:
-        m = re.match(r'^[PC](\d{2})_', c)
+        m = re.match(r"^[PC](\d{2})_", c)
         if m:
             embedded_prefixes.add(m.group(1))
     embedded_prefixes.discard(yy)
@@ -523,8 +656,12 @@ def _load_census_housing_vintage(
         for heat_col_name, indicator in _HEAT_SUFFIXES:
             col = _find_col(df, f"P{emb_yy}_RP_{heat_col_name}")
             if col:
-                pct = _safe_ratio(pd.to_numeric(df[col], errors="coerce"), emb_rp) * 100.0
-                frames.append(_make_tokens(codgeo, indicator, pct, emb_date_float, emb_avail_date))
+                pct = (
+                    _safe_ratio(pd.to_numeric(df[col], errors="coerce"), emb_rp) * 100.0
+                )
+                frames.append(
+                    _make_tokens(codgeo, indicator, pct, emb_date_float, emb_avail_date)
+                )
 
     # Old housing stock (pre-1945)
     # 2022+: ACH1919/ACH1945;  2013-2021: ACH19/ACH45
@@ -535,7 +672,9 @@ def _load_census_housing_vintage(
         if ach_45:
             old_stock = old_stock + pd.to_numeric(df[ach_45], errors="coerce")
         pct = _safe_ratio(old_stock, rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Logements_Anciens", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Logements_Anciens", pct, date_float, avail_date)
+        )
 
     # Over-occupied dwellings
     # 2022+: SUROCC_MOD + SUROCC_ACC (moderate + acute);  2017-2021: HSTU1P_SUROCC (total)
@@ -549,16 +688,22 @@ def _load_census_housing_vintage(
         if surocc_acc:
             surocc = surocc + pd.to_numeric(df[surocc_acc], errors="coerce").fillna(0)
         pct = _safe_ratio(surocc, rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Suroccupation", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Suroccupation", pct, date_float, avail_date)
+        )
     elif surocc_total:
         pct = _safe_ratio(pd.to_numeric(df[surocc_total], errors="coerce"), rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Suroccupation", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Suroccupation", pct, date_float, avail_date)
+        )
 
     # Free housing (gratuit)
     grat = _find_col(df, f"P{yy}_RP_GRAT")
     if grat:
         pct = _safe_ratio(pd.to_numeric(df[grat], errors="coerce"), rp) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Logement_Gratuit", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Logement_Gratuit", pct, date_float, avail_date)
+        )
 
     if not frames:
         return _empty_df()
@@ -566,12 +711,17 @@ def _load_census_housing_vintage(
 
 
 def _load_census_families_vintage(
-    vintage_dir: Path, date_float: float, avail_date: float,
+    vintage_dir: Path,
+    date_float: float,
+    avail_date: float,
 ) -> pd.DataFrame:
     """% single-person households, % single-parent families from a single vintage dir."""
     path = _glob_first(
         vintage_dir,
-        "*coupl*fam*men*", "*fam*men*", "*menage*", "*MEN*",
+        "*coupl*fam*men*",
+        "*fam*men*",
+        "*menage*",
+        "*MEN*",
     )
     if path is None:
         return _empty_df()
@@ -591,33 +741,59 @@ def _load_census_families_vintage(
     men = _find_col(df, f"C{yy}_MEN")
     seul = _find_col(df, f"C{yy}_MENPSEUL")
     if men and seul:
-        pct = _safe_ratio(
-            pd.to_numeric(df[seul], errors="coerce"),
-            pd.to_numeric(df[men], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Menages_Seuls", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[seul], errors="coerce"),
+                pd.to_numeric(df[men], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(codgeo, "Pct_Menages_Seuls", pct, date_float, avail_date)
+        )
 
     # Single-parent families: FAMMONO / FAM
     fam = _find_col(df, f"C{yy}_FAM")
     mono = _find_col(df, f"C{yy}_FAMMONO")
     if fam and mono:
-        pct = _safe_ratio(
-            pd.to_numeric(df[mono], errors="coerce"),
-            pd.to_numeric(df[fam], errors="coerce"),
-        ) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Familles_Monoparentales", pct, date_float, avail_date))
+        pct = (
+            _safe_ratio(
+                pd.to_numeric(df[mono], errors="coerce"),
+                pd.to_numeric(df[fam], errors="coerce"),
+            )
+            * 100.0
+        )
+        frames.append(
+            _make_tokens(
+                codgeo, "Pct_Familles_Monoparentales", pct, date_float, avail_date
+            )
+        )
 
     # Couples with / without children
     if fam:
         fam_total = pd.to_numeric(df[fam], errors="coerce")
         coupaenf = _find_col(df, f"C{yy}_COUPAENF")
         if coupaenf:
-            pct = _safe_ratio(pd.to_numeric(df[coupaenf], errors="coerce"), fam_total) * 100.0
-            frames.append(_make_tokens(codgeo, "Pct_Couples_Avec_Enfants", pct, date_float, avail_date))
+            pct = (
+                _safe_ratio(pd.to_numeric(df[coupaenf], errors="coerce"), fam_total)
+                * 100.0
+            )
+            frames.append(
+                _make_tokens(
+                    codgeo, "Pct_Couples_Avec_Enfants", pct, date_float, avail_date
+                )
+            )
         coupsenf = _find_col(df, f"C{yy}_COUPSENF")
         if coupsenf:
-            pct = _safe_ratio(pd.to_numeric(df[coupsenf], errors="coerce"), fam_total) * 100.0
-            frames.append(_make_tokens(codgeo, "Pct_Couples_Sans_Enfants", pct, date_float, avail_date))
+            pct = (
+                _safe_ratio(pd.to_numeric(df[coupsenf], errors="coerce"), fam_total)
+                * 100.0
+            )
+            frames.append(
+                _make_tokens(
+                    codgeo, "Pct_Couples_Sans_Enfants", pct, date_float, avail_date
+                )
+            )
 
     # Large families (3+ children under 25)
     ne24f3 = _find_col(df, f"C{yy}_NE24F3")
@@ -630,7 +806,9 @@ def _load_census_families_vintage(
         if ne24f4p:
             large = large + pd.to_numeric(df[ne24f4p], errors="coerce").fillna(0)
         pct = _safe_ratio(large, fam_total) * 100.0
-        frames.append(_make_tokens(codgeo, "Pct_Familles_Nombreuses", pct, date_float, avail_date))
+        frames.append(
+            _make_tokens(codgeo, "Pct_Familles_Nombreuses", pct, date_float, avail_date)
+        )
 
     # Marital status breakdown (% of 15+ population)
     pop15p = _find_col(df, f"P{yy}_POP15P")
@@ -646,8 +824,13 @@ def _load_census_families_vintage(
         ]:
             col = _find_col(df, status_col)
             if col:
-                pct = _safe_ratio(pd.to_numeric(df[col], errors="coerce"), pop15p_val) * 100.0
-                frames.append(_make_tokens(codgeo, indicator, pct, date_float, avail_date))
+                pct = (
+                    _safe_ratio(pd.to_numeric(df[col], errors="coerce"), pop15p_val)
+                    * 100.0
+                )
+                frames.append(
+                    _make_tokens(codgeo, indicator, pct, date_float, avail_date)
+                )
 
     if not frames:
         return _empty_df()
@@ -660,7 +843,7 @@ def _load_census_families_vintage(
 
 # Publication calendar: census vintage Y → published ~June of Y+3
 # Data centred ~Y-1.5  (pools surveys Y-4 to Y)
-_CENSUS_PUB_OFFSET = 3   # years after vintage for publication
+_CENSUS_PUB_OFFSET = 3  # years after vintage for publication
 _CENSUS_PUB_MONTH = 0.5  # ~June = 0.5 into the year
 _CENSUS_CENTER_OFFSET = 1.5  # data centre lag
 
@@ -680,8 +863,7 @@ def _load_all_census(demo_dir: Path) -> pd.DataFrame:
 
     # Discover vintage directories
     vintage_dirs = sorted(
-        d for d in census_dir.iterdir()
-        if d.is_dir() and d.name.isdigit()
+        d for d in census_dir.iterdir() if d.is_dir() and d.name.isdigit()
     )
 
     if not vintage_dirs:
@@ -706,9 +888,11 @@ def _load_all_census(demo_dir: Path) -> pd.DataFrame:
             combined = pd.concat(frames, ignore_index=True)
             n_ind = combined["candidate"].nunique()
             n_com = combined["location"].nunique()
-            print(f"  Census {vintage}: {len(combined):,} tokens "
-                  f"({n_ind} indicators × {n_com:,} communes) "
-                  f"[date={date_float:.1f}, avail={avail_date:.1f}]")
+            print(
+                f"  Census {vintage}: {len(combined):,} tokens "
+                f"({n_ind} indicators × {n_com:,} communes) "
+                f"[date={date_float:.1f}, avail={avail_date:.1f}]"
+            )
             all_frames.append(combined)
         else:
             print(f"  Census {vintage}: no indicators extracted (column mismatch?)")
@@ -722,6 +906,7 @@ def _load_all_census(demo_dir: Path) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════════════════════
 # Geo merge + public entry point
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
     """Merge latitude/longitude from geo lookup onto a token DataFrame."""
@@ -775,8 +960,10 @@ def load_demographic_tokens(data_dir: Path) -> pd.DataFrame:
     n_indicators = combined["candidate"].nunique()
     n_communes = combined["location"].nunique()
     n_vintages = combined.groupby("candidate")["date_float"].nunique().max()
-    print(f"  ✓ Loaded {len(combined):,} demographic tokens "
-          f"({n_indicators} indicators × {n_communes:,} communes × ~{n_vintages} vintages)",
-          flush=True)
+    print(
+        f"  ✓ Loaded {len(combined):,} demographic tokens "
+        f"({n_indicators} indicators × {n_communes:,} communes × ~{n_vintages} vintages)",
+        flush=True,
+    )
 
     return combined

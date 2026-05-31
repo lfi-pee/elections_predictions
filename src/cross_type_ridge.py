@@ -30,6 +30,7 @@ Key design choices:
 Usage:
     python -m src.cross_type_ridge
 """
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -44,71 +45,170 @@ from src.load_polls import load_poll_tokens
 # ── Block mapping (extended for ALL election types) ──────────────────
 # Standard nuance codes (legislatives, cantonales)
 LEFT = {
-    "SOC", "COM", "VEC", "ECO", "EXG", "DVG", "FI", "NUP", "FG",
-    "RDG", "DXG", "UG", "LO", "LCR", "GEN", "PRG",
+    "SOC",
+    "COM",
+    "VEC",
+    "ECO",
+    "EXG",
+    "DVG",
+    "FI",
+    "NUP",
+    "FG",
+    "RDG",
+    "DXG",
+    "UG",
+    "LO",
+    "LCR",
+    "GEN",
+    "PRG",
     # L-prefixed (regionales, europeennes, municipales)
-    "LDVG", "LFI", "LCOM", "LECO", "LEXG", "LRDG", "LUG", "LVEC", "LUC", "LFG",
-    "LPS", "LPC", "LVE", "LGA", "LXG", "LSOC",
+    "LDVG",
+    "LFI",
+    "LCOM",
+    "LECO",
+    "LEXG",
+    "LRDG",
+    "LUG",
+    "LVEC",
+    "LUC",
+    "LFG",
+    "LPS",
+    "LPC",
+    "LVE",
+    "LGA",
+    "LXG",
+    "LSOC",
     # Old europeennes codes
     "GAU",
 }
 CENTER_RIGHT = {
-    "UMP", "LR", "DVD", "REM", "ENS", "UDI", "MDM", "UDF", "CEN",
-    "DVC", "NCE", "UDFD", "RPR", "RPF", "HOR",
+    "UMP",
+    "LR",
+    "DVD",
+    "REM",
+    "ENS",
+    "UDI",
+    "MDM",
+    "UDF",
+    "CEN",
+    "DVC",
+    "NCE",
+    "UDFD",
+    "RPR",
+    "RPF",
+    "HOR",
     # L-prefixed
-    "LLR", "LREM", "LMDM", "LHOR", "LUDI", "LDVD", "LNC", "LUD", "LMAJ", "LDVC",
-    "LUMP", "LUDF", "LCMD", "LCOP", "LDR", "LENS",
+    "LLR",
+    "LREM",
+    "LMDM",
+    "LHOR",
+    "LUDI",
+    "LDVD",
+    "LNC",
+    "LUD",
+    "LMAJ",
+    "LDVC",
+    "LUMP",
+    "LUDF",
+    "LCMD",
+    "LCOP",
+    "LDR",
+    "LENS",
     # Old codes
     "DTE",
 }
 EXTREME_RIGHT = {
-    "FN", "RN", "REC", "EXD", "MNR", "UXD", "DLF", "MPF",
-    "LRN", "LREC", "LEXD", "LUXD",
+    "FN",
+    "RN",
+    "REC",
+    "EXD",
+    "MNR",
+    "UXD",
+    "DLF",
+    "MPF",
+    "LRN",
+    "LREC",
+    "LEXD",
+    "LUXD",
     # L-prefixed
-    "LFN", "LDLF", "LXD",
+    "LFN",
+    "LDLF",
+    "LXD",
     # Old codes
-    "FRN", "MNA",
+    "FRN",
+    "MNA",
 }
 
 # Presidentielle candidate abbreviations → block
 _PRES_ABBREV_TO_BLOCK: dict[str, str] = {
     # Gauche
-    "JOSP": "Gauche", "HOLL": "Gauche", "ROYA": "Gauche",
-    "MELE": "Gauche", "POUT": "Gauche", "ARTH": "Gauche",
-    "BUFF": "Gauche", "VOYN": "Gauche", "BOVE": "Gauche",
-    "SCHI": "Gauche", "JOLY": "Gauche", "BESA": "Gauche",
-    "LAGU": "Gauche", "HUE": "Gauche", "GLUC": "Gauche",
-    "MAME": "Gauche", "TAUB": "Gauche", "CHEV": "Gauche",
-    "HAMO": "Gauche", "HIDA": "Gauche", "JADO": "Gauche",
+    "JOSP": "Gauche",
+    "HOLL": "Gauche",
+    "ROYA": "Gauche",
+    "MELE": "Gauche",
+    "POUT": "Gauche",
+    "ARTH": "Gauche",
+    "BUFF": "Gauche",
+    "VOYN": "Gauche",
+    "BOVE": "Gauche",
+    "SCHI": "Gauche",
+    "JOLY": "Gauche",
+    "BESA": "Gauche",
+    "LAGU": "Gauche",
+    "HUE": "Gauche",
+    "GLUC": "Gauche",
+    "MAME": "Gauche",
+    "TAUB": "Gauche",
+    "CHEV": "Gauche",
+    "HAMO": "Gauche",
+    "HIDA": "Gauche",
+    "JADO": "Gauche",
     "ROUS": "Gauche",
     # Centre+Droite
-    "CHIR": "Centre+Droite", "SARK": "Centre+Droite",
-    "BAYR": "Centre+Droite", "MADE": "Centre+Droite",
-    "BOUT": "Centre+Droite", "LEPA": "Centre+Droite",
-    "FILO": "Centre+Droite", "PECE": "Centre+Droite",
-    "MACR": "Centre+Droite", "LASS": "Centre+Droite",
+    "CHIR": "Centre+Droite",
+    "SARK": "Centre+Droite",
+    "BAYR": "Centre+Droite",
+    "MADE": "Centre+Droite",
+    "BOUT": "Centre+Droite",
+    "LEPA": "Centre+Droite",
+    "FILO": "Centre+Droite",
+    "PECE": "Centre+Droite",
+    "MACR": "Centre+Droite",
+    "LASS": "Centre+Droite",
     # Extreme Droite
-    "LEPE": "Extreme_Droite", "MEGR": "Extreme_Droite",
-    "VILL": "Extreme_Droite", "DUPO": "Extreme_Droite",
+    "LEPE": "Extreme_Droite",
+    "MEGR": "Extreme_Droite",
+    "VILL": "Extreme_Droite",
+    "DUPO": "Extreme_Droite",
     "ZEMM": "Extreme_Droite",
 }
 
 # Full candidate names → block (for NC-coded elections: pres 2017+, euro 2019)
 _FULLNAME_TO_BLOCK: dict[str, str] = {
     # Presidentielle (firstname lastname format)
-    "jean luc melenchon": "Gauche", "benoit hamon": "Gauche",
-    "philippe poutou": "Gauche", "nathalie arthaud": "Gauche",
-    "yannick jadot": "Gauche", "anne hidalgo": "Gauche",
+    "jean luc melenchon": "Gauche",
+    "benoit hamon": "Gauche",
+    "philippe poutou": "Gauche",
+    "nathalie arthaud": "Gauche",
+    "yannick jadot": "Gauche",
+    "anne hidalgo": "Gauche",
     "fabien roussel": "Gauche",
-    "emmanuel macron": "Centre+Droite", "francois fillon": "Centre+Droite",
-    "valerie pecresse": "Centre+Droite", "jean lassalle": "Centre+Droite",
-    "marine le pen": "Extreme_Droite", "eric zemmour": "Extreme_Droite",
+    "emmanuel macron": "Centre+Droite",
+    "francois fillon": "Centre+Droite",
+    "valerie pecresse": "Centre+Droite",
+    "jean lassalle": "Centre+Droite",
+    "marine le pen": "Extreme_Droite",
+    "eric zemmour": "Extreme_Droite",
     "nicolas dupont aignan": "Extreme_Droite",
     # Europeennes 2019 (lastname firstname format)
-    "glucksmann raphael": "Gauche", "aubry manon": "Gauche",
-    "jadot yannick": "Gauche", "hamon benoit": "Gauche",
-    "brossat ian": "Gauche", "arthaud nathalie": "Gauche",
-    "loiseau nathalie": "Centre+Droite", "bellamy francois xavier": "Centre+Droite",
+    "glucksmann raphael": "Gauche",
+    "aubry manon": "Gauche",
+    "jadot yannick": "Gauche",
+    "hamon benoit": "Gauche",
+    "brossat ian": "Gauche",
+    "arthaud nathalie": "Gauche",
+    "loiseau nathalie": "Centre+Droite",
+    "bellamy francois xavier": "Centre+Droite",
     "lagarde jean christophe": "Centre+Droite",
     "bardella jordan": "Extreme_Droite",
     "dupont aignan nicolas": "Extreme_Droite",
@@ -140,25 +240,95 @@ TYPE_ONEHOT = [
 
 # Poll-to-block mapping (reused from poll_ridge.py)
 import re
+
 _CODE_TO_BLOCK: dict[str, str] = {}
 for _c in [
-    "EXG", "NFP", "DVG", "ECO", "FI", "LFI", "PCF", "PS", "SOC", "COM",
-    "VEC", "FG", "NPA", "LO", "GEN", "PRG", "NUP", "NUPES",
-    "EÉLV", "EELV", "RDG", "DXG", "UG", "LCR", "REV",
-    "LDVG", "LECO", "LEXG", "LRDG", "LUG", "LVEC", "LUC", "LFG",
+    "EXG",
+    "NFP",
+    "DVG",
+    "ECO",
+    "FI",
+    "LFI",
+    "PCF",
+    "PS",
+    "SOC",
+    "COM",
+    "VEC",
+    "FG",
+    "NPA",
+    "LO",
+    "GEN",
+    "PRG",
+    "NUP",
+    "NUPES",
+    "EÉLV",
+    "EELV",
+    "RDG",
+    "DXG",
+    "UG",
+    "LCR",
+    "REV",
+    "LDVG",
+    "LECO",
+    "LEXG",
+    "LRDG",
+    "LUG",
+    "LVEC",
+    "LUC",
+    "LFG",
     "GAUCHE",
 ]:
     _CODE_TO_BLOCK[_c] = "Gauche"
 for _c in [
-    "ENS", "LR", "DVD", "DVC", "RE", "REM", "LREM", "UMP",
-    "UDF", "UDI", "MDM", "MODEM", "HOR", "RPR", "RPF", "NC", "NCE",
-    "CEN", "UDFD", "RES", "REN", "ENSEMBLE", "UDC", "SE",
-    "LLR", "LMDM", "LHOR", "LUDI", "LDVD", "LNC", "LUD", "LMAJ", "LDVC",
+    "ENS",
+    "LR",
+    "DVD",
+    "DVC",
+    "RE",
+    "REM",
+    "LREM",
+    "UMP",
+    "UDF",
+    "UDI",
+    "MDM",
+    "MODEM",
+    "HOR",
+    "RPR",
+    "RPF",
+    "NC",
+    "NCE",
+    "CEN",
+    "UDFD",
+    "RES",
+    "REN",
+    "ENSEMBLE",
+    "UDC",
+    "SE",
+    "LLR",
+    "LMDM",
+    "LHOR",
+    "LUDI",
+    "LDVD",
+    "LNC",
+    "LUD",
+    "LMAJ",
+    "LDVC",
 ]:
     _CODE_TO_BLOCK[_c] = "Centre+Droite"
 for _c in [
-    "RN", "FN", "REC", "EXD", "MNR", "UXD", "DLF", "MPF", "UPF",
-    "LRN", "LREC", "LEXD", "LUXD",
+    "RN",
+    "FN",
+    "REC",
+    "EXD",
+    "MNR",
+    "UXD",
+    "DLF",
+    "MPF",
+    "UPF",
+    "LRN",
+    "LREC",
+    "LEXD",
+    "LUXD",
 ]:
     _CODE_TO_BLOCK[_c] = "Extreme_Droite"
 
@@ -191,25 +361,41 @@ _PARTY_NAME_TO_BLOCK: dict[str, str] = {
     "rassemblement pour la république": "Centre+Droite",
 }
 _CANDIDATE_NAME_TO_BLOCK: dict[str, str] = {
-    "MÉLENCHON": "Gauche", "MELENCHON": "Gauche",
-    "HIDALGO": "Gauche", "JADOT": "Gauche",
-    "POUTOU": "Gauche", "ARTHAUD": "Gauche",
-    "ROUSSEL": "Gauche", "HOLLANDE": "Gauche",
-    "ROYAL": "Gauche", "JOSPIN": "Gauche",
-    "HAMON": "Gauche", "TAUBIRA": "Gauche",
-    "BESANCENOT": "Gauche", "LAGUILLER": "Gauche",
-    "CHEVÈNEMENT": "Gauche", "BUFFET": "Gauche",
-    "VOYNET": "Gauche", "MAMÈRE": "Gauche",
-    "BOVÉ": "Gauche", "SCHIVARDI": "Gauche",
-    "MACRON": "Centre+Droite", "FILLON": "Centre+Droite",
-    "PÉCRESSE": "Centre+Droite", "PECRESSE": "Centre+Droite",
-    "SARKOZY": "Centre+Droite", "CHIRAC": "Centre+Droite",
-    "BAYROU": "Centre+Droite", "BALLADUR": "Centre+Droite",
-    "MADELIN": "Centre+Droite", "BOUTIN": "Centre+Droite",
+    "MÉLENCHON": "Gauche",
+    "MELENCHON": "Gauche",
+    "HIDALGO": "Gauche",
+    "JADOT": "Gauche",
+    "POUTOU": "Gauche",
+    "ARTHAUD": "Gauche",
+    "ROUSSEL": "Gauche",
+    "HOLLANDE": "Gauche",
+    "ROYAL": "Gauche",
+    "JOSPIN": "Gauche",
+    "HAMON": "Gauche",
+    "TAUBIRA": "Gauche",
+    "BESANCENOT": "Gauche",
+    "LAGUILLER": "Gauche",
+    "CHEVÈNEMENT": "Gauche",
+    "BUFFET": "Gauche",
+    "VOYNET": "Gauche",
+    "MAMÈRE": "Gauche",
+    "BOVÉ": "Gauche",
+    "SCHIVARDI": "Gauche",
+    "MACRON": "Centre+Droite",
+    "FILLON": "Centre+Droite",
+    "PÉCRESSE": "Centre+Droite",
+    "PECRESSE": "Centre+Droite",
+    "SARKOZY": "Centre+Droite",
+    "CHIRAC": "Centre+Droite",
+    "BAYROU": "Centre+Droite",
+    "BALLADUR": "Centre+Droite",
+    "MADELIN": "Centre+Droite",
+    "BOUTIN": "Centre+Droite",
     "LE PEN": "Extreme_Droite",
     "ZEMMOUR": "Extreme_Droite",
     "DUPONT-AIGNAN": "Extreme_Droite",
-    "MÉGRET": "Extreme_Droite", "MEGRET": "Extreme_Droite",
+    "MÉGRET": "Extreme_Droite",
+    "MEGRET": "Extreme_Droite",
     "VILLIERS": "Extreme_Droite",
 }
 
@@ -303,6 +489,7 @@ def _poll_token_to_block(party: str, candidate: str) -> str:
 
 # ── Data loading ──────────────────────────────────────────────────────
 
+
 def _load_cached(data_dir: Path):
     cache_dir = data_dir / "baseline_cache"
     elections_cache = cache_dir / "elections.parquet"
@@ -320,12 +507,15 @@ def _load_cached(data_dir: Path):
         elections.to_parquet(elections_cache, index=False)
         demos.to_parquet(demos_cache, index=False)
 
-    print(f"  Elections: {len(elections):,} rows, Demographics: {len(demos):,} rows",
-          flush=True)
+    print(
+        f"  Elections: {len(elections):,} rows, Demographics: {len(demos):,} rows",
+        flush=True,
+    )
     return elections, demos
 
 
 # ── Feature builders ──────────────────────────────────────────────────
+
 
 def _vectorized_block_mapping(party: pd.Series, candidate: pd.Series) -> pd.Series:
     """Vectorized block mapping for all election types."""
@@ -410,7 +600,9 @@ def _add_cross_type_local_lags(df: pd.DataFrame) -> pd.DataFrame:
 def _build_same_type_national_agg(block_scores: pd.DataFrame) -> pd.DataFrame:
     """National mean block scores per (election_type, date)."""
     national = (
-        block_scores.groupby(["election_type", "date_float"])[TARGET_BLOCKS + ["Abstention"]]
+        block_scores.groupby(["election_type", "date_float"])[
+            TARGET_BLOCKS + ["Abstention"]
+        ]
         .mean()
         .reset_index()
         .sort_values(["election_type", "date_float"])
@@ -461,7 +653,9 @@ def _build_national_poll_features(
     """
     polls = polls.copy()
     polls["block"] = polls.apply(
-        lambda r: _poll_token_to_block(str(r.get("party", "")), str(r.get("candidate", ""))),
+        lambda r: _poll_token_to_block(
+            str(r.get("party", "")), str(r.get("candidate", ""))
+        ),
         axis=1,
     )
     # Keep national T1 polls with a mapped block
@@ -473,39 +667,51 @@ def _build_national_poll_features(
 
     n_mapped = len(national)
     n_total = len(polls[polls["location"] == "National"])
-    print(f"  National polls: {n_mapped:,} mapped to blocks / {n_total:,} total", flush=True)
+    print(
+        f"  National polls: {n_mapped:,} mapped to blocks / {n_total:,} total",
+        flush=True,
+    )
 
     rows = []
     for etype, date in sorted(set(election_dates)):
-        mask = (national["date_float"] >= date - window) & (national["date_float"] <= date)
+        mask = (national["date_float"] >= date - window) & (
+            national["date_float"] <= date
+        )
         w = national[mask]
         if len(w) == 0:
-            rows.append({
-                "election_type": etype,
-                "date_float": date,
-                "poll_Gauche": np.nan,
-                "poll_Centre+Droite": np.nan,
-                "poll_Extreme_Droite": np.nan,
-                "has_polls": 0.0,
-            })
+            rows.append(
+                {
+                    "election_type": etype,
+                    "date_float": date,
+                    "poll_Gauche": np.nan,
+                    "poll_Centre+Droite": np.nan,
+                    "poll_Extreme_Droite": np.nan,
+                    "has_polls": 0.0,
+                }
+            )
             continue
 
         per_poll = (
             w.groupby(["date_float", "metric_type", "block"])["value"]
-            .sum().reset_index()
+            .sum()
+            .reset_index()
         )
-        poll_totals = per_poll.groupby(["date_float", "metric_type"])["value"].transform("sum")
+        poll_totals = per_poll.groupby(["date_float", "metric_type"])[
+            "value"
+        ].transform("sum")
         per_poll["value"] = per_poll["value"] / poll_totals * 100.0
         avgs = per_poll.groupby("block")["value"].mean()
 
-        rows.append({
-            "election_type": etype,
-            "date_float": date,
-            "poll_Gauche": avgs.get("Gauche", np.nan),
-            "poll_Centre+Droite": avgs.get("Centre+Droite", np.nan),
-            "poll_Extreme_Droite": avgs.get("Extreme_Droite", np.nan),
-            "has_polls": 1.0,
-        })
+        rows.append(
+            {
+                "election_type": etype,
+                "date_float": date,
+                "poll_Gauche": avgs.get("Gauche", np.nan),
+                "poll_Centre+Droite": avgs.get("Centre+Droite", np.nan),
+                "poll_Extreme_Droite": avgs.get("Extreme_Droite", np.nan),
+                "has_polls": 1.0,
+            }
+        )
 
     return pd.DataFrame(rows)
 
@@ -527,8 +733,12 @@ def _add_demographics(
             .dropna(subset=["availability_date"])
         )
         df = pd.merge_asof(
-            df, d, left_on="date_float", right_on="availability_date",
-            by="commune", direction="backward",
+            df,
+            d,
+            left_on="date_float",
+            right_on="availability_date",
+            by="commune",
+            direction="backward",
         )
         if "availability_date" in df.columns:
             df = df.drop(columns=["availability_date"])
@@ -536,7 +746,10 @@ def _add_demographics(
     available = [i for i in all_indicators if i in df.columns and df[i].notna().any()]
     dropped = set(all_indicators) - set(available)
     if dropped:
-        print(f"  Dropped {len(dropped)} all-NaN indicators: {sorted(dropped)}", flush=True)
+        print(
+            f"  Dropped {len(dropped)} all-NaN indicators: {sorted(dropped)}",
+            flush=True,
+        )
     for ind in available:
         df[ind] = df[ind].fillna(df[ind].median())
 
@@ -560,6 +773,7 @@ def _add_election_type_onehot(df: pd.DataFrame) -> list[str]:
 
 # ── Evaluation ────────────────────────────────────────────────────────
 
+
 def _run_ridge(df, feature_cols, target_cols, val_mask, label=""):
     alphas = np.logspace(-2, 6, 60)
     train = df[~val_mask]
@@ -574,8 +788,10 @@ def _run_ridge(df, feature_cols, target_cols, val_mask, label=""):
     X_tr = train[feature_cols].values.astype(np.float64)
     X_v = val[feature_cols].values.astype(np.float64)
 
-    print(f"  Train: {len(X_tr):,}, Val: {len(X_v):,}, Features: {len(feature_cols)}",
-          flush=True)
+    print(
+        f"  Train: {len(X_tr):,}, Val: {len(X_v):,}, Features: {len(feature_cols)}",
+        flush=True,
+    )
     if len(X_v) == 0:
         print("  ERROR: 0 val samples", flush=True)
         return {}
@@ -595,13 +811,17 @@ def _run_ridge(df, feature_cols, target_cols, val_mask, label=""):
         r2_v = r2_score(y_v, pred_v)
         mae_v = np.mean(np.abs(y_v - pred_v))
         results[t_col] = r2_v
-        print(f"  {t_col:20s}  Train R²={r2_tr:.4f}  Val R²={r2_v:.4f}  "
-              f"MAE={mae_v:.2f}pp  (alpha={model.alpha_:.1f})", flush=True)
+        print(
+            f"  {t_col:20s}  Train R²={r2_tr:.4f}  Val R²={r2_v:.4f}  "
+            f"MAE={mae_v:.2f}pp  (alpha={model.alpha_:.1f})",
+            flush=True,
+        )
 
     return results
 
 
 # ── Main ──────────────────────────────────────────────────────────────
+
 
 def main():
     data_dir = Path("data")
@@ -619,8 +839,9 @@ def main():
     for etype in PHASE1_TYPES:
         sub = t1[t1["election_type"] == etype]
         dates = sorted(sub["date_float"].unique())
-        print(f"  {etype:30s}  {len(dates)} dates: "
-              f"{[round(float(d), 2) for d in dates]}")
+        print(
+            f"  {etype:30s}  {len(dates)} dates: {[round(float(d), 2) for d in dates]}"
+        )
 
     val_date = 2024.5
     val_type = "Legislatives_T1"
@@ -644,9 +865,11 @@ def main():
     national_agg = _build_same_type_national_agg(block_scores)
     print("\n  National averages:")
     for _, row in national_agg.iterrows():
-        print(f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
-              f"G={row['Gauche']:.1f}  C+D={row['Centre+Droite']:.1f}  "
-              f"ED={row['Extreme_Droite']:.1f}  Abs={row['Abstention']:.1f}")
+        print(
+            f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
+            f"G={row['Gauche']:.1f}  C+D={row['Centre+Droite']:.1f}  "
+            f"ED={row['Extreme_Droite']:.1f}  Abs={row['Abstention']:.1f}"
+        )
 
     # 5. Normalize block scores to DELTAS from national mean
     #    This makes cross-type lags comparable: +5pp left in pres ≈ +5pp left in legi
@@ -661,7 +884,9 @@ def main():
         how="left",
     )
     for col in TARGET_BLOCKS + ["Abstention"]:
-        block_scores[f"{col}_delta"] = block_scores[col] - block_scores[f"{col}_nat_mean"]
+        block_scores[f"{col}_delta"] = (
+            block_scores[col] - block_scores[f"{col}_nat_mean"]
+        )
 
     # 6. Cross-type local BV lags (on DELTAS — comparable across types)
     print("Building cross-type local BV lags (on deltas)...", flush=True)
@@ -693,9 +918,11 @@ def main():
     print(f"  {n_with_polls}/{len(election_dates)} election dates have poll coverage")
     for _, row in poll_feats.iterrows():
         if row["has_polls"]:
-            print(f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
-                  f"G={row['poll_Gauche']:.1f}  C+D={row['poll_Centre+Droite']:.1f}  "
-                  f"ED={row['poll_Extreme_Droite']:.1f}")
+            print(
+                f"    {row['election_type']:30s} {row['date_float']:.2f}:  "
+                f"G={row['poll_Gauche']:.1f}  C+D={row['poll_Centre+Droite']:.1f}  "
+                f"ED={row['poll_Extreme_Droite']:.1f}"
+            )
 
     df = df.merge(poll_feats, on=["election_type", "date_float"], how="left")
     for col in ["poll_Gauche", "poll_Centre+Droite", "poll_Extreme_Droite"]:
@@ -714,7 +941,9 @@ def main():
     df["longitude"] = df["longitude"].fillna(2.2137)
 
     # 10. Election type indicator (just 1 feature: is_presidentielle)
-    df["is_presidentielle"] = (df["election_type"] == "Presidentielle_T1").astype(np.float64)
+    df["is_presidentielle"] = (df["election_type"] == "Presidentielle_T1").astype(
+        np.float64
+    )
 
     # 11. Demographics
     print("Merging demographics...", flush=True)
@@ -725,9 +954,8 @@ def main():
     print(f"\nFinal dataset: {len(df):,} rows, {df['location'].nunique():,} unique BVs")
 
     # ── Validation mask: 2024 Legislatives T1 ─────────────────────────
-    val_mask = (
-        np.isclose(df["date_float"], val_date, atol=1e-3)
-        & (df["election_type"] == val_type)
+    val_mask = np.isclose(df["date_float"], val_date, atol=1e-3) & (
+        df["election_type"] == val_type
     )
     print(f"Val set: {val_mask.sum():,} BVs (2024 Legislatives T1)")
     print(f"Train set: {(~val_mask).sum():,} rows (Legi + Pres T1)")
@@ -736,82 +964,113 @@ def main():
     demo_cols = demo_indicators
     geo_cols = ["latitude", "longitude"]
     time_cols = ["date_float"]
-    poll_cols = ["poll_Gauche", "poll_Centre+Droite", "poll_Extreme_Droite", "has_polls"]
+    poll_cols = [
+        "poll_Gauche",
+        "poll_Centre+Droite",
+        "poll_Extreme_Droite",
+        "has_polls",
+    ]
     raw_lag1_cols = [f"{b}_lag1" for b in TARGET_BLOCKS] + ["Abstention_lag1"]
     raw_lag2_cols = [f"{b}_lag2" for b in TARGET_BLOCKS] + ["Abstention_lag2"]
-    delta_lag1_cols = [f"{b}_delta_lag1" for b in TARGET_BLOCKS] + ["Abstention_delta_lag1"]
-    delta_lag2_cols = [f"{b}_delta_lag2" for b in TARGET_BLOCKS] + ["Abstention_delta_lag2"]
-    national_lag1_cols = [f"national_{b}_lag1" for b in TARGET_BLOCKS] + ["national_Abstention_lag1"]
-    national_lag2_cols = [f"national_{b}_lag2" for b in TARGET_BLOCKS] + ["national_Abstention_lag2"]
+    delta_lag1_cols = [f"{b}_delta_lag1" for b in TARGET_BLOCKS] + [
+        "Abstention_delta_lag1"
+    ]
+    delta_lag2_cols = [f"{b}_delta_lag2" for b in TARGET_BLOCKS] + [
+        "Abstention_delta_lag2"
+    ]
+    national_lag1_cols = [f"national_{b}_lag1" for b in TARGET_BLOCKS] + [
+        "national_Abstention_lag1"
+    ]
+    national_lag2_cols = [f"national_{b}_lag2" for b in TARGET_BLOCKS] + [
+        "national_Abstention_lag2"
+    ]
     type_cols = ["is_presidentielle"]
 
     # ── Model A: Delta lags + polls + national lags + type indicator ──
     features_a = (
-        demo_cols + geo_cols + time_cols
+        demo_cols
+        + geo_cols
+        + time_cols
         + poll_cols
-        + delta_lag1_cols + delta_lag2_cols
-        + national_lag1_cols + national_lag2_cols
+        + delta_lag1_cols
+        + delta_lag2_cols
+        + national_lag1_cols
+        + national_lag2_cols
         + type_cols
     )
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL A: LEGI+PRES — demos + 2 DELTA lags + polls + national lags + type")
     print(f"  ({len(features_a)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df, features_a, TARGET_COLS, val_mask, "A")
 
     # ── Model B: Raw lags + polls + national lags + type ──────────────
     features_b = (
-        demo_cols + geo_cols + time_cols
+        demo_cols
+        + geo_cols
+        + time_cols
         + poll_cols
-        + raw_lag1_cols + raw_lag2_cols
-        + national_lag1_cols + national_lag2_cols
+        + raw_lag1_cols
+        + raw_lag2_cols
+        + national_lag1_cols
+        + national_lag2_cols
         + type_cols
     )
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL B: LEGI+PRES — demos + 2 RAW lags + polls + national lags + type")
     print(f"  ({len(features_b)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df, features_b, TARGET_COLS, val_mask, "B")
 
     # ── Model C: Poll deltas instead of absolute polls ────────────────
     features_c = (
-        demo_cols + geo_cols + time_cols
+        demo_cols
+        + geo_cols
+        + time_cols
         + poll_delta_cols
-        + delta_lag1_cols + delta_lag2_cols
-        + national_lag1_cols + national_lag2_cols
+        + delta_lag1_cols
+        + delta_lag2_cols
+        + national_lag1_cols
+        + national_lag2_cols
         + type_cols
     )
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL C: LEGI+PRES — demos + delta lags + POLL DELTAS + national lags")
     print(f"  ({len(features_c)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df, features_c, TARGET_COLS, val_mask, "C")
 
     # ── Model D: No polls (ablation) ──────────────────────────────────
     features_d = (
-        demo_cols + geo_cols + time_cols
-        + delta_lag1_cols + delta_lag2_cols
-        + national_lag1_cols + national_lag2_cols
+        demo_cols
+        + geo_cols
+        + time_cols
+        + delta_lag1_cols
+        + delta_lag2_cols
+        + national_lag1_cols
+        + national_lag2_cols
         + type_cols
     )
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL D: LEGI+PRES — no polls")
     print(f"  ({len(features_d)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df, features_d, TARGET_COLS, val_mask, "D")
 
     # ── Model E: 1 delta lag (more rows) ──────────────────────────────
     features_e = (
-        demo_cols + geo_cols + time_cols
+        demo_cols
+        + geo_cols
+        + time_cols
         + poll_cols
         + delta_lag1_cols
         + national_lag1_cols
         + type_cols
     )
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL E: LEGI+PRES — 1 delta lag + polls")
     print(f"  ({len(features_e)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df, features_e, TARGET_COLS, val_mask, "E")
 
     # ── Model F: Legi-only baseline repro ─────────────────────────────
@@ -825,26 +1084,35 @@ def main():
         df_legi[f"{col}_lag2"] = df_legi.groupby("location")[col].shift(2)
 
     features_f = demo_cols + geo_cols + time_cols + raw_lag1_cols + raw_lag2_cols
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"MODEL F: LEGI-ONLY BASELINE REPRO — demos + 2 same-type lags (no polls)")
     print(f"  ({len(features_f)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df_legi, features_f, TARGET_COLS, val_mask_legi, "F")
 
     # ── Model G: Legi-only + polls ────────────────────────────────────
-    features_g = demo_cols + geo_cols + time_cols + raw_lag1_cols + raw_lag2_cols + poll_cols
-    print(f"\n{'='*70}")
+    features_g = (
+        demo_cols + geo_cols + time_cols + raw_lag1_cols + raw_lag2_cols + poll_cols
+    )
+    print(f"\n{'=' * 70}")
     print(f"MODEL G: LEGI-ONLY + POLLS — demos + 2 same-type lags + polls")
     print(f"  ({len(features_g)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df_legi, features_g, TARGET_COLS, val_mask_legi, "G")
 
     # ── Model H: Legi-only + poll deltas ──────────────────────────────
-    features_h = demo_cols + geo_cols + time_cols + raw_lag1_cols + raw_lag2_cols + poll_delta_cols
-    print(f"\n{'='*70}")
+    features_h = (
+        demo_cols
+        + geo_cols
+        + time_cols
+        + raw_lag1_cols
+        + raw_lag2_cols
+        + poll_delta_cols
+    )
+    print(f"\n{'=' * 70}")
     print(f"MODEL H: LEGI-ONLY + POLL DELTAS")
     print(f"  ({len(features_h)} features)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     _run_ridge(df_legi, features_h, TARGET_COLS, val_mask_legi, "H")
 
 

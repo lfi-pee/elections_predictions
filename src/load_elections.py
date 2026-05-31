@@ -54,8 +54,15 @@ def _bv_candidate_tokens(data_dir: Path) -> pd.DataFrame:
     df = pd.read_parquet(
         data_dir / "elections" / "agregees" / "candidats_results.parquet",
         columns=[
-            "id_election", "code_commune", "code_bv", "nom", "prenom",
-            "nuance", "voix", "libelle_abrege_liste", "nom_tete_liste",
+            "id_election",
+            "code_commune",
+            "code_bv",
+            "nom",
+            "prenom",
+            "nuance",
+            "voix",
+            "libelle_abrege_liste",
+            "nom_tete_liste",
         ],
     )
     df["nuance"] = df["nuance"].fillna("").replace("", "NC")
@@ -90,8 +97,12 @@ def _bv_context_tokens(data_dir: Path) -> pd.DataFrame:
     df = pd.read_parquet(
         data_dir / "elections" / "agregees" / "general_results.parquet",
         columns=[
-            "id_election", "code_commune", "code_bv",
-            "inscrits", "abstentions", "blancs",
+            "id_election",
+            "code_commune",
+            "code_bv",
+            "inscrits",
+            "abstentions",
+            "blancs",
         ],
     )
     df["location"] = df["code_commune"] + "_" + df["code_bv"]
@@ -135,13 +146,15 @@ def _resolve_candidate_names(df: pd.DataFrame) -> pd.Series:
                 t2_lookup["prenom_t2"].fillna("") + " " + t2_lookup["nom_t2"].fillna("")
             ).str.strip()
             if len(t2_lookup) > 0:
-                t2_map = t2_lookup.set_index(
-                    ["code_commune", "libelle_abrege_liste"]
-                )["t2_name"]
-                keys = list(zip(
-                    df["code_commune"].values,
-                    df["libelle_abrege_liste"].values,
-                ))
+                t2_map = t2_lookup.set_index(["code_commune", "libelle_abrege_liste"])[
+                    "t2_name"
+                ]
+                keys = list(
+                    zip(
+                        df["code_commune"].values,
+                        df["libelle_abrege_liste"].values,
+                    )
+                )
                 t2_filled = pd.Series(
                     [t2_map.get(k, "") for k in keys],
                     index=df.index,
@@ -260,9 +273,13 @@ def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
     # 1. Try BV-level coords (id_brut_miom → lat/lon)
     bv_path = geo_dir / "bv_coords.parquet"
     if bv_path.exists():
-        bv_coords = pd.read_parquet(bv_path, columns=["id_brut_miom", "latitude", "longitude"])
+        bv_coords = pd.read_parquet(
+            bv_path, columns=["id_brut_miom", "latitude", "longitude"]
+        )
         bv_coords = bv_coords.rename(columns={"id_brut_miom": "location"})
-        df = df.merge(bv_coords[["location", "latitude", "longitude"]], on="location", how="left")
+        df = df.merge(
+            bv_coords[["location", "latitude", "longitude"]], on="location", how="left"
+        )
     else:
         df["latitude"] = np.float32(np.nan)
         df["longitude"] = np.float32(np.nan)
@@ -276,11 +293,16 @@ def _merge_geo_coords(df: pd.DataFrame, data_dir: Path) -> pd.DataFrame:
             # For BV locations like "01004_0002", extract commune code "01004"
             df["_commune_key"] = df["location"].str.split("_").str[0]
             commune_coords_renamed = commune_coords.rename(
-                columns={"location": "_commune_key", "latitude": "_lat_c", "longitude": "_lon_c"}
+                columns={
+                    "location": "_commune_key",
+                    "latitude": "_lat_c",
+                    "longitude": "_lon_c",
+                }
             )
             df = df.merge(
                 commune_coords_renamed[["_commune_key", "_lat_c", "_lon_c"]],
-                on="_commune_key", how="left",
+                on="_commune_key",
+                how="left",
             )
             df["latitude"] = df["latitude"].fillna(df["_lat_c"])
             df["longitude"] = df["longitude"].fillna(df["_lon_c"])
@@ -320,6 +342,9 @@ def load_election_tokens(data_dir: Path) -> pd.DataFrame:
 
     n_locations = combined["location"].nunique()
     n_bv = combined["location"].str.contains("_").sum()
-    print(f"  Election tokens: {len(combined)} ({n_locations} unique locations, "
-          f"{n_bv} BV-level tokens)", flush=True)
+    print(
+        f"  Election tokens: {len(combined)} ({n_locations} unique locations, "
+        f"{n_bv} BV-level tokens)",
+        flush=True,
+    )
     return combined

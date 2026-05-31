@@ -197,6 +197,18 @@ def lead_accuracy(df: pd.DataFrame) -> float:
     return float((pred == act).mean())
 
 
+def r2_by_block(df: pd.DataFrame) -> dict[str, float]:
+    """R² hors échantillon par bloc, calculé sur les prédictions 2024 réellement servies
+    (mêmes lignes que `predictions_with_intervals.csv`) — plus de valeurs en dur."""
+    out: dict[str, float] = {}
+    for b in BLOCKS.values():
+        a, p = df[f"act_{b}"].to_numpy(), df[f"pred_{b}"].to_numpy()
+        m = np.isfinite(a) & np.isfinite(p)
+        a, p = a[m], p[m]
+        out[b] = round(1 - ((a - p) ** 2).sum() / ((a - a.mean()) ** 2).sum(), 2)
+    return out
+
+
 def observed_lead(df: pd.DataFrame) -> dict[str, int]:
     """Nombre de bureaux où chaque bloc de parti arrive **réellement** en tête en 2024
     (résultat observé, pas la prédiction) — le contrepoint honnête au favori unique d'un
@@ -348,7 +360,7 @@ def build() -> None:
         "flat_poll": flat_poll(df, baselines),
         "circo": circo_stats,
         "swing": {b: round(float(w[i]), 6) for i, b in enumerate(VOTE)},
-        "r2": {"G": 0.74, "CD": 0.61, "ED": 0.80, "AB": 0.74},
+        "r2": r2_by_block(df),
         "unc_median": round(float(df.unc.median()), 1),
     }
     (SERVED / "summary.json").write_text(

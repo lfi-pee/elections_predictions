@@ -48,6 +48,8 @@ b{font-weight:700}
   grid-template-columns:repeat(12,1fr);gap:18px;align-items:start}
 .band{grid-column:1/-1;margin:14px 0 0;font-size:22px;letter-spacing:-.01em;
   padding-bottom:8px;border-bottom:2px solid var(--accent)}
+.band-sub{display:block;font-size:11px;font-weight:500;line-height:1.4;color:#8a8a92;
+  letter-spacing:0;margin-top:5px;max-width:60ch}
 .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;
   box-shadow:0 1px 0 rgba(0,0,0,.02)}
 .panel h3{margin:0 0 4px;font-size:15px;letter-spacing:-.01em}
@@ -131,6 +133,9 @@ svg{width:100%;height:auto;display:block}
 .pool-calc .pc-step.total b{color:#a83214}
 .pool-calc .op{display:block;margin:3px 0 3px 12px;font-size:10.5px;color:#9a9aa2}
 .fineprint{font-size:11px;line-height:1.45;color:#8a8a92;margin:14px 0 0}
+.provr2{font-size:11px;line-height:1.5;color:#8a8a92;margin:12px 0 0;
+  border-top:1px dashed var(--line);padding-top:10px}
+.provr2 span{margin-right:10px;white-space:nowrap}
 
 /* Provenance: local vs national share of a bureau's uncertainty */
 .prov-row{display:grid;grid-template-columns:108px 1fr;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}

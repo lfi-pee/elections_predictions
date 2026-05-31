@@ -716,4 +716,52 @@ sur `#hero-end` est retiré.)*
 - **Caméra d'entrée & zooms** — défaut métropole = Lyon ; entrée par recherche ou zoom.
 - **Hébergement / diffusion** — site statique : un lien privé suffit-il, ou faut-il
   un accès protégé par mot de passe ?
-- **Mention de confidentialité** du pied de page.
+- **Mention de confidentialité** du pied de page — *retirée (retour client)*.
+
+---
+
+## 10. Postures théoriques assumées (verdict de défendabilité — ce qu'on VEUT)
+
+> Critique théorique conduite sur l'ensemble de l'approche. Les postures ci-dessous sont
+> des **choix de conception assumés**, pas des oublis : le site doit les refléter honnêtement,
+> jamais prétendre le contraire.
+
+1. **γ est une grandeur AGRÉGÉE, assumée comme telle (choix voulu).** γ est estimé sur des
+   **différences premières au niveau bureau** (Δgauche vs Δparticipation) ; c'est le **gain net
+   de gauche par point de participation**, pas une mesure du comportement d'un individu nommé
+   (inférence écologique, interdite à partir d'agrégats — Robinson/King). **On l'assume** : on
+   s'en sert comme **prior spatial** (« où le gisement se concentre »), jamais comme affirmation
+   sur des personnes identifiées. Le rendu dit « gain net », jamais « cet abstentionniste précis
+   vote à gauche ». **C'est ce qu'on veut** : un instrument de ciblage géographique, pas une
+   prédiction individuelle. Ne pas « corriger » vers une lecture individuelle.
+
+2. **Le modèle est massivement autorégressif — assumé et dit.** ~**96 %** de l'explication par
+   bureau (|SHAP| top-6) vient du **vote passé** (`dev_lag1/2`) ; la démographie INSEE/géographie
+   pèse ~**4 %**. C'est voulu : *le meilleur prédicteur du vote d'un bureau est son vote passé*.
+   L'apport propre n'est pas un modèle sociologique riche mais **(a)** la résolution au bureau,
+   **(b)** les intervalles conformes, **(c)** γ. Le rendu ne doit **pas survendre** les « 52
+   indicateurs INSEE » comme moteur : ils sont une **correction secondaire**. Le panneau « pourquoi
+   ce bureau dévie » montre d'abord la **persistance** (héritage de vote), la démographie ensuite.
+
+3. **Le pari « l'écart local transfère » suppose une structure de clivages stable.** `prédiction
+   = ancre nationale + écart local` ; on parie que l'écart local est un trait structurel lent.
+   Vrai en régime stable, **fragile sous réalignement** (parti neuf, choc régional) — et on n'a
+   **aucun diagnostic** de réalignement. Limite **disclosée** sur le site, pas masquée.
+
+4. **Couverture conforme = vérifiée sur UNE élection tenue à l'écart (n≈1), pas 69 k tirages.**
+   Les 69 358 bureaux partagent un seul choc national : l'échantillon effectif de validation de
+   couverture est ~1 élection. « ≥ 90 % vérifié » veut dire « tenu dans la seule élection hors
+   échantillon dont on dispose », pas une garantie de fer. Le rendu le dit.
+
+5. **Pooling des types pour ED/Abstention vs γ-par-type : pas une contradiction.** Le **niveau**
+   diffère par type (absorbé par le one-hot de type) ; la **forme** de l'écart local est poolée,
+   et ce choix a **gagné en LOO**. γ-par-type décrit le *votant marginal*, pas l'écart structurel
+   du bureau — les deux coexistent. À documenter, pas à « réconcilier ».
+
+6. **Trois objets épistémiques distincts, à distinguer visuellement.** (a) **rétrodiction**
+   vérifiable (81,6 % sur 2024), (b) **méthode de prévision** transférable (non testée en avant),
+   (c) **projection contrefactuelle** (le gisement — invérifiable par nature). Le danger : un même
+   langage visuel (même carte, mêmes chiffres) fait importer la crédibilité de (a) sur (c). Le
+   rendu **marque** ce qui est *vérifié sur 2024* vs *projection*. La cible (T1) est en outre un
+   **proxy** du but (sièges à deux tours) : le modèle ne voit que le premier tour, on l'écrit, et
+   le taux de bon appel (81,6 %) est lui-même un chiffre **d'une seule élection**, sans intervalle.

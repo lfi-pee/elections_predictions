@@ -156,6 +156,9 @@ function renderProvenance() {
     `<p class="provr2"><b>Et au bureau près ?</b> Part de la variabilité entre bureaux que le ` +
     `modèle explique (R²) : ${cells}. Donnez-lui le vrai national plutôt que le sondage, le R² ` +
     `bouge à peine (ED ${r2("ED", "r2_real")}→${r2("ED", "r2_oracle")}) — cette finesse est locale, ` +
-    `pas empruntée au sondage.</p>`;
+    `pas empruntée au sondage. <span class="muted">(Pourquoi pas en contradiction avec les ` +
+    `${Math.round(p.ED.national_share)} % « national » d'Extrême Droite ? L'erreur de sondage est ` +
+    `un décalage <i>uniforme</i> : un gros morceau de l'incertitude d'un même bureau, mais presque ` +
+    `rien de ce qui distingue les bureaux entre eux — donc du R².)</span></p>`;
 }
 

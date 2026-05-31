@@ -70,7 +70,10 @@ function whyMobil(rec) {
   const g = conj > 0 ? Math.round((rec.mob / conj) * 100) : 0;
   const voters = rec.i * (1 - rec.blocks.AB.act / 100);
   const cur = rec.blocks.G.pred;
-  const next = voters > 0 ? (cur / 100 * voters + rec.mob) / (voters + rec.mob) * 100 : cur;
+  // If the whole conjunctural frange returns (not just its Left share), turnout grows by
+  // `conj` and the Left gains `mob` of them — the honest GOTV arithmetic, not a best case
+  // that assumes you bring only Left voters.
+  const next = voters > 0 ? ((cur / 100) * voters + rec.mob) / (voters + conj) * 100 : cur;
   const phrase = rec.wleft ? `<div class="dv-cap">Ce bureau ${rec.wleft}.</div>` : "";
   const bars = (rec.gdrivers && rec.gdrivers.length)
     ? `<div class="dv-cap" style="margin-top:8px">Ce qui tire le niveau de gauche de ce bureau, facteur par facteur. Barre : contribution au score Gauche, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
@@ -80,7 +83,7 @@ function whyMobil(rec) {
     <div class="pv-mob-eq"><b>${fmt(rec.mob)}</b> électeurs à aller chercher
       = ${fmt(conj)} abstentionnistes conjoncturels, dont ${g} % pencheraient à gauche</div>
     <div class="dv-cap">conjoncturels = abstentionnistes hors abstention de fond (chronique) — ${fmt(abs)} abstentionnistes au total</div>
-    <div class="pv-mob-score">Si vous les ramenez tous voter : Gauche
+    <div class="pv-mob-score">Si toute cette frange conjoncturelle revient voter : Gauche
       <b>${cur.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % → ${next.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></div>
     ${phrase}${bars}</div>`;
 }
@@ -101,8 +104,8 @@ function renderPanel(loc, rec) {
       Bloc en tête prédit : <b>${APP.NAME[baseLead]}</b>, marge ${rec.m.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts sur ${APP.NAME[rec.ru]}.</div>
     ${bars}
     <p class="cap">Barre pleine = prédit · trait noir = réel · fourchette de prévision
-    à 90 % : partie <b>sombre</b> = notre lecture locale, prolongement <b>clair</b> = la
-    part qui vient du national (sondages).</p>
+    à 90 %, partagée selon la part <b>moyenne</b> d'incertitude du bloc : <b>sombre</b> =
+    notre lecture locale, <b>clair</b> = ce qui vient du national (sondages).</p>
     ${APP.state.mode === "mobil" ? whyMobil(rec) : whyBlock(rec)}`;
 }
 

@@ -131,10 +131,10 @@ def _band_model() -> str:
         f'<circle cx="{(xa + xb) / 2}" cy="{iy}" r="4.5" fill="{ACCENT}"/>'
     )
     sub = (
-        f'<text x="16" y="212" font-size="9.6" fill="{MUT}">Une régression Ridge entraînée sur '
-        f"tous les scrutins : elle pèse les indicateurs INSEE, la géographie et les votes passés.</text>"
-        f'<text x="16" y="226" font-size="9.6" fill="{MUT}">L\'abstention est prédite à part — faute '
-        f"de sondage, calée sur la participation passée (d'où son incertitude surtout nationale).</text>"
+        f'<text x="16" y="212" font-size="9.6" fill="{MUT}">Régression Ridge par bloc : gauche et '
+        f"centre+droite apprises sur les législatives passées, extrême droite et abstention sur tous les scrutins.</text>"
+        f'<text x="16" y="226" font-size="9.6" fill="{MUT}">Elle pèse indicateurs INSEE, géographie et '
+        f"votes passés ; l'abstention, faute de sondage, est calée sur la participation passée.</text>"
     )
     return cards + i0 + base + devs + i2 + i3 + labels + chev + sub
 

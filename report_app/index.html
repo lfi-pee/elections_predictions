@@ -156,11 +156,14 @@
     erreurs (corrigé du nombre fini de bureaux, par le facteur (1−α)(1+1/n)) ; les fourchettes
     à 80 % et 95 % sont les centiles correspondants. Ce centile est calculé séparément par
     classe de territoire — métropole, Outre-mer, Polynésie, Corse, étranger —, ce qui rend la
-    largeur adaptative : plus large là où l'erreur passée l'est (une classe à trop peu de
-    bureaux reprend la largeur globale). La méthode ne suppose aucune distribution des erreurs
-    et garantit une couverture au moins égale au niveau visé. Contrôle : 2024 est tenu hors de
-    toute cette calibration, et la couverture mesurée dessus est supérieure ou égale au niveau
-    annoncé (≥ 90 % pour la fourchette à 90 %).</p>
+    largeur adaptative : chaque classe est calibrée sur ses propres erreurs passées, donc plus
+    large là où l'erreur l'est (une classe à trop peu de bureaux reprend la largeur globale).
+    La méthode ne suppose aucune distribution des erreurs et garantit une couverture au moins
+    égale au niveau visé. Contrôle : 2024 est tenu hors de toute cette calibration, et la
+    couverture mesurée dessus tient le niveau annoncé en métropole — où se joue le déploiement —
+    (≥ 90 % pour la fourchette à 90 %, par bloc) ; les territoires particuliers (Outre-mer,
+    Corse, étranger), calibrés sur eux-mêmes, reçoivent les fourchettes les plus larges et
+    restent les plus incertains : la limite que nous assumons plutôt que de la masquer.</p>
   </section>
 </main>
 

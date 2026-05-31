@@ -564,12 +564,17 @@ def main():
                 "prediction": res["val_pred"],
                 "actual": res["y_true_val"],
                 "residual": res["y_true_val"] - res["val_pred"],
-                "lower_80": iv80["adap_lower"],
-                "upper_80": iv80["adap_upper"],
-                "lower_90": iv90["adap_lower"],
-                "upper_90": iv90["adap_upper"],
-                "lower_95": iv95["adap_lower"],
-                "upper_95": iv95["adap_upper"],
+                # Territory-stratified intervals (terr_*): each territory class gets its own
+                # quantile of PAST-election LOO residuals (sparse classes fall back to the
+                # global quantile). This is what the site describes, and it calibrates the
+                # particular territories (DOM/Corse/étranger/Polynésie) on themselves rather
+                # than letting mainland set their width. Calibration never touches 2024.
+                "lower_80": iv80["terr_lower"],
+                "upper_80": iv80["terr_upper"],
+                "lower_90": iv90["terr_lower"],
+                "upper_90": iv90["terr_upper"],
+                "lower_95": iv95["terr_lower"],
+                "upper_95": iv95["terr_upper"],
             }
         )
         output_frames.append(block_df)

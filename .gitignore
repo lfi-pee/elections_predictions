@@ -12,3 +12,6 @@ screenshots/
 # déploiement Streamlit. On les ré-inclut malgré les règles `data` et `*.png`.
 !report_app/data/
 !report_app/data/**
+
+# Image d'aperçu du site embarquée dans le README (malgré `*.png`).
+!docs/apercu-site.png

@@ -1,5 +1,7 @@
 # 🗳️ French Election Predictions
 
+![Aperçu du site](docs/apercu-site.png)
+
 **Bureau de vote–level prediction of French election results using demographic data, historical voting patterns, and national polls.**
 
 Predicts four block vote shares (0–100%) for every bureau de vote (BV) in France:

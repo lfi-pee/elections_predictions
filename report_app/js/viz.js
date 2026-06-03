@@ -55,7 +55,7 @@ function renderPools() {
     `<span class="pc-step"><b>${M(lg.total_abstainers)}</b> abstentionnistes prévus dans les bureaux</span>` +
     `<span class="op">on écarte l'abstention <b>de fond</b> — ceux qui ne votent jamais</span>` +
     `<span class="pc-step"><b>${M(lg.conjunctural_abstainers)}</b> <b>conjoncturels</b> : reviennent voter quand la participation monte</span>` +
-    `<span class="op">× <b>${pct} %</b> d'entre eux penchent à gauche en moyenne — la part se lit bureau par bureau (voir la courbe), et ces abstentionnistes mobilisables se trouvent dans des bureaux un peu plus à gauche que l'ensemble</span>` +
+    `<span class="op">× <b>${pct} %</b> d'entre eux penchent à gauche — un peu au-dessus de la moyenne de tous les bureaux (~39 % à une législative, voir la courbe), parce que les abstentionnistes mobilisables se concentrent dans des bureaux déjà plus à gauche ; la part se lit bureau par bureau</span>` +
     `<span class="pc-step total"><b>= ${M(lg.mobilization_voters)}</b> électeurs de gauche à aller chercher</span>` +
     `</div>`;
 }

@@ -1,6 +1,10 @@
 "use strict";
 const _detailCache = new Map();
-const SCALE = 60;
+// Bars are a 0–100 % gauge. Shares (pred/act) are always ≤ 100 so they render exactly;
+// only conformal CI bounds can run past 100 %, and `w` clamps those whiskers to the edge.
+// A tighter scale (was 60) saturated every value above it — ~38 k clamped, degenerate
+// bars on bureaus with an extreme bloc or wide interval.
+const SCALE = 100;
 
 async function fetchDetail(dept) {
   if (_detailCache.has(dept)) return _detailCache.get(dept);
@@ -70,10 +74,12 @@ function whyMobil(rec) {
   const g = conj > 0 ? Math.round((rec.mob / conj) * 100) : 0;
   const voters = rec.i * (1 - rec.blocks.AB.act / 100);
   const cur = rec.blocks.G.pred;
-  // If the whole conjunctural frange returns (not just its Left share), turnout grows by
-  // `conj` and the Left gains `mob` of them — the honest GOTV arithmetic, not a best case
-  // that assumes you bring only Left voters.
-  const next = voters > 0 ? ((cur / 100) * voters + rec.mob) / (voters + conj) * 100 : cur;
+  // Targeted GOTV: the campaign brings out the `mob` left-leaning mobilizables (turnout
+  // grows by mob, all Left), so the Left share can only rise. Modelling a broad surge
+  // (whole frange returns, denominator + conj) would dilute the share wherever γ < the
+  // bureau's Left level — the wrong question for a targeting tool. The label below states
+  // the assumption so the gain isn't read as guaranteed.
+  const next = voters > 0 ? ((cur / 100) * voters + rec.mob) / (voters + rec.mob) * 100 : cur;
   const phrase = rec.wleft ? `<div class="dv-cap">Ce bureau ${rec.wleft}.</div>` : "";
   const bars = (rec.gdrivers && rec.gdrivers.length)
     ? `<div class="dv-cap" style="margin-top:8px">Ce qui tire le niveau de gauche de ce bureau, facteur par facteur. Barre : contribution au score Gauche, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
@@ -83,7 +89,8 @@ function whyMobil(rec) {
     <div class="pv-mob-eq"><b>${fmt(rec.mob)}</b> électeurs à aller chercher
       = ${fmt(conj)} abstentionnistes conjoncturels, dont ${g} % pencheraient à gauche</div>
     <div class="dv-cap">conjoncturels = abstentionnistes hors abstention de fond (chronique) — ${fmt(abs)} abstentionnistes au total</div>
-    <div class="pv-mob-score">Si toute cette frange conjoncturelle revient voter : Gauche
+    <div class="pv-mob-score">Si votre campagne ramène ces <b>${fmt(rec.mob)}</b> électeurs de
+      gauche aux urnes : Gauche
       <b>${cur.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % → ${next.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></div>
     ${phrase}${bars}</div>`;
 }

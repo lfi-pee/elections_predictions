@@ -1,10 +1,12 @@
 data
 src/__pycache__
 __pycache__
+*.pyc
 *.png
 *.log
 .venv
 .ruff_cache
+screenshots/
 
 # Le site statique embarque ses données générées (210 Mo) : nécessaires au
 # déploiement Streamlit. On les ré-inclut malgré les règles `data` et `*.png`.

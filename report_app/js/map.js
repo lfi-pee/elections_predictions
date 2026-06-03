@@ -41,7 +41,7 @@ function communeFC() {
       type: "Feature",
       geometry: { type: "Point", coordinates: [c.lon, c.lat] },
       properties: { pG: c.pG, pCD: c.pCD, pED: c.pED, pAB: c.pAB,
-        cmv: c.cmv, cab: c.cab, nb: c.n_bv,
+        cmv: c.cmv, cab: c.cab, ccj: c.ccj, nb: c.n_bv,
         i: c.inscrits, n: c.nom, code: c.code_commune, dept: c.dept },
     })),
   };
@@ -103,13 +103,15 @@ function hoverTitle(p) {
   return p.nb ? `${name} · ${fmt(p.nb)} bureaux de vote` : name;
 }
 
-// New Gauche share among voters if every mobilizable abstainer turns out and votes
-// Left: (Gshare·voters + mob) / (voters + mob). "Si vous les ramenez tous, voilà
-// votre score" — the client's request, computed exactly from the served fields.
+// New Gauche share if a TARGETED GOTV effort brings out the `mv` left-leaning
+// mobilizables (turnout grows by mv, all Left): (Gshare·voters + mv) / (voters + mv).
+// This is the action the tool models — canvass YOUR voters — not a broad turnout
+// surge where the whole frange returns (which, since γ < the bureau's Left share,
+// would dilute it). The label states the targeting assumption so it isn't oversold.
 function mobilizedScore(p, bv) {
-  const ins = bv ? p.i : p.i, abPct = bv ? p.pa : p.pAB, gShare = bv ? p.pg : p.pG;
+  const abPct = bv ? p.pa : p.pAB, gShare = bv ? p.pg : p.pG;
   const mv = bv ? p.mv : p.cmv;
-  const voters = ins * (1 - abPct / 100);
+  const voters = p.i * (1 - abPct / 100);
   if (voters <= 0 || mv <= 0) return null;
   const cur = gShare, next = (gShare / 100 * voters + mv) / (voters + mv) * 100;
   return { cur, next };
@@ -121,16 +123,23 @@ function mobilizedScore(p, bv) {
 function hoverBody(p) {
   const bv = p.l !== undefined;
   if (APP.state.mode === "mobil") {
-    const mv = bv ? p.mv : p.cmv, abs = bv ? p.ab : p.cab;
+    const mv = bv ? p.mv : p.cmv, abs = bv ? p.ab : p.cab, conj = bv ? p.cj : p.ccj;
     let s = `<br><b>${fmt(mv)}</b> électeurs à aller chercher` +
       `<br><span class="mini-cap">la couleur = densité d'abstentionnistes qui, en venant voter, choisiraient la gauche</span>`;
+    // γ = mobilizable ÷ CONJUNCTURAL abstainers (same as the click panel), never
+    // mobilizable ÷ all abstainers — that conflated the conjunctural filter with γ
+    // and printed a misleading lean-left share (e.g. "2 %" on a γ≈45 % bureau). The
+    // share is only shown when the conjunctural base is large enough not to be pure
+    // rounding noise (mv/cj on a handful of voters reads as 100 %/0 %).
     if (abs > 0) {
       s += `<br><span class="mini-sub">${fmt(abs)} abstentionnistes, dont ` +
-        `${Math.round((mv / abs) * 100)} % pencheraient à gauche</span>`;
+        `<b>${fmt(conj)}</b> conjoncturels (qui reviennent quand l'enjeu monte)`;
+      if (conj >= 10) s += ` — ${Math.round((mv / conj) * 100)} % pencheraient à gauche`;
+      s += `</span>`;
     }
     const sc = mobilizedScore(p, bv);
     if (sc) {
-      s += `<br><span class="mini-score">si vous les ramenez tous : Gauche ` +
+      s += `<br><span class="mini-score">si votre campagne ramène ces électeurs de gauche : Gauche ` +
         `${sc.cur.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % → ` +
         `<b>${sc.next.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></span>`;
     }

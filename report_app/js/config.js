@@ -17,7 +17,7 @@ const APP = {
   bvByDept: new Map(),
   // Bump on any change to served data files (national/communes/bv/detail/…) so the
   // browser refetches instead of serving a stale cache. Appended to every loadJSON.
-  DATAV: "9",
+  DATAV: "10",
 };
 
 const $ = (id) => document.getElementById(id);

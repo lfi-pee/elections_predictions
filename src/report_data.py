@@ -299,6 +299,13 @@ def aggregate_communes(df: pd.DataFrame) -> pd.DataFrame:
                 "lon": float(g.lon.mean()),
                 "cmv": int(g.mob.sum()),
                 "cab": int(round((g.inscrits * g.pred_AB / 100).sum())),
+                "ccj": int(
+                    round(
+                        (
+                            g.inscrits * (g.pred_AB - g.abst_floor).clip(lower=0) / 100
+                        ).sum()
+                    )
+                ),
                 **{f"p{b}": round(means[b], 2) for b in (*VOTE, "AB")},
             }
         )

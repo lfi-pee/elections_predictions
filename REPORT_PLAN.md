@@ -765,3 +765,43 @@ sur `#hero-end` est retiré.)*
    rendu **marque** ce qui est *vérifié sur 2024* vs *projection*. La cible (T1) est en outre un
    **proxy** du but (sièges à deux tours) : le modèle ne voit que le premier tour, on l'écrit, et
    le taux de bon appel (81,6 %) est lui-même un chiffre **d'une seule élection**, sans intervalle.
+
+---
+
+### Verdict de revue (2026-06-01) — défendabilité : RAS, postures assumées
+
+> Revue de défendabilité conduite sur le rendu réel (pas seulement le plan). Trois points
+> ont été soulevés ; après examen, **les trois sont des choix de conception assumés et tenus
+> honnêtement par le site, pas des défauts à corriger.** On les consigne ici pour qu'une revue
+> ultérieure ne les rouvre pas comme des bugs. *(Les points de **correctness** et de
+> **lisibilité** de la même revue, eux, ont été corrigés — voir §0 / l'historique git.)*
+
+7. **La comparaison « 48,2 % du sondage national » est un repère VOULU, pas un homme de paille
+   déguisé — ACCEPTÉ.** Le repère « un seul favori, le même bloc partout » n'est pas le meilleur
+   prédicteur concevable (le report du dernier résultat par bureau ferait mieux) ; c'est
+   délibéré. Le produit se vend contre **ce que le client reçoit aujourd'hui d'un institut** :
+   un titre national, un favori unique. Le site ne prétend jamais que 48,2 % serait l'état de
+   l'art prédictif — il dit « appliquer ce favori unique à tous les bureaux ne tombe juste
+   qu'une fois sur deux », ce qui est exact et littéral. Le caractère autorégressif du modèle
+   (≈ 96 %, donc « le passé du bureau prédit déjà très bien ») est **assumé et affiché**
+   ailleurs (panneau méthode, posture §10.2) : le site ne cache pas que le report du passé est
+   fort. On ne « durcit » pas le repère vers un swing uniforme — ce serait répondre à une
+   question (« bat-on le meilleur modèle ? ») que le livrable ne pose pas, au lieu de la sienne
+   (« voit-on ce qu'un sondage ne montre pas ? »).
+
+8. **L'usage « où frapper » repose sur γ comme PRIOR GÉOGRAPHIQUE, jamais comme rendement
+   par porte — ACCEPTÉ, et c'est la ligne de §10.1.** L'objection « le canvasser lit 46 % comme
+   une promesse individuelle » est réelle en théorie, mais le rendu tient la distinction :
+   « gain net », « part qui penche à gauche **en moyenne** », jamais « cet abstentionniste
+   vote à gauche ». Le déploiement classe des **communes** (agrégat), pas des personnes
+   nommées. On assume l'instrument comme **ciblage géographique** ; tant que le vocabulaire
+   reste agrégé (et il l'est), la posture est défendable. Ne pas « corriger » vers une lecture
+   individuelle — ce serait précisément la faute d'inférence écologique que §10.1 proscrit.
+
+9. **« Où déployer » suit largement la taille des villes — ASSUMÉ et dit, pas un défaut.** Le
+   volume mobilisable corrèle à 0,99 avec la population : l'ordre des villes est surtout un
+   ordre démographique, et **le site l'écrit** (« le volume suit la taille de la commune »).
+   L'apport propre du modèle n'est pas l'ordre des villes mais la colonne **rendement (γ)** —
+   *où*, à volume égal, une porte frappée rapporte le plus. Le panneau sépare déjà les deux
+   colonnes pour que le décideur ne confonde pas « grosse ville » et « bon rendement ». Aucune
+   sur-promesse : on ne prétend pas découvrir des poches que la démographie ignore.

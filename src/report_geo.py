@@ -81,6 +81,7 @@ def export() -> None:
             "inscrits",
             "ed_tip",
             "mob",
+            "abst_floor",
             "act_AB",
             "libelle_commune",
             "code_departement",
@@ -111,6 +112,17 @@ def export() -> None:
                         "mv": int(row.mob),
                         "i": int(row.inscrits),
                         "ab": int(round(row.inscrits * row.pred_AB / 100)),
+                        # Conjunctural abstainers (predicted − historical floor) — the
+                        # denominator γ is read against, so the hover shows the SAME
+                        # left-share as the click panel (mob / conjunctural), never the
+                        # mobilizable-over-all-abstainers ratio.
+                        "cj": int(
+                            round(
+                                row.inscrits
+                                * max(0.0, row.pred_AB - row.abst_floor)
+                                / 100
+                            )
+                        ),
                         "w": why.get(loc, ""),
                     },
                 }

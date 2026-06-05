@@ -12,7 +12,8 @@ Best clean raw R² (LOO-selected on training, single val forward pass):
   Gauche:          0.73  (legi-only PCA5-devlag, LOO OOF=0.797)
   Centre+Droite:   0.60  (legi-only PCA7-devlag, LOO OOF=0.596)
   Extr. Droite:    0.81  (cross-type PCA5-devlag, LOO OOF=0.816)
-  Abstention:      0.73  (cross-type PCA10-devlag, LOO OOF=0.908)
+  Abstention:     -2.9  (raw; 0.77 cross-sect.; national level LOO-selected,
+                         not 2024-tuned; cross-type PCA10-devlag, LOO OOF=0.908)
 
 Usage:
     python3 -m src.cross_type_dev
@@ -83,73 +84,88 @@ def evaluate_full(y_true, pred):
 # ── National abstention estimator ───────────────────────────────────
 
 
-def estimate_national_abstention_from_gaps(national_means, val_date=VAL_DATE):
-    """Estimate national abstention from inter-election gap model.
+def estimate_national_abstention(
+    national_means, val_date=VAL_DATE, target_type=VAL_TYPE
+):
+    """National abstention for the target election, LOO-selected estimator.
 
-    Principled: trained only on historical election national means, no
-    validation data used.
-
-    Key insight: time since the last election (of any type) strongly
-    predicts national abstention.  In training data:
-      - Legi T1 follows Pres T1 by ~0.17 yr → high abstention (~42%)
-      - Pres T1 follows Legi T1 by ~4.8 yr  → low abstention (~20%)
-    The 2024 snap Legi has gap = 2.0 yr (unprecedented), and the linear
-    model interpolates between the two clusters → ~33%, close to the
-    actual 31%.
+    Candidate estimators (all trained on historical national means only) are
+    scored by LOO RMSE over training elections; the lowest-RMSE one is used.
+    The choice is LOO-derived — no validation/test information enters it.
 
     Returns (predicted_abstention, loo_rmse).
     """
     nm = national_means.sort_values("date_float").reset_index(drop=True)
-    train = nm[nm["date_float"] < val_date - 0.1].copy()
-
-    # gap_years = time since previous election (any type)
-    train["gap_years"] = train["date_float"].diff()
-    # Drop first election (no prior)
-    train = train.dropna(subset=["gap_years"]).reset_index(drop=True)
-
-    X = train[["gap_years"]].values
-    y = train["Abstention"].values
+    train = nm[nm["date_float"] < val_date - 0.1].reset_index(drop=True)
+    y = train["Abstention"].to_numpy()
+    types = train["election_type"].to_numpy()
+    dates = train["date_float"].to_numpy()
     n = len(y)
+    gap = np.concatenate([[np.nan], np.diff(dates)])
+    gap_target = val_date - float(dates.max())
 
-    # LOO cross-validation
-    loo_preds = np.zeros(n)
-    for i in range(n):
-        mask = np.ones(n, dtype=bool)
-        mask[i] = False
-        lr = LinearRegression()
-        lr.fit(X[mask], y[mask])
-        loo_preds[i] = float(lr.predict(X[[i]])[0])
+    def gap_fit(mask, x):
+        ok = mask & ~np.isnan(gap)
+        lr = LinearRegression().fit(gap[ok].reshape(-1, 1), y[ok])
+        return float(lr.predict([[x]])[0])
 
-    loo_rmse = float(np.sqrt(np.mean((y - loo_preds) ** 2)))
+    def last_same(i):
+        for j in range(i - 1, -1, -1):
+            if types[j] == types[i]:
+                return float(y[j])
+        return np.nan
 
-    # Fit final model on all training data
-    lr = LinearRegression()
-    lr.fit(X, y)
+    same_target = types == target_type
+    # (loo_pred_fn(i, mask), predict_target_fn()) per candidate
+    cands = {
+        "gap-model": (
+            lambda i, m: gap_fit(m, gap[i]) if not np.isnan(gap[i]) else np.nan,
+            lambda: gap_fit(np.ones(n, bool), gap_target),
+        ),
+        "last-same-type": (
+            lambda i, m: last_same(i),
+            lambda: float(y[same_target][-1]) if same_target.any() else float(y.mean()),
+        ),
+        "same-type-mean": (
+            lambda i, m: (
+                float(y[m & (types == types[i])].mean())
+                if (m & (types == types[i])).any()
+                else np.nan
+            ),
+            lambda: (
+                float(y[same_target].mean()) if same_target.any() else float(y.mean())
+            ),
+        ),
+        "global-mean": (lambda i, m: float(y[m].mean()), lambda: float(y.mean())),
+        "last-any": (
+            lambda i, m: float(y[i - 1]) if i > 0 else np.nan,
+            lambda: float(y[-1]),
+        ),
+    }
 
-    # Gap for 2024: time since most recent training election
-    last_train_date = float(train["date_float"].max())
-    gap_2024 = val_date - last_train_date
-    pred = float(lr.predict([[gap_2024]])[0])
+    def loo_rmse(fn):
+        preds = np.full(n, np.nan)
+        for i in range(n):
+            mask = np.ones(n, bool)
+            mask[i] = False
+            preds[i] = fn(i, mask)
+        ok = ~np.isnan(preds)
+        return float(np.sqrt(np.mean((y[ok] - preds[ok]) ** 2)))
 
-    print(f"\n  Abstention gap model (gap_years → national abs):")
+    scored = {name: loo_rmse(fn) for name, (fn, _) in cands.items()}
+    best = min(scored, key=scored.get)
+    pred = cands[best][1]()
+    rmse = scored[best]
     print(
-        f"    {n} training elections, slope={lr.coef_[0]:.2f} pp/yr, "
-        f"intercept={lr.intercept_:.1f}%"
+        f"  National abstention: LOO-selected '{best}' "
+        f"(RMSE {rmse:.1f}pp; {', '.join(f'{k}={v:.1f}' for k, v in scored.items())})"
+        f" → {pred:.1f}%"
     )
-    print(f"    LOO RMSE = {loo_rmse:.1f} pp")
-    print(f"    LOO predictions:")
-    for i in range(n):
-        et = train.iloc[i]["election_type"]
-        dt = train.iloc[i]["date_float"]
-        g = train.iloc[i]["gap_years"]
-        print(
-            f"      {et:25s} {dt:.2f}  gap={g:.2f}yr  "
-            f"actual={y[i]:.1f}  pred={loo_preds[i]:.1f}  "
-            f"err={loo_preds[i] - y[i]:+.1f}"
-        )
-    print(f"    2024: gap={gap_2024:.2f}yr → predicted abs = {pred:.1f}%")
+    return pred, rmse
 
-    return pred, loo_rmse
+
+# Legacy name kept so existing call sites keep working; now LOO-selects.
+estimate_national_abstention_from_gaps = estimate_national_abstention
 
 
 # ── Data builders ────────────────────────────────────────────────────

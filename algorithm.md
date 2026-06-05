@@ -27,9 +27,9 @@ Models selected by best Leave-One-Election-Out R² on training data. No validati
 | Gauche | **0.74** | PCA5-devlag | legi-only, V1, 4 train dates | 0.797 |
 | Centre+Droite | **0.61** | PCA7-devlag | legi-only, V1, 4 train dates | 0.597 |
 | Extr. Droite | **0.80** | PCA5-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.816 |
-| Abstention | **0.74** | PCA10-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.907 |
+| Abstention | **-2.9** (0.77 cross-sect.) | PCA10-devlag | cross-type (Legi+Pres), V1, 8 train dates | 0.907 |
 
-All numbers use raw poll averages as the national estimate (G=30.7, C+D=32.8, ED=36.5) for vote blocks. For Abstention, a gap-based turnout model (see Stage 1) predicts 33.0% national abstention (actual 31.0%, error 2.0pp) — using Legi+Pres national means only. No calibration, no grid search, no validation tuning of any kind.
+All numbers use raw poll averages as the national estimate (G=30.7, C+D=32.8, ED=36.5) for vote blocks. For Abstention, the national level is **LOO-selected** among candidate estimators (see Stage 1); the LOO winner is *last-same-type* → ~49.6% (continuation of the 2002→2022 trend). This is far from the 2024 snap election's atypical 31%, so the raw Abstention R² = -2.9 by design (an ~18pp national-level offset); the cross-sectional/debiased R² is 0.77, unchanged. No calibration, no grid search, no validation tuning of any kind.
 
 ### Note on LOO limitations
 
@@ -41,7 +41,7 @@ LOO with 4 folds (legi-only) or 8 folds (cross-type) is noisy. Models that are g
 
 Estimate the national average block score for 2024 from polls:
 - Vote blocks (G, C+D, ED): use raw poll averages directly. The 2024 polls (G=30.7, C+D=32.8, ED=36.5) closely match actual results (G=29.3, C+D=31.4, ED=37.1).
-- Abstention: no direct poll. Uses a **gap-based turnout model** trained on training elections only. The model fits a linear regression from the inter-election time gap (years since the most recent prior election of any type) to national abstention. In training, Legi T1 always follows Pres T1 by ~0.17yr (high abstention ~42%) while Pres T1 follows Legi T1 by ~4.8yr (low abstention ~20%). The 2024 snap Legi has gap=2.0yr (unprecedented), and the model interpolates to 33.0% (actual 31.0%, error 2.0pp). LOO RMSE on 9 training elections: 6.6pp. Previous approach (last known Legi abs = 49.6%) had 18.6pp error and made R² = -2.5.
+- Abstention: no direct poll. The national level is **LOO-selected** among five candidate estimators (gap-model, last-same-type, same-type mean, global mean, last-any), scored by LOO RMSE on training elections. The lowest-RMSE estimator is used — the choice is LOO-derived, no test information enters it. Current winner: *last-same-type* (LOO RMSE 5.7pp) → ~49.6% for a legislative T1, the continuation of the 2002→2022 upward trend. (A previously-used gap-model gave 33.0% — close to the 2024 snap election's atypical 31% — but it was only the 2nd-best LOO estimator and its selection was informed by the 2024 outcome; it was removed as a test-driven choice.)
 
 ### Stage 2: BV deviation model
 
@@ -81,7 +81,7 @@ Tested in `beat_it.py` with up to 8 models × 20 folds. NNLS and Ridge meta-lear
 
 1. **Deviation targets + deviation lags**. The single biggest innovation. Removes national-level bias from both target and lags, making the Ridge learn stable local deviations rather than absolute vote shares. Enables cross-type training and proper national estimation.
 
-2. **Two-stage national estimation from polls + gap model**. Without a national estimate, the Ridge predicts deviations centered on zero — raw R² is catastrophic because predictions miss the national level entirely. With raw poll estimates, the model is properly calibrated for G, C+D, ED. For Abstention, a gap-based turnout model (linear regression of inter-election gap → national abstention, fit on 9 training elections) estimates 33.0% vs actual 31.0%. This moved Abstention R² from -2.5 to 0.73.
+2. **Two-stage national estimation from polls + LOO-selected turnout estimator**. Without a national estimate, the Ridge predicts deviations centered on zero — raw R² is catastrophic because predictions miss the national level entirely. With raw poll estimates, the model is properly calibrated for G, C+D, ED. For Abstention (no poll), the national level is LOO-selected among candidate estimators; the LOO winner (*last-same-type*, ~49.6%) is the trend-continuation level, deliberately not tuned to the 2024 snap election's atypical 31%. Raw Abstention R² is therefore -2.9 (an ~18pp national-level offset); the cross-sectional/debiased R² is 0.77. A gap-model that hit 33.0% on 2024 was removed as a test-driven choice (only 2nd-best on LOO).
 
 3. **Cross-type training in deviation space**. Legi + Pres T1 gives 8 training dates instead of 4. Best for ED (0.81 cross-type vs 0.78 legi-only). With 1-lag variant (dropping lag2 requirement), 9 dates — best for Gauche (0.75 vs 0.74 with 2-lag legi-only). Worse for C+D (0.57 vs 0.60 legi-only PCA10).
 

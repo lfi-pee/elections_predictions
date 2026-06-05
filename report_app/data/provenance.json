@@ -37,7 +37,7 @@
    "sd_total": 7.57,
    "q90_oracle": 7.28,
    "q90_real": 12.27,
-   "r2_real": 0.74,
+   "r2_real": -2.9,
    "r2_oracle": 0.77
   }
  }

@@ -11,7 +11,9 @@ Predicts four block vote shares (0–100%) for every bureau de vote (BV) in Fran
 | **Gauche** | Left-wing (SOC, COM, FI, NUP, ECO, VEC, EXG, DVG…) | **0.74** |
 | **Centre+Droite** | Center and right (UMP, LR, REM, ENS, DVD, UDI…) | **0.61** |
 | **Extrême Droite** | Far-right (FN, RN, REC, EXD…) | **0.80** |
-| **Abstention** | Abstention rate | **0.74** |
+| **Abstention** | Abstention rate | **-2.9** ※ |
+
+> ※ Abstention **raw R² = -2.9 by design**: its national level is now LOO-derived (not tuned to the 2024 snap election), leaving a ~18pp national-level offset. The *cross-sectional* (debiased) R² — the bureau-ranking skill that drives GOTV targeting — is **0.77**, unchanged. See [Key Design Decisions §4](#key-design-decisions).
 
 Validated on the 2024 Législatives T1 (~69K BVs). No validation tuning of any kind — all model selection is done via Leave-One-Election-Out (LOO) on training data, with a single forward pass on the validation set.
 
@@ -181,7 +183,7 @@ Models selected by best Leave-One-Election-Out R² on training data. No validati
 | Gauche | **0.74** | PCA5-devlag | Legi-only, V1, 4 train dates |
 | Centre+Droite | **0.61** | PCA7-devlag | Legi-only, V1, 4 train dates |
 | Extrême Droite | **0.80** | PCA5-devlag | Cross-type (Legi+Pres), V1, 8 train dates |
-| Abstention | **0.74** | PCA10-devlag | Cross-type (Legi+Pres), V1, 8 train dates |
+| Abstention | **-2.9** (cross-sect. 0.77) | PCA10-devlag | Cross-type (Legi+Pres), V1, 8 train dates |
 
 ### Conformal Prediction Intervals
 
@@ -204,7 +206,7 @@ Distribution-free intervals with finite-sample coverage guarantees:
 
 3. **Cross-type training in deviation space.** Training on Legi + Pres T1 doubles the training dates (4 → 8). Best for Extrême Droite. Extended 6-type (20 dates) is best for Abstention.
 
-4. **Gap-based turnout model for Abstention.** No direct poll exists for abstention. A linear regression from inter-election gap to national abstention, fit on 9 training elections, correctly interpolates the unprecedented 2024 snap election.
+4. **LOO-selected national abstention estimator.** No direct poll exists for abstention. Five candidate estimators (gap-model, last-same-type, same-type mean, global mean, last-any) are scored by LOO RMSE on training elections and the lowest-RMSE one is used — the choice is LOO-derived, no test information enters it. The current LOO winner is *last-same-type* (RMSE 5.7pp), giving ~49.6% national abstention for a legislative T1 — the continuation of the 2002→2022 upward trend. The 2024 snap election's atypical 31% is a mobilization outlier the LOO criterion cannot, and must not, be tuned to.
 
 5. **PCA on demographics.** Compresses 52 correlated census indicators to 3–10 orthogonal components. Prevents Ridge overfitting with limited training elections.
 

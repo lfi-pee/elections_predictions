@@ -6,7 +6,7 @@
   "G": 32.58,
   "CD": 32.4,
   "ED": 33.45,
-  "AB": 34.95
+  "AB": 51.61
  },
  "battlefield": {
   "3": {
@@ -32,95 +32,95 @@
  },
  "left_gain": {
   "method": "abstentionnistes conjoncturels × part de gauche du votant marginal (γ législatif)",
-  "mobilization_voters": 246476,
-  "total_abstainers": 14835357,
-  "conjunctural_abstainers": 573424,
-  "structural_abstainers": 14261933,
-  "gamma_mean": 43.0,
+  "mobilization_voters": 2609253,
+  "total_abstainers": 22361503,
+  "conjunctural_abstainers": 6270913,
+  "structural_abstainers": 16090590,
+  "gamma_mean": 41.6,
   "deployment": [
-   {
-    "nom": "Marseille",
-    "dept": "13",
-    "mob": 7134,
-    "bv": 482,
-    "gamma": 46.2
-   },
    {
     "nom": "Paris",
     "dept": "75",
-    "mob": 4887,
+    "mob": 84840,
     "bv": 861,
-    "gamma": 51.2
+    "gamma": 47.2
    },
    {
-    "nom": "Le Havre",
-    "dept": "76",
-    "mob": 1707,
-    "bv": 110,
-    "gamma": 49.9
-   },
-   {
-    "nom": "Limoges",
-    "dept": "87",
-    "mob": 1692,
-    "bv": 86,
-    "gamma": 49.5
-   },
-   {
-    "nom": "Nîmes",
-    "dept": "30",
-    "mob": 1640,
-    "bv": 86,
-    "gamma": 49.8
-   },
-   {
-    "nom": "Avignon",
-    "dept": "84",
-    "mob": 1608,
-    "bv": 71,
-    "gamma": 50.4
+    "nom": "Marseille",
+    "dept": "13",
+    "mob": 44609,
+    "bv": 482,
+    "gamma": 45.2
    },
    {
     "nom": "Toulouse",
     "dept": "31",
-    "mob": 1428,
+    "mob": 13632,
     "bv": 267,
-    "gamma": 54.4
+    "gamma": 51.8
    },
    {
-    "nom": "Bastia",
-    "dept": "2B",
-    "mob": 1284,
-    "bv": 27,
-    "gamma": 38.4
+    "nom": "Lyon",
+    "dept": "69",
+    "mob": 13224,
+    "bv": 305,
+    "gamma": 47.1
    },
    {
     "nom": "Montpellier",
     "dept": "34",
-    "mob": 1255,
+    "mob": 12880,
     "bv": 139,
-    "gamma": 51.8
+    "gamma": 51.9
    },
    {
-    "nom": "Angers",
-    "dept": "49",
-    "mob": 1208,
-    "bv": 85,
-    "gamma": 50.5
+    "nom": "Le Havre",
+    "dept": "76",
+    "mob": 8850,
+    "bv": 110,
+    "gamma": 49.1
    },
    {
-    "nom": "Toulon",
-    "dept": "83",
-    "mob": 1066,
-    "bv": 128,
-    "gamma": 41.3
+    "nom": "Nice",
+    "dept": "06",
+    "mob": 8549,
+    "bv": 254,
+    "gamma": 40.3
    },
    {
-    "nom": "Carcassonne",
-    "dept": "11",
-    "mob": 952,
-    "bv": 36,
-    "gamma": 47.7
+    "nom": "Le Mans",
+    "dept": "72",
+    "mob": 7806,
+    "bv": 98,
+    "gamma": 49.8
+   },
+   {
+    "nom": "Nîmes",
+    "dept": "30",
+    "mob": 7785,
+    "bv": 86,
+    "gamma": 46.8
+   },
+   {
+    "nom": "Limoges",
+    "dept": "87",
+    "mob": 7194,
+    "bv": 86,
+    "gamma": 48.7
+   },
+   {
+    "nom": "Brest",
+    "dept": "29",
+    "mob": 6752,
+    "bv": 104,
+    "gamma": 50.2
+   },
+   {
+    "nom": "Dijon",
+    "dept": "21",
+    "mob": 6597,
+    "bv": 96,
+    "gamma": 48.5
    }
   ]
  },
@@ -147,7 +147,7 @@
   "G": 0.74,
   "CD": 0.61,
   "ED": 0.8,
-  "AB": 0.74
+  "AB": -2.9
  },
  "unc_median": 28.1
 }

@@ -249,3 +249,53 @@ as the existing two types already achieve). Then:
 **Caveat to respect.** Cantonales-style block-mapping noise does not apply to Européennes (clean
 list-level Left/RN/macronist mapping), but turnout regimes differ — keep the γ curve **per election
 type** (`MOVABILITY.md` §15); do not pool European transitions into the legislative curve.
+
+## 7. IRIS sub-commune resolution & residential-mobility features (2026-06-06)
+
+**The single largest untried data lever — sub-commune demographic resolution — and the
+last untapped census theme (residential churn) were both tested. Neither is a bankable
+gain. Confirms the §1–3 headline: the ceiling is training-election count + Stage-1, not
+cross-sectional demographic detail.**
+
+### What was built (kept; `src/iris_features.py`, `src/mobility_features.py`,
+`iris_experiment.py`, `mobility_experiment.py`)
+- IRIS census (vintages 2013–2022, avail 2016.5–2025.5) loaded by reusing the 52 validated
+  commune indicator-builders verbatim (patched reader synthesises `CODGEO` from `IRIS`),
+  then area/population-weighted onto BVs via the **pre-existing** `data/geo/bv_iris_weights.parquet`
+  (68,623 BVs). Today demographics are joined at **commune** level, so every BV in a commune
+  shares one demographic vector — IRIS gives genuine within-commune resolution.
+- Residential mobility: IRAN (résidence antérieure → recent-mover / arrived-from-other-commune
+  shares) and ANEM (ancienneté d'emménagement → short-tenure shares). 4 commune indicators,
+  full coverage back to 2009.5.
+- All evaluated through the **unchanged** pre-registered LOO harness (`run_loo_and_val`),
+  CT Legi+Pres 2-lag V1, PCA∈{none,5,7,10}, LOO-OOF selection + single 2024 val pass.
+
+### Results (val R² of LOO-selected model; baseline = commune, same harness)
+| design | G | CD | ED | Ab |
+|---|---|---|---|---|
+| commune_full (8 dates) | 0.7179 | 0.5630 | 0.8020 | 0.4102 |
+| IRIS-fallback level (full) | 0.7192 | 0.5707 | 0.8033 | 0.4145 |
+| commune + within-commune Δ (full) | 0.7283 | 0.5624 | 0.8031 | 0.4217 |
+| commune + mobility (full) | 0.7173 | 0.5703 | 0.8057 | 0.4155 |
+| commune_recent (≥2017, 4 dates) | 0.6793 | 0.5199 | 0.8098 | 0.3698 |
+| IRIS-fallback (recent, same rows) | 0.6803 | 0.5040 | 0.8094 | 0.3737 |
+
+### Verdict — not bankable, but informative
+- **On the OOF selection metric (the honest one), full-sample deltas are all ±0.002 = noise.**
+  The strict no-val-tuning rule therefore cannot *select* any IRIS/mobility variant, even
+  where val nudges up (delta_full: G val +0.010, Ab val +0.012 at flat OOF; IRIS-fallback CD
+  val +0.008).
+- **Resolution genuinely carries signal** — isolated on the same recent rows, IRIS resolution
+  lifts the *training-honest* OOF for CD (+0.022, 0.574→0.595) and G (+0.011). But with only
+  4 recent training dates the OOF→val transfer is unstable (CD val −0.016 there). Real signal,
+  drowned by the fold-count noise floor that §1–3 already identified.
+- **Mobility is redundant** with existing demographics (HLM %, renters %, single-person
+  households already proxy churn): every OOF delta ≤0.001.
+
+### Implication
+The IRIS pipeline is worth keeping for a **product** reason, not an R² one: it gives BVs within
+a commune distinct demographic profiles (neighbourhood-level GOTV targeting), which the
+commune join cannot. But for point R² it changes nothing the lag features don't already capture.
+Do not pursue finer cross-sectional demographics further. The remaining levers are unchanged:
+Stage-1 / turnout-intention microdata for the abstention national level, and more elections
+(time only).

@@ -69,12 +69,13 @@ XGB_FIXED = {
     "l2_regularization": 1.0,
 }
 
-# Best models per block (LOO-selected in preregistered.py)
+# Best models per block; matches conformal.BEST_RIDGE. ED/Ab switched CT→legi-only
+# per the task-correct held-out-legislative OOF (preconisations.md §9).
 BEST_MODELS = {
     "Gauche": "Legi-PCA5-devlag",
     "Centre+Droite": "Legi-PCA7-devlag",
-    "Extreme_Droite": "CT-PCA5-devlag",
-    "Abstention": "CT-PCA10-devlag",
+    "Extreme_Droite": "Legi-PCA5-devlag",
+    "Abstention": "Legi-PCA5-devlag",
 }
 
 

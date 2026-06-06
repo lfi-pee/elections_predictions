@@ -12,8 +12,8 @@ Best clean raw R² (LOO-selected on training, single val forward pass):
   Gauche:          0.73  (legi-only PCA5-devlag, LOO OOF=0.797)
   Centre+Droite:   0.60  (legi-only PCA7-devlag, LOO OOF=0.596)
   Extr. Droite:    0.81  (cross-type PCA5-devlag, LOO OOF=0.816)
-  Abstention:     -2.9  (raw; 0.77 cross-sect.; national level LOO-selected,
-                         not 2024-tuned; cross-type PCA10-devlag, LOO OOF=0.908)
+  Abstention:      0.41 (raw; 0.77 cross-sect.; national level from the published
+                         participation poll, like vote blocks; cross-type PCA10-devlag)
 
 Usage:
     python3 -m src.cross_type_dev
@@ -35,6 +35,7 @@ from sklearn.metrics import r2_score
 from src.load_elections import load_election_tokens
 from src.load_demographics import load_demographic_tokens
 from src.load_polls import load_poll_tokens
+from src.turnout_polls import national_abstention_from_poll
 from src.cross_type_ridge import (
     _vectorized_block_mapping,
     _build_block_scores,
@@ -64,7 +65,7 @@ PREV_RAW = {
     "Gauche": 0.7317,
     "Centre+Droite": 0.5977,
     "Extreme_Droite": 0.8052,
-    "Abstention": 0.7295,
+    "Abstention": 0.4102,
 }
 
 
@@ -87,14 +88,21 @@ def evaluate_full(y_true, pred):
 def estimate_national_abstention(
     national_means, val_date=VAL_DATE, target_type=VAL_TYPE
 ):
-    """National abstention for the target election, LOO-selected estimator.
+    """National abstention for the target election.
 
-    Candidate estimators (all trained on historical national means only) are
-    scored by LOO RMSE over training elections; the lowest-RMSE one is used.
-    The choice is LOO-derived — no validation/test information enters it.
+    If a published participation poll covers this election, it is used directly
+    (like vote-intention polls feed the vote blocks). Otherwise, candidate
+    estimators trained on historical national means only are scored by LOO RMSE
+    and the lowest-RMSE one is used — no validation/test information enters it.
 
-    Returns (predicted_abstention, loo_rmse).
+    Returns (predicted_abstention, loo_rmse). loo_rmse is NaN when a poll is used.
     """
+    poll = national_abstention_from_poll(target_type, val_date)
+    if poll is not None:
+        abst, src = poll
+        print(f"  National abstention: participation poll → {abst:.1f}% ({src})")
+        return abst, float("nan")
+
     nm = national_means.sort_values("date_float").reset_index(drop=True)
     train = nm[nm["date_float"] < val_date - 0.1].reset_index(drop=True)
     y = train["Abstention"].to_numpy()

@@ -54,7 +54,7 @@ PREV_RAW = {
     "Gauche": 0.7414,
     "Centre+Droite": 0.5947,
     "Extreme_Droite": 0.8092,
-    "Abstention": 0.7328,
+    "Abstention": 0.4102,
 }
 
 BEST_RIDGE = {

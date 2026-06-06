@@ -68,12 +68,17 @@ def territory_class(loc):
 
 ALPHA_GRID = np.logspace(-2, 6, 20)
 
-# Best Ridge configs per block (from preregistered.py LOO selection)
+# Best Ridge configs per block. ED/Ab switched CT→legi-only per the task-correct
+# held-out-legislative OOF (preconisations.md §9, select_ct_vs_legi.py): on
+# identical rows, legi-only ≥ CT on every block; the prior CT pick for ED/Ab was
+# an artifact of the production all-fold OOF being inflated by easy held-out
+# presidential folds. Selection follows OOF (the 2024 val prefers CT for ED/Ab;
+# per the pre-registered rule a single test year does not override the LOO).
 BEST_RIDGE = {
     "Gauche": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
     "Centre+Droite": ("Legi-PCA7-devlag", "legi_v1_2", "legi", {"pca_k": 7}),
-    "Extreme_Droite": ("CT-PCA5-devlag", "ct_v1_2", "ct", {"pca_k": 5}),
-    "Abstention": ("CT-PCA10-devlag", "ct_v1_2", "ct", {"pca_k": 10}),
+    "Extreme_Droite": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
+    "Abstention": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
 }
 
 INTERVAL_ALPHAS = [0.20, 0.10, 0.05]  # 80%, 90%, 95% intervals
@@ -372,7 +377,7 @@ def main():
     print("\nLoading data...")
     df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
-    # ── National estimates for 2024 (raw polls — preserves PREV_RAW baseline) ──
+    # ── National estimates for 2024 (raw polls; abstention from participation poll) ──
     print("\nSetting up national estimates...")
     abs_pred, _ = estimate_national_abstention_from_gaps(national_means)
 

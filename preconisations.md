@@ -299,3 +299,195 @@ commune join cannot. But for point R² it changes nothing the lag features don't
 Do not pursue finer cross-sectional demographics further. The remaining levers are unchanged:
 Stage-1 / turnout-intention microdata for the abstention national level, and more elections
 (time only).
+
+---
+
+## 8. Européennes as extra training folds (2026-06-06)
+
+**The "more elections raises the ceiling" lever was tested in its sharpest form — add
+européennes as deviation-model folds — and rejected. Adding euro folds degrades
+out-of-sample prediction of legislative/presidential elections in every block. The
+ceiling is fold count *of the same regime*, not fold count.**
+
+### Motivation
+§1–3 name training-election count as the binding constraint. The existing `Ext-*` configs
+(`beat_it.py`) bundle euro with régionales+départementales+cantonales, never isolating euro.
+Européennes are the one extra scrutin that looks like a national bipolar list contest
+(single national constituency), so a priori they should transfer where hyper-local scrutins
+don't. Tested in isolation (`europeennes_experiment.py`, `europeennes_oof.py`).
+
+### What was built (kept)
+- `europeennes_experiment.py`: Legi+Pres vs Legi+Pres+Euro through the pre-registered
+  PCA-grid LOO harness. Euro 1999/2004 excluded (>15% unmapped 'Other'); 2024 excluded
+  (val overlap). Euro folds 2009/2014/2019, ~201k BV rows, block-mapping 93–96% (clean).
+  Confound-controlled: both conditions scored on the **same** 2024 val rows (69,359;
+  location intersection), since euro folds change which 2024 BVs have complete 2-lags.
+- `europeennes_oof.py`: fold-fair OOF — for each held-out Legi+Pres fold, base trains on
+  (LP folds \ f), euro trains on (LP folds \ f) + euro folds, both predict the SAME held
+  rows. The only cross-condition-comparable OOF.
+
+### Results
+| | G | CD | ED | Ab |
+|---|---|---|---|---|
+| **2024 val** (same rows) base→euro | 0.718→0.731 | 0.563→0.604 | 0.802→0.808 | 0.408→0.440 |
+| **Fair OOF** (held-out LP folds) base→euro | 0.758→0.689 | 0.572→0.534 | 0.816→0.789 | 0.907→0.876 |
+
+The 2024 val improves in every block (+0.01 to +0.04) — tempting. But the fair OOF, pooled
+over 2002–2022 LP folds, is **worse in every block** (G −0.069, CD −0.038, ED −0.026,
+Ab −0.031). Base-column OOF reproduces the pre-registered baseline exactly → harness sound.
+
+### Verdict — not bankable; single-year val luck
+- 2024's legislatives were the snap election Macron called **by dissolving after the June
+  2024 européennes** — an unusually euro-like legislative. Euro folds helped that one year
+  while degrading the LOO average. This is precisely the single-year overfit the
+  pre-registered OOF rule guards against; selection on OOF rejects euro for all four blocks.
+- Mechanism: européennes are a second-order election (~50% abstention, list-based,
+  protest-vote dynamics) — a different regime. Adding their rows biases the Ridge
+  coefficients away from the legislative/presidential regime. Confirms the §6 γ-per-scrutin
+  finding and explains why the bundled Ext-* configs never won selection.
+
+### Implication
+The ceiling is training-election count **within the target regime** (Legislatives + the
+closely-coupled Presidentielle), not raw election count. No additional French scrutin is
+regime-compatible enough to add as a fold. This closes the "more elections" data lever for
+point R². The only remaining principled levers are unchanged: Stage-1 / turnout-intention
+microdata (abstention national level) and prediction-interval calibration.
+
+### Follow-up: is the degradation a slope-pooling artifact? (no)
+
+Hypothesis: the harm comes from one shared coefficient vector (type one-hot shifts only the
+intercept; slopes are pooled), so euro rows drag the Legi+Pres slopes. Tested by giving euro
+its own slopes — features interacted with a euro indicator, held Legi+Pres rows read the
+Legi+Pres-anchored slopes (`europeennes_typed_oof.py`). Fair OOF on common held-out LP folds:
+
+| | base | pooled | typed | typed−base | recovered |
+|---|---|---|---|---|---|
+| G | 0.759 | 0.684 | 0.693 | −0.066 | +0.009 |
+| CD | 0.572 | 0.534 | 0.534 | −0.037 | +0.001 |
+| ED | 0.816 | 0.789 | 0.794 | −0.022 | +0.004 |
+| Ab | 0.907 | 0.876 | 0.878 | −0.029 | +0.002 |
+
+Typing recovers only +0.001..+0.009 (≤~12% of the gap); typed stays well below base in every
+block. **Not a pooling artifact.** The residual degradation is the cross-type lag channel:
+euro folds also rewrite the LP rows' lags (a 2022 legislative's lag2 becomes the 2019
+*européenne* deviation), and a second-order-election deviation does not map to a legislative
+deviation. The slope interaction separates euro *rows* but cannot un-feed euro deviations from
+the *lag inputs* of legi/pres rows. Both channels for "use européennes" are closed: as training
+observations (hurts even typed) and as cross-type lags (degrades LP features). Confirms the
+regime-mismatch reading; the lever stays rejected.
+
+### Decomposition: which channel? (lag channel harmful; rows channel is an OOF win for CD)
+
+Isolated euro-as-rows (channel A) from euro-as-lags (channel B) by rebuilding lags so
+européennes are training rows but never a lag source (`europeennes_lagiso_oof.py`, LP-sourced
+lags via strict-backward merge_asof). Fair OOF on held-out Legi+Pres folds (the task-correct
+selection metric); the 2024 Legi forward pass (`europeennes_rows_val.py`) is reported as a
+single unbiased number, NOT used for selection:
+
+| | base | A: fair-OOF (selector) | A: 2024-val (report only) | B: lag channel (fair-OOF) |
+|---|---|---|---|---|
+| G | 0.758 | +0.005 | −0.024 | −0.074 |
+| CD | 0.572 | +0.039 raw / +0.016 selected | −0.013 | −0.051 |
+| ED | 0.816 | +0.002 | +0.010 | −0.029 |
+| Ab | 0.907 | −0.003 | +0.023 | −0.028 |
+
+**Channel B (euro injected into the cross-type lags) is robustly harmful** — −0.03..−0.08,
+every block, both configs. A 2022 legislative's lag2 becomes the 2019 européenne deviation,
+the wrong predictor for a legislative. Exclude euro as a lag source, always.
+
+**Channel A (euro as extra training rows, lags kept LP-sourced) is OOF-SELECTED for CD**
+(+0.039 raw / +0.016 under per-block-best-config selection, on a clean same-sample fair-OOF),
+marginally positive for G/ED, tie/neg for Ab. By the pre-registered rule (select on OOF; the
+test does not get to un-select), this is a legitimate Centre+Droite improvement. The 2024 val
+(−0.013) disagrees, but a single test election is the noisiest possible signal and the protocol
+forbids letting it override the OOF decision — earlier text that called channel A "noise" on
+the basis of the val was a methodological error (test leakage into selection).
+
+**Conclusion (corrected).** The user's "the model mishandles types" hypothesis was right about
+the mechanism — it is the lag construction, not slope-pooling. With euro kept out of the lags,
+euro-as-rows is OOF-positive for CD. Open scope before shipping: this fair-OOF compared against
+an LP-only baseline on common rows, not against the production CD champion in `preregistered.py`.
+To act on it, add "Legi+Pres+euro-rows, LP-sourced lags" as a candidate and select on the
+held-out-LP OOF (NOT the harness's all-fold OOF, which for a mixed-regime candidate wrongly
+scores held-out-européenne prediction). The §8 headline (naive euro folds rejected) stands; the
+sharpened result is that the rejection was the lag channel, and a CD-only rows gain survives OOF.
+
+### Selection head-to-head: euro-rows vs CT vs Legi-only (overturns the CD claim)
+
+The channel-A "CD +0.039" was measured against a CT baseline held out over Legi+Pres folds —
+not against the actual candidates on the task metric. Proper head-to-head (`europeennes_select.py`):
+all three designs scored by held-out-**legislative** OOF (folds 2012/2017/2022 — the only legi
+folds with 2 prior legi lags for the legi-only design), identical common held rows. Best config
+per design:
+
+| Block | Legi-only | CT (Legi+Pres) | Euro-rows | winner | euro−best-other |
+|---|---|---|---|---|---|
+| G | 0.7195 | **0.7652** | 0.7588 | CT | −0.006 |
+| CD | 0.5571 | **0.6003** | 0.5998 | CT | −0.0004 (tie) |
+| ED | 0.6830 | 0.7378 | **0.7402** | Euro | +0.002 |
+| Ab | 0.7629 | 0.7758 | **0.7867** | Euro | +0.011 |
+
+**The CD win does not survive.** Against the proper CT baseline, CD goes to CT; euro-rows ties
+(−0.0004). The earlier +0.039 was the sample-size confound again (euro compared on a different
+held-out fold set). **And Ab/ED euro edges are not robust:** Abstention is +0.011 here
+(held-out-legislative) but −0.003 in the held-out-LP run — it flips sign with the held-out
+definition. At 3 common legi folds every euro delta is ±0.01, inside the fold-count noise floor.
+
+**Final verdict (OOF grounds, not test).** No design robustly beats CT on the task-correct OOF;
+euro-rows trades ±0.01 by block and flips sign across legitimate held-out fold sets. Européennes
+are not bankable — and this conclusion is reached *on the OOF selection metric itself*, not by
+letting the 2024 test un-select anything. The §1–3 fold-count ceiling holds.
+
+**Side-finding (separate thread):** CT (Legi+Pres) dominates Legi-only on ALL four blocks here
+(CD 0.600 vs 0.557, G 0.765 vs 0.720). The production per-block champion is *legi-only* for CD/G
+— possibly a sample-size-confound artifact in the original selection. Worth a clean re-selection
+of CT vs legi-only on identical rows (more promising than européennes), but 3 folds is too thin
+to act on without the full harness.
+
+---
+
+## 9. CT vs Legi-only — confound-free re-selection (2026-06-06)
+
+**The §8 side-finding ("CT dominates Legi-only") was an ARTIFACT and is reversed. On a faithful
+identical-rows comparison, Legi-only ≥ CT on the task-correct OOF for all four blocks — the
+production legi-only choice for CD/G is vindicated. A real confound exists but runs the OTHER
+way: production's CT OOF for ED/Ab is inflated by easy held-out presidential folds.**
+
+The §8 `europeennes_select.py` "CT dominates" used SAME-TYPE lags for legi-only
+(`prepare_condition([Legi])`) — not the production candidate. Production legi-only uses
+CROSS-TYPE lags (a legi row's lag1 = the same-year présidentielle), differing from CT ONLY in
+training rows. Reproduced faithfully (`select_ct_vs_legi.py`) on the production base, scored on
+held-out-LEGISLATIVE folds (2007/2012/2017/2022), identical rows:
+
+| block | legi-only OOF | CT OOF | Δ(CT−legi) | 2024-val Δ(CT−legi) |
+|---|---|---|---|---|
+| G | 0.796 (PCA5) | 0.761 | −0.036 | −0.018 |
+| CD | 0.597 (PCA7) | 0.549 | −0.047 | −0.035 |
+| ED | 0.794 (PCA5) | 0.774 | −0.021 | +0.038 |
+| Ab | 0.804 (PCA5) | 0.786 | −0.018 | +0.020 |
+
+(legi-only reproduces the docstring OOF: G 0.797, CD 0.596 → harness sound.)
+
+- **Legi-only wins OOF on every block.** Adding presidential ROWS to training hurts held-out-
+  legislative prediction. The production legi-only champion for CD/G is correct, not a confound.
+- **The real confound, opposite direction.** Production picked CT for ED/Ab on an OOF (~0.816 ED)
+  that `run_loo_and_val` inflates by also holding out easy presidential folds. On held-out-
+  legislative only, CT-ED = 0.774 < legi-only 0.794. Task-correct OOF prefers legi-only for
+  ED/Ab too.
+- **OOF↔val tension for ED/Ab.** The 4-fold OOF prefers legi-only; the 2024 val prefers CT
+  (ED +0.038, Ab +0.020). By select-on-OOF the pick is legi-only, but a 4-fold OOF contradicted
+  by the single most-recent year is not a confident basis to flip a working model. FLAG, do not
+  act without the full harness.
+- **Mechanism.** Cross-type LAGS help (same-year pres is a strong legi lag1); cross-type training
+  ROWS hurt (pres demo→deviation patterns differ from legi). Use pres as a lag source, not as a
+  training observation — the same lag-vs-rows split found for européennes in §8.
+
+**Net:** no new bankable point-R² lever; my CT lead was wrong. Ceiling unchanged.
+
+**ACTED (2026-06-06):** per "use what LOO dictates", switched the deployed ED and Abstention
+models from CT to **legi-only PCA5** in `conformal.BEST_RIDGE` and `shap_waterfall.BEST_MODELS`
+(G/CD were already legi-only). `predictions_with_intervals.csv` regenerated. Selection follows
+the task-correct held-out-legislative OOF (legi-only > CT for ED/Ab). Recorded trade-off: this
+*lowers* 2024-val R² for ED (0.804→0.766) and Ab (0.415→0.395) — the single test year prefers
+CT — but per the pre-registered rule the LOO selects and the test does not override. Full site
+rebuild (`report_build`: geojsons, SHAP, provenance, figures) still pending confirmation.

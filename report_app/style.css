@@ -8,6 +8,11 @@ html{scroll-behavior:smooth}
 body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--paper)}
 b{font-weight:700}
 
+#usecase-bar{background:var(--ink);color:#f4f4f2;font-size:13.5px;line-height:1.45;
+  padding:9px 22px;text-align:center}
+#usecase-bar b{color:#fff;font-weight:700}
+.uc-tag{text-transform:uppercase;font-size:10.5px;letter-spacing:.08em;font-weight:700;
+  color:var(--G);margin-right:9px;white-space:nowrap}
 #top{position:sticky;top:0;z-index:30;height:var(--headerH);display:flex;align-items:center;
   gap:28px;padding:0 22px;background:rgba(250,250,247,.94);backdrop-filter:blur(6px);
   border-bottom:1px solid var(--line)}
@@ -34,11 +39,6 @@ b{font-weight:700}
 .hero-overlay{position:absolute;top:26px;left:26px;z-index:6;max-width:430px;
   background:rgba(250,250,247,.92);backdrop-filter:blur(7px);padding:22px 24px;border-radius:14px;
   box-shadow:0 8px 30px rgba(0,0,0,.12)}
-.hero-usecase{margin:0 0 14px;padding:10px 13px;background:rgba(26,26,46,.055);
-  border-left:3px solid var(--ink);border-radius:0 8px 8px 0;font-size:14px;line-height:1.5;color:#26262f}
-.uc-label{display:block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
-  color:#6b6b76;font-weight:700;margin-bottom:4px}
-.hero-usecase strong{font-weight:700}
 .hero-overlay h1{margin:0 0 10px;font-size:26px;line-height:1.12;letter-spacing:-.02em}
 .hero-overlay p{font-size:13.5px;line-height:1.55;color:#34343f;margin:0 0 12px}
 .hero-cap{font-size:12px!important;color:#7a7a84!important;font-style:italic;margin-bottom:0!important}

@@ -73,7 +73,7 @@ function addLayers() {
   map.addLayer({ id: "labels", type: "raster", source: "labels" });
 
   map.on("click", "bv-fill", (e) => openPanel(e.features[0].properties));
-  map.on("click", "com-circ", (e) => zoomToCommune(e.features[0].properties));
+  map.on("click", "com-circ", (e) => zoomToCommune(e.features[0]));
   for (const ly of ["bv-fill", "com-circ"]) {
     map.on("mouseenter", ly, () => (map.getCanvas().style.cursor = "pointer"));
     // Hover only lives over a feature on the map: drop the popup on leave so it never
@@ -180,9 +180,9 @@ function autoLoadDept() {
   ensureDept(nearestDept(APP.map.getCenter()));
 }
 
-function zoomToCommune(p) {
-  ensureDept(p.dept);
-  APP.map.flyTo({ center: APP.map.getCenter(), zoom: 13 });
+function zoomToCommune(f) {
+  ensureDept(f.properties.dept);
+  APP.map.flyTo({ center: f.geometry.coordinates, zoom: 13, speed: 1.4 });
 }
 
 function flyToCommune(c) {

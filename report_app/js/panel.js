@@ -60,7 +60,7 @@ function whyBlock(rec) {
   const drivers = rec.drivers;
   if (!drivers || !drivers.length) return "";
   return `<div class="pv-why"><span class="pv-why-h">Pourquoi ${APP.NAME[rec.lead]} dévie du national</span>
-    <div class="dv-cap">Le facteur dominant est presque toujours l'<b>héritage de vote</b> du bureau (n‑1) — il vote largement comme la dernière fois ; la démographie n'ajoute qu'une correction. Barre : contribution de chaque facteur à l'écart au national, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
+    <div class="dv-cap">Le facteur dominant est presque toujours l'<b>héritage de vote</b> du bureau au scrutin précédent — il vote largement comme la dernière fois ; la démographie n'ajoute qu'une correction. Barre : contribution de chaque facteur à l'écart au national, en points. Sous chaque facteur, sa valeur dans ce bureau (votes passés : écart au national).</div>
     <div class="dv-chart">${driverBars(drivers, APP.COL[rec.lead])}</div></div>`;
 }
 

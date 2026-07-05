@@ -191,21 +191,47 @@ def derive(df: pd.DataFrame, w: np.ndarray) -> pd.DataFrame:
     return df
 
 
+def _wmedian(x: np.ndarray, w: np.ndarray) -> float:
+    """Médiane pondérée : la valeur où la moitié des *inscrits* est en deçà."""
+    m = np.isfinite(x) & np.isfinite(w) & (w > 0)
+    x, w = x[m], w[m]
+    order = np.argsort(x)
+    x, w = x[order], w[order]
+    cum = np.cumsum(w) - 0.5 * w
+    return float(np.interp(0.5 * w.sum(), cum, x))
+
+
+def _weights(df: pd.DataFrame) -> np.ndarray:
+    """Poids = inscrits du bureau (le grain porteur d'électeurs). Un bureau vaut ce
+    qu'il pèse en électeurs : c'est la métrique qui compte pour l'usage GOTV, et elle
+    dégonfle la longue traîne des micro-bureaux dont la part observée est du bruit
+    d'échantillonnage (n≈15 votants ⇒ ±13 pts sur une part à 50 %)."""
+    return df.inscrits.to_numpy().astype(float)
+
+
 def lead_accuracy(df: pd.DataFrame) -> float:
+    """Part **des inscrits** dont le bureau voit son bloc en tête correctement prédit."""
     pred = df[[f"pred_{b}" for b in VOTE]].to_numpy().argmax(1)
     act = df[[f"act_{b}" for b in VOTE]].to_numpy().argmax(1)
-    return float((pred == act).mean())
+    w = _weights(df)
+    m = np.isfinite(w) & (w > 0)
+    return float(np.average((pred == act)[m], weights=w[m]))
 
 
 def r2_by_block(df: pd.DataFrame) -> dict[str, float]:
-    """R² hors échantillon par bloc, calculé sur les prédictions 2024 réellement servies
-    (mêmes lignes que `predictions_with_intervals.csv`) — plus de valeurs en dur."""
+    """R² hors échantillon par bloc, **pondéré par les inscrits**, calculé sur les
+    prédictions 2024 réellement servies (mêmes lignes que
+    `predictions_with_intervals.csv`) — plus de valeurs en dur."""
+    w0 = _weights(df)
     out: dict[str, float] = {}
     for b in BLOCKS.values():
         a, p = df[f"act_{b}"].to_numpy(), df[f"pred_{b}"].to_numpy()
-        m = np.isfinite(a) & np.isfinite(p)
-        a, p = a[m], p[m]
-        out[b] = round(1 - ((a - p) ** 2).sum() / ((a - a.mean()) ** 2).sum(), 2)
+        m = np.isfinite(a) & np.isfinite(p) & np.isfinite(w0) & (w0 > 0)
+        a, p, w = a[m], p[m], w0[m]
+        abar = np.average(a, weights=w)
+        out[b] = round(
+            1 - (w * (a - p) ** 2).sum() / (w * (a - abar) ** 2).sum(), 2
+        )
     return out
 
 
@@ -218,9 +244,13 @@ def observed_lead(df: pd.DataFrame) -> dict[str, int]:
 
 
 def flat_poll(df: pd.DataFrame, baselines: dict[str, float]) -> dict[str, object]:
+    """Ce que ferait un sondage plat : attribuer partout le favori national. Justesse
+    **pondérée par les inscrits**, comparable au 81,6 % du modèle."""
     fav = max(VOTE, key=lambda b: baselines[b])
     act = df[[f"act_{b}" for b in VOTE]].to_numpy().argmax(1)
-    acc = float((act == VOTE.index(fav)).mean())
+    w = _weights(df)
+    m = np.isfinite(w) & (w > 0)
+    acc = float(np.average((act == VOTE.index(fav))[m], weights=w[m]))
     return {"bloc": fav, "accuracy": round(acc * 100, 1)}
 
 
@@ -368,7 +398,9 @@ def build() -> None:
         "circo": circo_stats,
         "swing": {b: round(float(w[i]), 6) for i, b in enumerate(VOTE)},
         "r2": r2_by_block(df),
-        "unc_median": round(float(df.unc.median()), 1),
+        "unc_median": round(
+            _wmedian(df.unc.to_numpy(), df.inscrits.to_numpy().astype(float)), 1
+        ),
     }
     (SERVED / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=1)

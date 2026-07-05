@@ -7,8 +7,8 @@
    "sd_total": 7.63,
    "q90_oracle": 10.91,
    "q90_real": 12.57,
-   "r2_real": 0.74,
-   "r2_oracle": 0.75
+   "r2_real": 0.77,
+   "r2_oracle": 0.77
   },
   "CD": {
    "national_share": 16.1,
@@ -17,8 +17,8 @@
    "sd_total": 11.78,
    "q90_oracle": 15.3,
    "q90_real": 17.46,
-   "r2_real": 0.61,
-   "r2_oracle": 0.61
+   "r2_real": 0.7,
+   "r2_oracle": 0.69
   },
   "ED": {
    "national_share": 26.5,
@@ -27,8 +27,8 @@
    "sd_total": 5.75,
    "q90_oracle": 7.57,
    "q90_real": 14.91,
-   "r2_real": 0.77,
-   "r2_oracle": 0.77
+   "r2_real": 0.79,
+   "r2_oracle": 0.79
   },
   "AB": {
    "national_share": 68.0,
@@ -37,8 +37,8 @@
    "sd_total": 8.33,
    "q90_oracle": 7.3,
    "q90_real": 13.43,
-   "r2_real": 0.39,
-   "r2_oracle": 0.75
+   "r2_real": 0.56,
+   "r2_oracle": 0.86
   }
  }
 }

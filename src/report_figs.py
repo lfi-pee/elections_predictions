@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 MASTER = Path("data/report/bv_master.parquet")
@@ -34,13 +35,20 @@ ACCENT, CARD, LINE, MUT = "#cc2229", "#FFFFFF", "#E7E4DC", "#6B6B76"
 
 
 def coverage(df: pd.DataFrame) -> dict[str, dict[int, float]]:
+    """Couverture conforme empirique **pondérée par les inscrits** : part des électeurs
+    dont le résultat réel tombe dans l'intervalle, cohérente avec le R² pondéré du site."""
+    w = df.inscrits.to_numpy().astype(float)
+    wm = np.isfinite(w) & (w > 0)
     cov: dict[str, dict[int, float]] = {}
     for b in BLOCKS:
         act = df[f"act_{b}"].to_numpy()
         cov[b] = {}
         for lvl in LEVELS:
             lo, hi = df[f"lower{lvl}_{b}"].to_numpy(), df[f"upper{lvl}_{b}"].to_numpy()
-            cov[b][lvl] = round(float(((act >= lo) & (act <= hi)).mean()) * 100, 1)
+            covered = (act >= lo) & (act <= hi)
+            cov[b][lvl] = round(
+                float(np.average(covered[wm], weights=w[wm])) * 100, 1
+            )
     return cov
 
 

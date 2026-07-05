@@ -1,6 +1,6 @@
 {
  "n_bv": 69358,
- "lead_accuracy": 80.8,
+ "lead_accuracy": 83.1,
  "total_inscrits": 48697433,
  "baselines": {
   "G": 32.58,
@@ -126,7 +126,7 @@
  },
  "flat_poll": {
   "bloc": "ED",
-  "accuracy": 48.2
+  "accuracy": 40.7
  },
  "circo": {
   "n": 577,
@@ -144,10 +144,10 @@
   "ED": 0.34659
  },
  "r2": {
-  "G": 0.74,
-  "CD": 0.61,
-  "ED": 0.77,
-  "AB": 0.39
+  "G": 0.77,
+  "CD": 0.7,
+  "ED": 0.79,
+  "AB": 0.56
  },
  "unc_median": 29.1
 }

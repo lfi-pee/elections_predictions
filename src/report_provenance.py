@@ -52,6 +52,19 @@ NAME = {
 }
 
 
+def _inscrits_map() -> dict[str, float]:
+    """Inscrits par bureau au scrutin cible (2024 Légis. T1), même source que le
+    reste du site (`general_results`), pour pondérer le R² par électeurs."""
+    import pyarrow.parquet as pq
+
+    gen = pq.read_table(
+        DATA / "elections/agregees/general_results.parquet",
+        columns=["id_election", "id_brut_miom", "inscrits"],
+    ).to_pandas()
+    gen = gen[gen.id_election == "2024_legi_t1"]
+    return dict(zip(gen.id_brut_miom, gen.inscrits.astype(float)))
+
+
 def _loo_nat_ests(poll_feats, national_means) -> dict:
     loo: dict = {}
     for _, r in poll_feats.iterrows():
@@ -127,8 +140,14 @@ def compute() -> dict:
     actual_nat = {tc: float(nm_val[tc].iloc[0]) for tc in TARGET_COLS}
     datasets, feat_maps = _datasets(df, demo_indicators, type_cols)
 
-    def _r2(y: np.ndarray, p: np.ndarray) -> float:
-        return round(1 - ((y - p) ** 2).sum() / ((y - y.mean()) ** 2).sum(), 2)
+    ins_map = _inscrits_map()
+
+    def _r2(y: np.ndarray, p: np.ndarray, w: np.ndarray) -> float:
+        """R² **pondéré par les inscrits** — cohérent avec le R² servi par le site."""
+        m = np.isfinite(w) & (w > 0)
+        y, p, w = y[m], p[m], w[m]
+        ybar = np.average(y, weights=w)
+        return round(1 - (w * (y - p) ** 2).sum() / (w * (y - ybar) ** 2).sum(), 2)
 
     blocks: dict[str, dict[str, float]] = {}
     for tc in TARGET_COLS:
@@ -145,11 +164,14 @@ def compute() -> dict:
         sd_t = float(np.std(real["cal_residuals"]))
         share = max(sd_t**2 - sd_m**2, 0.0) / sd_t**2 if sd_t > 0 else 0.0
         y = oracle["y_true_val"]
+        w = np.array(
+            [ins_map.get(loc, np.nan) for loc in oracle["val_locations"]], dtype=float
+        )
         # r2_real: prediction anchored on the polls (what we actually ship).
         # r2_oracle: same local deviation, but anchored on the TRUE national level —
         # isolates the bureau-level skill, free of the national poll error.
-        r2_real = _r2(y, oracle["val_pred"])
-        r2_oracle = _r2(y, oracle["val_dev_pred"] + actual_nat[tc])
+        r2_real = _r2(y, oracle["val_pred"], w)
+        r2_oracle = _r2(y, oracle["val_dev_pred"] + actual_nat[tc], w)
         blocks[SHORT[ABBR[tc]]] = {
             "national_share": round(100 * share, 1),
             "local_share": round(100 * (1 - share), 1),

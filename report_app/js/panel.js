@@ -110,9 +110,9 @@ function renderPanel(loc, rec) {
     <div class="pv-lead" style="background:${APP.COL[baseLead]}22;border-left:3px solid ${APP.COL[baseLead]}">
       Bloc en tête prédit : <b>${APP.NAME[baseLead]}</b>, marge ${rec.m.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts sur ${APP.NAME[rec.ru]}.</div>
     ${bars}
-    <p class="cap">Barre pleine = prédit · trait noir = réel · fourchette de prévision
-    à 90 %, partagée selon la part <b>moyenne</b> d'incertitude du bloc : <b>sombre</b> =
-    notre lecture locale, <b>clair</b> = ce qui vient du national (sondages).</p>
+    <p class="cap">Barre pleine = prédit · trait clair = réel · fourchette de prévision
+    à 90 %, partagée selon la part <b>moyenne</b> d'incertitude du bloc : <b>trait vif</b> =
+    notre lecture locale, <b>estompé</b> = ce qui vient du national (sondages).</p>
     ${APP.state.mode === "mobil" ? whyMobil(rec) : whyBlock(rec)}`;
 }
 

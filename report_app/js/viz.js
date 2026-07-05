@@ -105,7 +105,7 @@ function renderGamma() {
     const seg =
       `<line x1="${lx}" y1="12" x2="${lx + 16}" y2="12" stroke="${s.col}" stroke-width="2"` +
       `${s.dash ? ` stroke-dasharray="${s.dash}"` : ""}/>` +
-      `<text x="${lx + 20}" y="15" font-size="8.5" fill="#5a5a64">${s.lab}</text>`;
+      `<text x="${lx + 20}" y="15" font-size="8.5" fill="#a9a9b5">${s.lab}</text>`;
     lx += 20 + s.lab.length * 4.7 + 18;
     return seg;
   }).join("");

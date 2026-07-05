@@ -7,13 +7,13 @@ function baseStyle() {
     sources: {
       carto: {
         type: "raster",
-        tiles: ["https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png",
-          "https://b.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png"],
+        tiles: ["https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
+          "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png"],
         tileSize: 256, attribution: "© OpenStreetMap · CARTO",
       },
       labels: {
         type: "raster",
-        tiles: ["https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png"],
+        tiles: ["https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png"],
         tileSize: 256,
       },
     },

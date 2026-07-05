@@ -67,6 +67,7 @@ figure{margin:0}
 figure img{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;display:block}
 figcaption{font-size:11px;color:#8a8a92;margin-top:7px;line-height:1.4}
 .method-panel figure img{max-width:900px;margin:0 auto;border:none;background:none}
+.method-panel figcaption{font-size:12.5px;line-height:1.5;color:#5a5a64;margin:0 0 16px}
 svg{width:100%;height:auto;display:block}
 
 .search{position:relative;margin:4px 0}

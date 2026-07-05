@@ -37,7 +37,7 @@ b{font-weight:700}
 .legend-grad{margin-left:14px;padding-left:14px;border-left:1px solid var(--line);color:var(--tx-mute);
   position:relative;padding-right:30px}
 .legend-grad::after{content:"";position:absolute;right:0;top:50%;transform:translateY(-50%);
-  width:26px;height:9px;border-radius:5px;background:linear-gradient(90deg,var(--gA,#DBD2E8),var(--gB,var(--ED)))}
+  width:26px;height:9px;border-radius:5px;background:linear-gradient(90deg,var(--gA,#3D3155),var(--gB,var(--ED)))}
 .maplibregl-popup.mini .maplibregl-popup-content{font-size:12px;line-height:1.4;padding:8px 11px;
   border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:240px}
 .mini-sub{color:var(--tx-mute);font-size:11px}

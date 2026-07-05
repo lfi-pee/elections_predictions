@@ -4,9 +4,10 @@ const APP = {
   // Accent de marque (client = LFI) : touche éditoriale sur titres de bande / accroche,
   // sans toucher la sémantique des blocs (la Gauche reste #E4572E sur la carte).
   ACCENT: "#cc2229",
-  // pale = each bloc hue mixed ~78% toward paper; the map fades to it as the
-  // margin shrinks, so a knife-edge bureau reads pale and a landslide reads solid.
-  PALE: { G: "#F5D5C9", CD: "#CFE1F2", ED: "#DBD2E8" },
+  // Dark-theme faint end: each bloc hue mixed ~45% over the dark basemap, so the
+  // map fades toward the background as the margin shrinks — a knife-edge bureau
+  // sinks into the dark base, a landslide reads as the solid bloc colour.
+  PALE: { G: "#743627", CD: "#2F5074", ED: "#3D3155" },
   MARGIN_FULL: 12,
   NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
   VOTE: ["G", "CD", "ED"],
@@ -50,11 +51,12 @@ function leadColorExpr(keys) {
 }
 
 // Mobilization layer: density of mobilizable Left abstainers (abstainers × γ),
-// in the Gauche hue (pale = few, full = a dense pocket). Thresholds differ for
-// per-bureau counts vs the dezoomed commune sums.
+// as a dark→hot heat ramp in the Gauche hue (few = sinks into the dark base,
+// dense = a bright orange pocket). Thresholds differ for per-bureau counts vs
+// the dezoomed commune sums.
 function voterColorExpr(key, t1, t2, t3) {
   return [
     "interpolate", ["linear"], ["get", key],
-    0, "#eef0f2", t1, APP.PALE.G, t2, APP.COL.G, t3, "#a83214",
+    0, "#20222b", t1, APP.PALE.G, t2, APP.COL.G, t3, "#ff7a4d",
   ];
 }

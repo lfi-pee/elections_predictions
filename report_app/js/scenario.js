@@ -22,12 +22,12 @@ function updateLegend() {
   const html = {
     mobil:
       `<span class="legend-lab">mobilisation</span>` +
-      grad(APP.PALE.G, "#a83214",
+      grad(APP.PALE.G, "#ff7a4d",
         "nombre d'abstentionnistes qui, en venant voter, choisiraient la gauche") +
       "peu → beaucoup d'électeurs gagnables</span>",
     lead:
       `<i data-b="G"></i>Gauche <i data-b="CD"></i>Centre+Droite <i data-b="ED"></i>Extrême&nbsp;Droite` +
-      grad(APP.PALE.ED, APP.COL.ED, "pâle = marge serrée") + "pâle = serré</span>",
+      grad(APP.PALE.ED, APP.COL.ED, "sombre = marge serrée") + "sombre = serré</span>",
   };
   $("legend").innerHTML = html[APP.state.mode];
 }

@@ -554,10 +554,45 @@ def _vectorized_block_mapping(party: pd.Series, candidate: pd.Series) -> pd.Seri
     return block
 
 
+# ── Candidate-level block overrides ──────────────────────────────────
+# A handful of 2024 Législatives T1 candidates were coded by the Ministry under a
+# nuance that misroutes them. Each was verified individually (party + whether the
+# RN stood aside for them), with sources — the "no-RN circo" heuristic over-flags
+# (e.g. Durovray, mainstream LR), so this is a hand-checked allowlist, NOT a rule.
+# Keyed on (département, lowercased "prénom nom"); scoped to 2024 Legislatives T1
+# only (some names, e.g. Dupont-Aignan, also ran in présidentielles).
+#   → Extrême Droite: RN-allied candidates coded DVD/DSV (RN fielded no one against
+#     them): Mexis (Marne, LR-Ciotti), Dupont-Aignan (Essonne, DLF/RN pact),
+#     Paul-Petit (Seine-et-Marne, "RÀD (RN)" union des droites).
+#   → Centre+Droite: Beaudet (Essonne, ex-LR presidential-adjacent) coded DIV→Other.
+#   → Gauche: Gokel (Nord, Parti Socialiste) coded DIV→Other.
+CANDIDATE_BLOCK_OVERRIDES: dict[tuple[str, str], str] = {
+    ("51", "adrien mexis"): "Extreme_Droite",
+    ("91", "nicolas dupont aignan"): "Extreme_Droite",
+    ("77", "vincent paul petit"): "Extreme_Droite",
+    ("91", "stephane beaudet"): "Centre+Droite",
+    ("59", "julien gokel"): "Gauche",
+}
+
+
 def _build_block_scores(elections: pd.DataFrame) -> pd.DataFrame:
     """Aggregate candidate-level results to block-level per (location, election_type, date)."""
     results = elections[elections["metric_type"] == "Result"].copy()
     results["block"] = _vectorized_block_mapping(results["party"], results["candidate"])
+
+    # Apply individually-verified 2024 Legislatives T1 candidate overrides.
+    m = (results["election_type"] == "Legislatives_T1") & (
+        results["date_float"].round(1) == 2024.5
+    )
+    if m.any():
+        keyed = (
+            results.loc[m, "location"].str[:2]
+            + "|"
+            + results.loc[m, "candidate"].str.strip().str.lower()
+        )
+        lookup = {f"{d}|{n}": b for (d, n), b in CANDIDATE_BLOCK_OVERRIDES.items()}
+        overridden = keyed.map(lookup)
+        results.loc[m, "block"] = overridden.fillna(results.loc[m, "block"])
 
     scores = (
         results.groupby(["location", "election_type", "date_float", "block"])["value"]

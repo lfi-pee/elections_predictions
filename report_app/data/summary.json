@@ -26,9 +26,9 @@
   }
  },
  "observed_lead": {
-  "G": 16960,
-  "CD": 18939,
-  "ED": 33459
+  "G": 17013,
+  "CD": 18872,
+  "ED": 33473
  },
  "left_gain": {
   "method": "abstentionnistes conjoncturels × part de gauche du votant marginal (γ législatif)",
@@ -145,8 +145,8 @@
  },
  "r2": {
   "G": 0.77,
-  "CD": 0.7,
-  "ED": 0.79,
+  "CD": 0.71,
+  "ED": 0.81,
   "AB": 0.56
  },
  "unc_median": 29.1

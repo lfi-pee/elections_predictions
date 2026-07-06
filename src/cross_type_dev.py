@@ -352,6 +352,13 @@ def load_cross_type_data(data_dir):
         elections.to_parquet(elections_cache, index=False)
         demos.to_parquet(demos_cache, index=False)
 
+    # Parquet round-trips string columns as Arrow-backed StringDtype; downstream
+    # merge_asof (by="commune") rejects mixing that with object keys. Normalize
+    # both frames' text columns to plain object so all merge keys share a dtype.
+    for _frame in (elections, demos):
+        for _col in _frame.select_dtypes(include=["string"]).columns:
+            _frame[_col] = _frame[_col].astype(object)
+
     print(f"  Elections: {len(elections):,}, Demographics: {len(demos):,}")
 
     polls = load_poll_tokens(data_dir)

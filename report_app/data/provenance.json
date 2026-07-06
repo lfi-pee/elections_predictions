@@ -17,8 +17,8 @@
    "sd_total": 11.78,
    "q90_oracle": 15.3,
    "q90_real": 17.46,
-   "r2_real": 0.7,
-   "r2_oracle": 0.69
+   "r2_real": 0.71,
+   "r2_oracle": 0.7
   },
   "ED": {
    "national_share": 26.5,
@@ -27,8 +27,8 @@
    "sd_total": 5.75,
    "q90_oracle": 7.57,
    "q90_real": 14.91,
-   "r2_real": 0.79,
-   "r2_oracle": 0.79
+   "r2_real": 0.81,
+   "r2_oracle": 0.8
   },
   "AB": {
    "national_share": 68.0,

@@ -491,3 +491,57 @@ the task-correct held-out-legislative OOF (legi-only > CT for ED/Ab). Recorded t
 *lowers* 2024-val R² for ED (0.804→0.766) and Ab (0.415→0.395) — the single test year prefers
 CT — but per the pre-registered rule the LOO selects and the test does not override. Full site
 rebuild (`report_build`: geojsons, SHAP, provenance, figures) still pending confirmation.
+
+## 10. Candidate-slate mask — the one bankable point-R² lever (2026-07-06)
+
+The deviation model emits a share for every block regardless of whether that block
+fields a candidate in the circonscription. In 2024 (front-républicain désistements,
+NFP unity) many seats had a missing block, so the model's phantom share for the absent
+block is pure error and the present blocks are correspondingly mispredicted. Diagnosed
+on large bureaux, e.g. Wattrelos `59183_0030`: no Centre+Droite candidate on the ballot,
+yet the model predicted C+D = 48 % (actual 0).
+
+### What was tried (all selected by held-out-legislative LOO OOF R², oracle national per fold)
+
+Presence is derived from the **candidate slate** — who filed, known ex ante, no
+vote-outcome leakage (`src/cross_type_ridge.build_slate_presence`, same routing as the
+targets). It reconstructs the structural zeros exactly: on 2024 val, slate-absent &
+actual>0 = 0.0000 for every block. Full experiment: `src/mask_renorm_eval.py`.
+
+| variant | OOF R² G | OOF R² CD | OOF R² ED |
+|---|---|---|---|
+| baseline (no mask) | 0.7970 | 0.5970 | 0.7946 |
+| **mask only (absent → 0)** | **0.8020** | **0.6280** | **0.8058** |
+| mask + partial renorm λ (∝ pred) | monotone ↓ in λ; best at λ=0 | — | — |
+| mask + partial renorm λ (∝ national) | best at λ=0 | — | — |
+| learned signed slate features + mask | 0.8024 (+0.0004) | 0.6245 (**−0.0035**) | 0.8054 (−0.0004) |
+
+### What worked, and what did NOT
+
+- **KEPT — mask only.** Zeroing an absent block's prediction strictly reduces squared
+  error (actual is exactly 0 there): parameter-free, guaranteed ≥ baseline, no overfit
+  risk. Wired into `conformal.py` (val predictions **and** the LOO calibration residuals,
+  so intervals stay honest). Served `predictions_with_intervals.csv` R² (realistic
+  poll-national): **CD 0.614→0.644** (inscrits-wtd 0.708→0.731), **ED 0.776→0.791**
+  (wtd 0.808→0.824), G ~flat (few metro G absences), Abstention unchanged (never masked).
+  1 115 val BVs corrected from a phantom ~20 % to 0.
+
+- **REJECTED — any mass-conserving renormalization** (redistribute the absent block's
+  predicted share onto the survivors). Every λ>0 loses OOF on every block, both weighting
+  schemes. Reason, measured on absent-sibling rows: the needed present-block correction is
+  **signed per block** — Gauche is under-predicted (+2.30 pp) but Centre+Droite is *over*-
+  predicted (−4.37 pp) and ED is neutral (−0.08 pp). A mass-*adding* redistribution
+  necessarily pushes all survivors up, i.e. the wrong way for CD/ED. The votes a missing
+  block would have drawn do not flow to the modeled survivors; they go to Other/divers
+  candidates and to abstention.
+
+- **REJECTED — learned signed slate features** (per-block presence indicators fed to the
+  Ridge, bypassing PCA). The "correct" way to express a signed correction, yet it fails
+  LOO: Gauche +0.0004 (noise), CD −0.0035, ED −0.0004. Slate-absence is <1 % of the
+  training folds and 2024's slate structure is out-of-distribution, so the coefficient
+  does not generalize — exactly what the pre-registered LOO rule guards against. The
+  generalizable demographic tilt is already inside the deviation prediction.
+
+**Net:** mask only. It is the first genuine point-R² gain since the ceiling notes above,
+and it is bankable precisely because it adds no parameter — it only enforces the
+arithmetic fact that a block off the ballot scores 0.

@@ -45,7 +45,7 @@ from src.cross_type_dev import (
     VAL_TYPE,
     TARGET_COLS,
 )
-from src.cross_type_ridge import TARGET_BLOCKS
+from src.cross_type_ridge import TARGET_BLOCKS, build_slate_presence
 from src.beat_it import build_extended_data
 
 DOM3 = {"971", "972", "973", "974", "975", "976", "977", "978"}
@@ -200,6 +200,8 @@ def run_conformal_for_block(
     national_means,
     cfg,
     loo_national_ests=None,
+    present_train=None,
+    present_val=None,
 ):
     """Run Ridge LOO, collect calibration residuals, compute intervals.
 
@@ -207,6 +209,10 @@ def run_conformal_for_block(
         loo_national_ests: dict {(etype, date_round): {block: est}}.
             If provided (realistic mode), uses these for calibration.
             If None (oracle mode), uses actual national means.
+        present_train / present_val: optional bool arrays (aligned to the train /
+            val rows) marking whether this block fields a candidate. Where absent,
+            the predicted share is forced to 0 — the block is off the ballot so its
+            actual share is exactly 0. LOO-selected slate mask (mask_renorm_eval.py).
 
     Returns dict with calibration and interval data.
     """
@@ -260,6 +266,8 @@ def run_conformal_for_block(
     ridge_full.fit(X_tr, dev_y)
     val_dev_pred = ridge_full.predict(X_v)
     val_pred = val_dev_pred + nat_est_val
+    if present_val is not None:
+        val_pred = np.where(present_val, val_pred, 0.0)
 
     # ── LOO: collect calibration residuals ──
     cal_residuals = []
@@ -289,6 +297,8 @@ def run_conformal_for_block(
             nat_level = fold_nats[f_idx][tc]
 
         abs_pred = dev_pred + nat_level
+        if present_train is not None:
+            abs_pred = np.where(present_train[held_mask], abs_pred, 0.0)
         actual = y_true_train[held_mask]
         residuals = actual - abs_pred
 
@@ -377,6 +387,38 @@ def main():
     print("\nLoading data...")
     df, demo_indicators, national_means, poll_feats = load_cross_type_data(data_dir)
     type_cols = add_election_type_onehot(df)
+
+    # ── Candidate-slate presence (LOO-selected mask; see mask_renorm_eval.py) ──
+    elections_cache = data_dir / "baseline_cache" / "elections.parquet"
+    presence = None
+    if elections_cache.exists():
+        print("Building candidate-slate presence table...")
+        _el = pd.read_parquet(
+            elections_cache,
+            columns=[
+                "metric_type", "location", "election_type",
+                "date_float", "party", "candidate",
+            ],
+        )
+        presence = build_slate_presence(_el)
+        presence["date_float"] = presence["date_float"].round(5)
+    else:
+        print("  (elections cache absent — slate mask disabled)")
+
+    def present_for(frame, block):
+        """Bool array (aligned to frame rows): does `block` field a candidate?
+        Abstention is never masked; unknown (loc, election) defaults to present."""
+        if presence is None or block == "Abstention":
+            return np.ones(len(frame), dtype=bool)
+        key = frame[["location", "election_type", "date_float"]].copy()
+        key["date_float"] = key["date_float"].round(5)
+        col = f"present_{block}"
+        merged = key.merge(
+            presence[["location", "election_type", "date_float", col]],
+            on=["location", "election_type", "date_float"],
+            how="left",
+        )
+        return merged[col].fillna(True).to_numpy(dtype=bool)
     # ── National estimates for 2024 (raw polls; abstention from participation poll) ──
     print("\nSetting up national estimates...")
     abs_pred, _ = estimate_national_abstention_from_gaps(national_means)
@@ -486,6 +528,12 @@ def main():
 
         t1 = time.time()
 
+        present_train = present_for(train_clean, tc)
+        present_val = present_for(val_clean, tc)
+        n_masked = int((~present_val).sum())
+        if n_masked:
+            print(f"  slate mask: {n_masked:,} val BVs have no {ABBR[tc]} candidate")
+
         # Run with Bayesian national estimates (realistic calibration)
         res = run_conformal_for_block(
             tc,
@@ -497,6 +545,8 @@ def main():
             nm,
             cfg,
             loo_national_ests=loo_nat_ests,
+            present_train=present_train,
+            present_val=present_val,
         )
 
         elapsed = time.time() - t1

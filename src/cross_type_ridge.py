@@ -575,8 +575,10 @@ CANDIDATE_BLOCK_OVERRIDES: dict[tuple[str, str], str] = {
 }
 
 
-def _build_block_scores(elections: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate candidate-level results to block-level per (location, election_type, date)."""
+def _mapped_result_blocks(elections: pd.DataFrame) -> pd.DataFrame:
+    """Result rows with a `block` column (party→block mapping + verified 2024 T1
+    candidate overrides). Shared by _build_block_scores and build_slate_presence
+    so the target shares and the slate-presence mask always use the same routing."""
     results = elections[elections["metric_type"] == "Result"].copy()
     results["block"] = _vectorized_block_mapping(results["party"], results["candidate"])
 
@@ -593,6 +595,39 @@ def _build_block_scores(elections: pd.DataFrame) -> pd.DataFrame:
         lookup = {f"{d}|{n}": b for (d, n), b in CANDIDATE_BLOCK_OVERRIDES.items()}
         overridden = keyed.map(lookup)
         results.loc[m, "block"] = overridden.fillna(results.loc[m, "block"])
+    return results
+
+
+def build_slate_presence(elections: pd.DataFrame) -> pd.DataFrame:
+    """Per (location, election_type, date_float) presence of each TARGET_BLOCK,
+    derived from the candidate slate (who filed — known ex ante, no vote-outcome
+    leakage). A block is 'present' iff ≥1 candidate routed to it appears on the
+    ballot. Columns: location, election_type, date_float, present_<block> (bool).
+
+    Used to mask the deviation model: a block absent from the ballot has an actual
+    share of exactly 0, so its predicted share is forced to 0. LOO-selected over
+    partial/full redistribution (see src/mask_renorm_eval.py) — the votes a missing
+    block would draw do not flow to the modeled survivors, so no renorm is added."""
+    results = _mapped_result_blocks(elections)
+    sub = results[results["block"].isin(TARGET_BLOCKS)]
+    cnt = (
+        sub.groupby(["location", "election_type", "date_float", "block"])
+        .size()
+        .unstack(fill_value=0)
+        .reset_index()
+    )
+    for b in TARGET_BLOCKS:
+        col = cnt[b] if b in cnt.columns else 0
+        cnt[f"present_{b}"] = (col > 0) if b in cnt.columns else False
+    return cnt[
+        ["location", "election_type", "date_float"]
+        + [f"present_{b}" for b in TARGET_BLOCKS]
+    ]
+
+
+def _build_block_scores(elections: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate candidate-level results to block-level per (location, election_type, date)."""
+    results = _mapped_result_blocks(elections)
 
     scores = (
         results.groupby(["location", "election_type", "date_float", "block"])["value"]

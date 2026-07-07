@@ -335,6 +335,14 @@ def build_extended_data(data_dir):
     demos = pd.read_parquet(cache_dir / "demographics.parquet")
     polls = load_poll_tokens(data_dir)
 
+    # Parquet round-trips text columns as Arrow-backed StringDtype; downstream
+    # merge_asof rejects mixing that with object keys. Normalize both frames'
+    # text columns to plain object so all merge keys share a dtype (mirrors the
+    # same fix in cross_type_dev.load_cross_type_data).
+    for _frame in (elections, demos):
+        for _col in _frame.select_dtypes(include=["string"]).columns:
+            _frame[_col] = _frame[_col].astype(object)
+
     # Filter types and dates
     ext = elections[elections["election_type"].isin(EXTENDED_TYPES)].copy()
     mask = pd.Series(True, index=ext.index)

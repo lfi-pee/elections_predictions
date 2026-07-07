@@ -575,12 +575,78 @@ CANDIDATE_BLOCK_OVERRIDES: dict[tuple[str, str], str] = {
 }
 
 
+def _dept_of(location: pd.Series) -> pd.Series:
+    """Department key for candidate-lineage scoping: 3 chars for DOM/COM
+    (97x/98x, where '97'/'98' alone would merge distinct territories), else the
+    2-char metropolitan/Corsica département code."""
+    p2 = location.str[:2]
+    return location.str[:3].where(p2.isin(["97", "98"]), p2)
+
+
+def _apply_candidate_lineage(results: pd.DataFrame) -> pd.DataFrame:
+    """Attribute an 'Other'-coded candidate's votes to the block that same
+    candidate was last coded into, if any — a rule, not an election-specific
+    allowlist.
+
+    The Ministry's `nuance` code is administratively unstable: the same person is
+    re-coded across cycles (e.g. the DOM autonomist deputies Jiovanny William and
+    Davy Rimane, coded DVG in 2022 and REG — an 'Other' code — in 2024). A single
+    election's code is therefore a noisy label; the candidate's own political
+    lineage is the stable signal. When the current code carries no block (Other),
+    we fall back to that candidate's most recent *strictly prior* real-block
+    coding (same département, any election type). This repairs the target and the
+    lagged features at the same source, is fully causal (past-only, so it holds
+    for a future election), and touches the mainland almost nowhere (candidates
+    there rarely flip out of a real block). Candidates who were always 'Other'
+    (genuine regionalists with no prior block) are left untouched."""
+    is_other = results["block"] == "Other"
+    named = results["candidate"].notna() & (results["candidate"].str.strip() != "") & (
+        results["candidate"] != "unknown"
+    )
+    if not (is_other & named).any():
+        return results
+
+    dept = _dept_of(results["location"])
+
+    # Distinct (candidate, dept, date) real-block codings — a candidate's block is
+    # constant across the bureaux they run in, so dedup keeps this small.
+    real = results.loc[results["block"].isin(TARGET_BLOCKS) & named].assign(dept=dept)
+    real = (
+        real[["candidate", "dept", "date_float", "block"]]
+        .drop_duplicates()
+        .sort_values("date_float")
+    )
+    if real.empty:
+        return results
+
+    others = results.loc[is_other & named].assign(dept=dept[is_other & named])
+    others = others[["candidate", "dept", "date_float"]].sort_values("date_float")
+
+    matched = pd.merge_asof(
+        others,
+        real.rename(columns={"block": "_lineage_block"}),
+        on="date_float",
+        by=["candidate", "dept"],
+        direction="backward",
+        allow_exact_matches=False,
+    )
+    matched.index = others.index
+    fill = matched["_lineage_block"].dropna()
+    results.loc[fill.index, "block"] = fill.values
+    return results
+
+
 def _mapped_result_blocks(elections: pd.DataFrame) -> pd.DataFrame:
-    """Result rows with a `block` column (party→block mapping + verified 2024 T1
-    candidate overrides). Shared by _build_block_scores and build_slate_presence
-    so the target shares and the slate-presence mask always use the same routing."""
+    """Result rows with a `block` column (party→block mapping + candidate-lineage
+    rescue of 'Other' votes + verified 2024 T1 candidate overrides). Shared by
+    _build_block_scores and build_slate_presence so the target shares and the
+    slate-presence mask always use the same routing."""
     results = elections[elections["metric_type"] == "Result"].copy()
     results["block"] = _vectorized_block_mapping(results["party"], results["candidate"])
+
+    # Attribute 'Other' votes to the candidate's established political lineage
+    # (rule that generalizes the hand-verified overrides below).
+    results = _apply_candidate_lineage(results)
 
     # Apply individually-verified 2024 Legislatives T1 candidate overrides.
     m = (results["election_type"] == "Legislatives_T1") & (

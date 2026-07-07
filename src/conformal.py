@@ -268,6 +268,13 @@ def run_conformal_for_block(
     val_pred = val_dev_pred + nat_est_val
     if present_val is not None:
         val_pred = np.where(present_val, val_pred, 0.0)
+    # Every actual block share lies in [0, 100], so projecting the prediction
+    # onto that box is a contraction toward the target set: it can only shrink
+    # squared error, never grow it (unlike a sigmoid, which also distorts the
+    # interior). This removes the impossible shares the deviation model can emit
+    # when a bureau's block mix is far from the national mean (e.g. DOM bureaux
+    # with a large regionalist vote, where Centre+Droite could go negative).
+    val_pred = np.clip(val_pred, 0.0, 100.0)
 
     # ── LOO: collect calibration residuals ──
     cal_residuals = []
@@ -319,24 +326,28 @@ def run_conformal_for_block(
     for alpha in INTERVAL_ALPHAS:
         pct = int(100 * (1 - alpha))
 
+        # Interval bounds are clipped to the feasible [0, 100] box. Since every
+        # actual lies in [0, 100], an actual that fell inside the raw band still
+        # falls inside the clipped band, so marginal coverage is preserved while
+        # impossible bounds (negative shares, >100%) are removed.
         # Standard
         q = conformal_quantile(abs_cal_res, alpha)
-        std_lower = val_pred - q
-        std_upper = val_pred + q
+        std_lower = np.clip(val_pred - q, 0.0, 100.0)
+        std_upper = np.clip(val_pred + q, 0.0, 100.0)
         std_cov = evaluate_coverage(y_true_val, std_lower, std_upper)
 
         # Adaptive
         adap_hw = adaptive_intervals(cal_residuals, cal_dev_preds, val_dev_pred, alpha)
-        adap_lower = val_pred - adap_hw
-        adap_upper = val_pred + adap_hw
+        adap_lower = np.clip(val_pred - adap_hw, 0.0, 100.0)
+        adap_upper = np.clip(val_pred + adap_hw, 0.0, 100.0)
         adap_cov = evaluate_coverage(y_true_val, adap_lower, adap_upper)
 
         # Per-territory stratified
         terr_hw, per_terr_q = per_territory_intervals(
             cal_residuals, cal_territories, val_territories, alpha
         )
-        terr_lower = val_pred - terr_hw
-        terr_upper = val_pred + terr_hw
+        terr_lower = np.clip(val_pred - terr_hw, 0.0, 100.0)
+        terr_upper = np.clip(val_pred + terr_hw, 0.0, 100.0)
         terr_cov = evaluate_coverage(y_true_val, terr_lower, terr_upper)
 
         intervals[pct] = {

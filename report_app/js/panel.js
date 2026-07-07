@@ -105,8 +105,14 @@ function renderPanel(loc, rec) {
       : `<span class="tag warn">issue incertaine</span>`;
   const order = ["G", "CD", "ED", "AB"];
   const bars = order.map((b) => bar(b, rec.blocks[b])).join("");
+  const fallback = rec.fb
+    ? `<div class="pv-fallback">⚠︎ Prédiction peu fiable : l'historique de vote propre à
+       ce bureau est indisponible (bureau récent ou renuméroté). Le modèle s'appuie sur
+       la moyenne de la commune, moins précise qu'un historique de bureau.</div>`
+    : "";
   return `<div class="pv-head"><h3>${rec.n}</h3>
       <div class="sub">Bureau de vote n°${num} · ${fmt(rec.i)} inscrits ${dispTag}</div></div>
+    ${fallback}
     <div class="pv-lead" style="background:${APP.COL[baseLead]}22;border-left:3px solid ${APP.COL[baseLead]}">
       Bloc en tête prédit : <b>${APP.NAME[baseLead]}</b>, marge ${rec.m.toLocaleString("fr-FR", { minimumFractionDigits: 1 })} pts sur ${APP.NAME[rec.ru]}.</div>
     ${bars}

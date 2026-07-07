@@ -217,6 +217,9 @@ def build() -> None:
             "drivers": shap_by_block[row.lead].get(row.location, []),
             "gdrivers": gdrivers,
             "wleft": why_left[row.location],
+            # Lower-confidence: lag features fell back to the commune aggregate
+            # (own-BV history missing or from a reused precinct).
+            "fb": int(bool(getattr(row, "lag_fallback", False))),
             "blocks": {},
         }
         for b in SHORT.values():

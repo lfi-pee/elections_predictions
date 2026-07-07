@@ -64,7 +64,15 @@ def load_wide() -> pd.DataFrame:
     for col, short in metrics.items():
         w = df.pivot(index="location", columns="b", values=col)
         frames |= {f"{short}_{b}": w[b] for b in w.columns}
-    return pd.DataFrame(frames).reset_index()
+    wide = pd.DataFrame(frames).reset_index()
+    # lag_fallback is per-BV (same across blocks): attach once, don't pivot.
+    if "lag_fallback" in df.columns:
+        fb = df.groupby("location")["lag_fallback"].first().rename("lag_fallback")
+        wide = wide.merge(fb, on="location", how="left")
+        wide["lag_fallback"] = wide["lag_fallback"].fillna(False).astype(bool)
+    else:
+        wide["lag_fallback"] = False
+    return wide
 
 
 def load_context() -> pd.DataFrame:

@@ -147,7 +147,8 @@ function hoverBody(p) {
     return s;
   }
   const lead = leadOf(p, bv);
-  return `<br>${APP.NAME[lead]} en tête${p.m !== undefined ? " · marge " + p.m + " pts" : ""}`;
+  const fb = bv && p.fb ? `<br><span class="mini-fb">⚠︎ prédiction peu fiable (repli communal)</span>` : "";
+  return `<br>${APP.NAME[lead]} en tête${p.m !== undefined ? " · marge " + p.m + " pts" : ""}${fb}`;
 }
 
 function leadOf(p, bv) {

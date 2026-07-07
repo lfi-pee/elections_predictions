@@ -370,6 +370,11 @@ def run_conformal_for_block(
         "val_dev_pred": val_dev_pred,
         "y_true_val": y_true_val,
         "val_locations": val["location"].values,
+        "lag_fallback": (
+            val["lag_fallback"].values
+            if "lag_fallback" in val.columns
+            else np.zeros(len(val), dtype=bool)
+        ),
         "val_territories": val_territories,
         "cal_residuals": cal_residuals,
         "cal_dev_preds": cal_dev_preds,
@@ -630,6 +635,10 @@ def main():
                 "prediction": res["val_pred"],
                 "actual": res["y_true_val"],
                 "residual": res["y_true_val"] - res["val_pred"],
+                # True when the BV's lag features came from the commune-level
+                # fallback (own history missing or from a reused precinct):
+                # a lower-confidence prediction, flagged as such on the site.
+                "lag_fallback": res["lag_fallback"],
                 # Territory-stratified intervals (terr_*): each territory class gets its own
                 # quantile of PAST-election LOO residuals (sparse classes fall back to the
                 # global quantile). This is what the site describes, and it calibrates the

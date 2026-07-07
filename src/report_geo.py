@@ -85,6 +85,7 @@ def export() -> None:
             "act_AB",
             "libelle_commune",
             "code_departement",
+            "lag_fallback",
         ]
     ]
     by_dept: dict[str, list[dict]] = defaultdict(list)
@@ -124,6 +125,10 @@ def export() -> None:
                             )
                         ),
                         "w": why.get(loc, ""),
+                        # Lower-confidence prediction: lag features fell back to
+                        # the commune aggregate (own-BV history missing or from a
+                        # reused precinct). Emitted only when true, to keep size down.
+                        **({"fb": 1} if bool(row.lag_fallback) else {}),
                     },
                 }
             )

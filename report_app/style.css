@@ -206,6 +206,8 @@ svg{width:100%;height:auto;display:block}
 .pv-tip{font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:11px;margin:14px 0;line-height:1.5}
 .pv-tip-h,.pv-why-h{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx-mute)}
 .pv-why{font-size:13px;background:var(--surface-2);border-radius:8px;padding:11px;margin:14px 0;line-height:1.55;color:var(--tx-strong)}
+.pv-fallback{font-size:12px;background:rgba(232,67,75,.16);color:#f3a08f;border-radius:8px;padding:9px 11px;margin:10px 0;line-height:1.45}
+.mini-fb{display:block;margin-top:3px;color:#f3a08f;font-size:11px}
 .pv-why-h{display:inline-block;margin-bottom:5px}
 .pv-mob-eq{font-size:13.5px;margin:2px 0 9px;color:var(--tx-strong)}
 .pv-mob-eq b{font-size:18px;color:var(--G)}

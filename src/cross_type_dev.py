@@ -197,22 +197,107 @@ def add_deviation_targets(df, national_means):
     return df
 
 
+INSCRITS_LOOKUP = Path("data/baseline_cache/inscrits_lookup.parquet")
+# A prior cell is treated as a different physical precinct (bureau code reused
+# after the commune redrew its precincts) when its electorate differs from the
+# current cell by more than this factor.
+_PRECINCT_REUSE_FACTOR = 3.0
+
+
 def add_cross_type_local_lags(df):
     """Cross-type local lags: most recent 1-2 prior elections at this BV
-    (of any type), in both raw and deviation space."""
+    (of any type), in both raw and deviation space.
+
+    Bureau codes are not stable across years, so a naive shift picks up two
+    kinds of garbage lag. Both are repaired here so real BVs still get a usable
+    lag instead of a phantom one or being dropped:
+
+      * Zero-expressed-vote cells (Abstention≈100, i.e. missing/absent results)
+        carry no information — they are dropped, so they are neither predicted
+        nor used as anyone's lag (the shift then reaches the previous valid
+        election).
+      * When a BV's own lag is unavailable (new/split BV, or the prior cell was
+        dropped) or comes from a physically different precinct (the code was
+        reused — detected by a >3× jump in inscrits), the lag falls back to the
+        commune-level aggregate at that prior election, which is invariant to
+        precinct renumbering. The model's national estimate remains the final
+        backstop.
+    """
+    lag_src = BLOCKS_ABS + [f"dev_{c}" for c in BLOCKS_ABS]
+
+    # Drop zero-expressed-vote (phantom) cells before anything else.
+    df = df[df["Abstention"] < 99.99].copy()
+
+    # Attach inscrits to spot precinct reuse (stable code, changed geography).
+    # Join on an integer date key: inscrits_lookup stores date_float as float64
+    # while the elections carry float32, so neither an exact-float join nor a
+    # rounded-float join matches (float32 2022.33 ≠ float64 2022.33). Scaling by
+    # 100 and rounding to int is exact and keeps rounds distinct (.33/.42/.50/.54).
+    def _datekey(s):
+        return (s.astype("float64") * 100).round().astype("int64")
+
+    if INSCRITS_LOOKUP.exists():
+        ins = pd.read_parquet(INSCRITS_LOOKUP)[
+            ["location", "election_type", "date_float", "inscrits"]
+        ].copy()
+        ins["_dk"] = _datekey(ins["date_float"])
+        df["_dk"] = _datekey(df["date_float"])
+        df = df.merge(
+            ins.drop(columns="date_float"),
+            on=["location", "election_type", "_dk"],
+            how="left",
+        ).drop(columns="_dk")
+    else:
+        df["inscrits"] = np.nan
+
     df = df.sort_values(["location", "date_float"])
+    g = df.groupby("location")
+    for col in lag_src:
+        df[f"{col}_lag1"] = g[col].shift(1)
+        df[f"{col}_lag2"] = g[col].shift(2)
+    df["_ins_lag1"] = g["inscrits"].shift(1)
+    df["_ins_lag2"] = g["inscrits"].shift(2)
 
-    # Raw lags (needed for NaN filtering even though only dev lags are used as features)
-    for col in BLOCKS_ABS:
-        df[f"{col}_lag1"] = df.groupby("location")[col].shift(1)
-        df[f"{col}_lag2"] = df.groupby("location")[col].shift(2)
+    # Commune-level aggregate of the same lags (renumber-invariant fallback).
+    df["_commune"] = df["location"].str.split("_").str[0]
+    comm = (
+        df.groupby(["_commune", "election_type", "date_float"], as_index=False)[lag_src]
+        .mean()
+        .sort_values(["_commune", "date_float"])
+    )
+    cg = comm.groupby("_commune")
+    clag_cols = []
+    for col in lag_src:
+        for k in (1, 2):
+            c = f"{col}_clag{k}"
+            comm[c] = cg[col].shift(k)
+            clag_cols.append(c)
+    df = df.merge(
+        comm[["_commune", "election_type", "date_float"] + clag_cols],
+        on=["_commune", "election_type", "date_float"],
+        how="left",
+    )
 
-    # Deviation lags (used as features)
-    for col in BLOCKS_ABS:
-        df[f"dev_{col}_lag1"] = df.groupby("location")[f"dev_{col}"].shift(1)
-        df[f"dev_{col}_lag2"] = df.groupby("location")[f"dev_{col}"].shift(2)
+    # Invalidate a BV lag whose source precinct is not the same one (inscrits
+    # jumped), so the commune fallback below takes over for it.
+    for k in (1, 2):
+        ratio = df["inscrits"] / df[f"_ins_lag{k}"]
+        reused = (ratio > _PRECINCT_REUSE_FACTOR) | (ratio < 1.0 / _PRECINCT_REUSE_FACTOR)
+        for col in lag_src:
+            df.loc[reused, f"{col}_lag{k}"] = np.nan
 
-    return df
+    # Flag rows that lean on the commune fallback for any model lag feature
+    # (own-BV history missing or from a reused precinct) — surfaced on the site
+    # as a lower-confidence prediction.
+    dev_lag_cols = [f"dev_{c}_lag{k}" for c in BLOCKS_ABS for k in (1, 2)]
+    df["lag_fallback"] = df[dev_lag_cols].isna().any(axis=1)
+
+    # Fall back to the commune aggregate wherever the BV lag is missing.
+    for col in lag_src:
+        for k in (1, 2):
+            df[f"{col}_lag{k}"] = df[f"{col}_lag{k}"].fillna(df[f"{col}_clag{k}"])
+
+    return df.drop(columns=clag_cols + ["_commune", "_ins_lag1", "_ins_lag2"])
 
 
 def add_election_type_onehot(df):

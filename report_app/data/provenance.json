@@ -1,44 +1,44 @@
 {
  "blocks": {
   "G": {
-   "national_share": 7.3,
-   "local_share": 92.7,
-   "sd_model": 7.38,
-   "sd_total": 7.67,
-   "q90_oracle": 10.95,
-   "q90_real": 12.66,
+   "national_share": 7.6,
+   "local_share": 92.4,
+   "sd_model": 7.4,
+   "sd_total": 7.7,
+   "q90_oracle": 10.94,
+   "q90_real": 12.65,
    "r2_real": 0.82,
    "r2_oracle": 0.81
   },
   "CD": {
-   "national_share": 19.1,
-   "local_share": 80.9,
-   "sd_model": 9.36,
-   "sd_total": 10.4,
-   "q90_oracle": 13.84,
-   "q90_real": 16.41,
+   "national_share": 19.6,
+   "local_share": 80.4,
+   "sd_model": 9.35,
+   "sd_total": 10.43,
+   "q90_oracle": 13.83,
+   "q90_real": 16.47,
    "r2_real": 0.71,
    "r2_oracle": 0.69
   },
   "ED": {
-   "national_share": 26.6,
-   "local_share": 73.4,
-   "sd_model": 4.92,
-   "sd_total": 5.74,
-   "q90_oracle": 7.58,
-   "q90_real": 14.89,
-   "r2_real": 0.81,
+   "national_share": 27.3,
+   "local_share": 72.7,
+   "sd_model": 4.91,
+   "sd_total": 5.76,
+   "q90_oracle": 7.56,
+   "q90_real": 14.93,
+   "r2_real": 0.82,
    "r2_oracle": 0.81
   },
   "AB": {
-   "national_share": 68.1,
-   "local_share": 31.9,
-   "sd_model": 4.7,
-   "sd_total": 8.33,
-   "q90_oracle": 7.29,
+   "national_share": 67.7,
+   "local_share": 32.3,
+   "sd_model": 4.73,
+   "sd_total": 8.31,
+   "q90_oracle": 7.34,
    "q90_real": 13.43,
    "r2_real": 0.56,
-   "r2_oracle": 0.86
+   "r2_oracle": 0.87
   }
  }
 }

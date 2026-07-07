@@ -1,147 +1,147 @@
 {
- "n_bv": 69358,
- "lead_accuracy": 83.5,
- "total_inscrits": 48697433,
+ "n_bv": 70083,
+ "lead_accuracy": 83.3,
+ "total_inscrits": 49321259,
  "baselines": {
-  "G": 32.66,
-  "CD": 32.32,
-  "ED": 34.33,
-  "AB": 39.27
+  "G": 32.68,
+  "CD": 32.31,
+  "ED": 34.31,
+  "AB": 39.25
  },
  "battlefield": {
   "3": {
-   "bv": 11219,
+   "bv": 11319,
    "pct": 16.2,
-   "inscrits": 7685328
+   "inscrits": 7785046
   },
   "5": {
-   "bv": 17958,
-   "pct": 25.9,
-   "inscrits": 12343408
+   "bv": 18076,
+   "pct": 25.8,
+   "inscrits": 12414771
   },
   "8": {
-   "bv": 27168,
-   "pct": 39.2,
-   "inscrits": 18567110
+   "bv": 27300,
+   "pct": 39.0,
+   "inscrits": 18701808
   }
  },
  "observed_lead": {
-  "G": 17146,
-  "CD": 18938,
-  "ED": 33274
+  "G": 17405,
+  "CD": 19194,
+  "ED": 33484
  },
  "left_gain": {
   "method": "abstentionnistes conjoncturels × part de gauche du votant marginal (γ législatif)",
-  "mobilization_voters": 692277,
-  "total_abstainers": 16912872,
-  "conjunctural_abstainers": 1641044,
-  "structural_abstainers": 15271827,
+  "mobilization_voters": 693553,
+  "total_abstainers": 17137367,
+  "conjunctural_abstainers": 1643777,
+  "structural_abstainers": 15493590,
   "gamma_mean": 42.2,
   "deployment": [
    {
     "nom": "Marseille",
     "dept": "13",
-    "mob": 17464,
-    "bv": 482,
+    "mob": 17438,
+    "bv": 497,
     "gamma": 45.5
    },
    {
     "nom": "Paris",
     "dept": "75",
-    "mob": 12425,
-    "bv": 861,
-    "gamma": 50.8
+    "mob": 12339,
+    "bv": 902,
+    "gamma": 51.0
    },
    {
     "nom": "Montpellier",
     "dept": "34",
-    "mob": 4693,
+    "mob": 4680,
     "bv": 139,
-    "gamma": 52.1
+    "gamma": 52.0
    },
    {
     "nom": "Toulouse",
     "dept": "31",
-    "mob": 3552,
-    "bv": 267,
-    "gamma": 53.6
+    "mob": 3515,
+    "bv": 277,
+    "gamma": 53.7
    },
    {
     "nom": "Le Havre",
     "dept": "76",
-    "mob": 3341,
+    "mob": 3340,
     "bv": 110,
     "gamma": 49.9
    },
    {
     "nom": "Nîmes",
     "dept": "30",
-    "mob": 3108,
+    "mob": 3105,
     "bv": 86,
     "gamma": 48.9
    },
    {
     "nom": "Limoges",
     "dept": "87",
-    "mob": 2736,
+    "mob": 2724,
     "bv": 86,
     "gamma": 49.3
    },
    {
     "nom": "Le Mans",
     "dept": "72",
-    "mob": 2544,
+    "mob": 2545,
     "bv": 98,
-    "gamma": 49.9
+    "gamma": 50.0
    },
    {
     "nom": "Avignon",
     "dept": "84",
-    "mob": 2541,
+    "mob": 2522,
     "bv": 71,
     "gamma": 50.2
    },
    {
     "nom": "Toulon",
     "dept": "83",
-    "mob": 2139,
+    "mob": 2060,
     "bv": 128,
-    "gamma": 40.2
+    "gamma": 39.7
    },
    {
     "nom": "Angers",
     "dept": "49",
-    "mob": 2036,
+    "mob": 2029,
     "bv": 85,
     "gamma": 50.4
    },
    {
     "nom": "Nice",
     "dept": "06",
-    "mob": 1952,
-    "bv": 254,
+    "mob": 1944,
+    "bv": 256,
     "gamma": 44.4
    }
   ]
  },
  "flat_poll": {
   "bloc": "ED",
-  "accuracy": 40.4
+  "accuracy": 40.2
  },
  "circo": {
   "n": 577,
-  "covered_bv": 69301,
+  "covered_bv": 69300,
   "base": {
-   "G": 184,
+   "G": 183,
    "CD": 169,
-   "ED": 224
+   "ED": 225
   },
-  "flip_default": 76
+  "flip_default": 74
  },
  "swing": {
-  "G": 0.328871,
-  "CD": 0.325426,
-  "ED": 0.345703
+  "G": 0.329119,
+  "CD": 0.325365,
+  "ED": 0.345517
  },
  "r2": {
   "G": 0.82,
@@ -149,5 +149,5 @@
   "ED": 0.83,
   "AB": 0.56
  },
- "unc_median": 28.3
+ "unc_median": 28.4
 }

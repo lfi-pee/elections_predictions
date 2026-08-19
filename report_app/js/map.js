@@ -72,26 +72,94 @@ function addLayers() {
   });
   map.addLayer({ id: "labels", type: "raster", source: "labels" });
 
-  map.on("click", "bv-fill", (e) => openPanel(e.features[0].properties));
-  map.on("click", "com-circ", (e) => zoomToCommune(e.features[0]));
-  for (const ly of ["bv-fill", "com-circ"]) {
-    map.on("mouseenter", ly, () => (map.getCanvas().style.cursor = "pointer"));
-    // Hover only lives over a feature on the map: drop the popup on leave so it never
-    // lingers over the page once the cursor moves off the map.
-    map.on("mouseleave", ly, () => {
-      map.getCanvas().style.cursor = "";
-      if (popup) popup.remove();
-    });
-    map.on("mousemove", ly, (e) => hover(e));
+  // One map-level tap handler instead of two layer-scoped ones: a layer-scoped click
+  // only fires on an exact pixel hit, which a finger almost never lands (see pickNear),
+  // and it gives no way to react to a tap that hits nothing.
+  map.on("click", onTap);
+  if (!COARSE) {
+    for (const ly of ["bv-fill", "com-circ"]) {
+      map.on("mouseenter", ly, () => (map.getCanvas().style.cursor = "pointer"));
+      // Hover only lives over a feature on the map: drop the popup on leave so it never
+      // lingers over the page once the cursor moves off the map.
+      map.on("mouseleave", ly, () => {
+        map.getCanvas().style.cursor = "";
+        if (popup) popup.remove();
+      });
+      map.on("mousemove", ly, (e) => hover(e));
+    }
   }
   map.on("moveend", autoLoadDept);
 }
 
+// A finger is not a cursor. Touch devices have no hover at all (so the quick-read card
+// was unreachable) and land ~10 mm wide, so an exact-pixel hit test made most taps do
+// nothing — small bureaux, and commune circles that are ~2 px across when dezoomed.
+const COARSE = typeof matchMedia === "function" && matchMedia("(pointer:coarse)").matches;
+const TAP_PAD = COARSE ? 18 : 3;
+
+// Rough screen-space anchor of a feature, used only to break ties between candidates
+// caught by the padded box — nearest one to the finger wins.
+function anchorOf(f) {
+  const g = f.geometry;
+  if (g.type === "Point") return g.coordinates;
+  const rings = g.type === "Polygon" ? g.coordinates : [].concat(...(g.coordinates || []));
+  let sx = 0, sy = 0, n = 0;
+  for (const ring of rings || []) for (const c of ring) { sx += c[0]; sy += c[1]; n++; }
+  return n ? [sx / n, sy / n] : null;
+}
+
+function pickNear(pt, layer) {
+  const map = APP.map;
+  if (!map.getLayer(layer)) return null;
+  const exact = map.queryRenderedFeatures(pt, { layers: [layer] })[0];
+  if (exact) return exact;
+  const box = [[pt.x - TAP_PAD, pt.y - TAP_PAD], [pt.x + TAP_PAD, pt.y + TAP_PAD]];
+  const near = map.queryRenderedFeatures(box, { layers: [layer] });
+  if (!near.length) return null;
+  let best = near[0], bd = Infinity;
+  for (const f of near) {
+    const a = anchorOf(f);
+    if (!a) continue;
+    const q = map.project(a), d = (q.x - pt.x) ** 2 + (q.y - pt.y) ** 2;
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
+}
+
+// Tap/click routing. A bureau opens the instrument panel — the full read, superset of
+// the hover card. A commune circle has no panel, so on touch the popup IS its only
+// reading; it is shown anchored on the commune and the map flies there. A tap on empty
+// map dismisses the popup.
+function onTap(e) {
+  const bv = pickNear(e.point, "bv-fill");
+  if (bv) {
+    // On touch the card would sit under the panel with no way to close it; on desktop the
+    // hover keeps owning it, so leave it alone there.
+    if (COARSE && popup) popup.remove();
+    openPanel(bv.properties, e.lngLat);
+    return;
+  }
+  const com = pickNear(e.point, "com-circ");
+  if (com) {
+    if (COARSE) showPopup(com.properties, com.geometry.coordinates);
+    zoomToCommune(com);
+    return;
+  }
+  if (popup) popup.remove();
+}
+
 let popup = null;
+function showPopup(p, lngLat) {
+  if (!popup) {
+    // closeOnClick defaults to true, so on touch the synthetic mousemove opened the card
+    // and the very same tap's click closed it again — the popup never survived a tap.
+    popup = new maplibregl.Popup({ closeButton: COARSE, closeOnClick: false, className: "mini" });
+  }
+  popup.setLngLat(lngLat).setHTML(`<b>${hoverTitle(p)}</b>${hoverBody(p)}`).addTo(APP.map);
+}
+
 function hover(e) {
-  const p = e.features[0].properties;
-  if (!popup) popup = new maplibregl.Popup({ closeButton: false, className: "mini" });
-  popup.setLngLat(e.lngLat).setHTML(`<b>${hoverTitle(p)}</b>${hoverBody(p)}`).addTo(APP.map);
+  showPopup(e.features[0].properties, e.lngLat);
 }
 
 // Always name the geographic unit first: a polygon ("le shape") is a polling station,

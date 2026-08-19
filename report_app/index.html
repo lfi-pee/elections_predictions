@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>L'élection au bureau de vote près</title>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<link href="style.css?v=17" rel="stylesheet" />
+<link href="style.css?v=22" rel="stylesheet" />
 </head>
 <body>
 <div id="usecase-bar"><span class="uc-tag">À quoi sert cet outil</span>
@@ -13,17 +13,13 @@
   bureau de vote par bureau — combien d'abstentionnistes reste-t-il à ramener aux urnes,
   et où concentrer le porte-à-porte pour qu'il rapporte le plus.</div>
 <header id="top">
-  <div class="brand">Législatives 2024 · 1<sup>er</sup> tour<span>la prévision, au bureau de vote près</span></div>
-  <div class="hook">
-    <strong id="hook-acc">81,6 %</strong>
-    <span>des <b id="hook-n">69 358</b> bureaux : le bon bloc désigné en tête — <b>deux fois moins d'erreurs qu'un sondage</b>, qui ne désigne le bon bloc que dans un bureau sur deux. Prévision vérifiée sur le résultat réel de 2024.</span>
-  </div>
   <div class="legend" id="legend"></div>
 </header>
 
 <section class="hero">
   <div id="map"></div>
   <div class="hero-overlay">
+    <button id="ov-toggle" aria-expanded="true">Masquer le texte</button>
     <h1>La carte que les sondages ne donnent pas</h1>
     <p>Un sondage n'interroge que les votants probables. Notre instrument éclaire pour
     chacun des <b>69 358</b> bureaux les <b>abstentionnistes qui penchent à gauche</b> —
@@ -33,7 +29,7 @@
     <div class="search"><input id="search" type="text" placeholder="Aller à une commune…" autocomplete="off" /><ul id="results"></ul></div>
     <label class="check hero-check"><input id="lead" type="checkbox" />
       afficher le bloc en tête — le duel sondage vs nous</label>
-    <p class="hero-cap">Survolez un bureau pour la lecture rapide ; cliquez pour l'interroger en détail.</p>
+    <p class="hero-cap">Touchez un bureau pour l'interroger en détail ; à la souris, le survol en donne la lecture rapide.</p>
   </div>
   <div id="map-hint">Cherchez une commune ou zoomez : la carte descend jusqu'au bureau de vote.</div>
 </section>
@@ -213,15 +209,16 @@
   </section>
 </main>
 
-<div id="panel" class="hidden"><button id="panel-close">×</button><div id="panel-body"></div></div>
+<div id="panel-scrim"></div>
+<div id="panel" class="hidden"><button id="panel-close" aria-label="Fermer">×</button><div id="panel-body"></div></div>
 
 <script src="js/devreload.js?v=2" defer></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="js/config.js?v=14" defer></script>
-<script src="js/map.js?v=15" defer></script>
+<script src="js/map.js?v=17" defer></script>
 <script src="js/scenario.js?v=13" defer></script>
-<script src="js/viz.js?v=19" defer></script>
-<script src="js/panel.js?v=17" defer></script>
-<script src="js/main.js?v=13" defer></script>
+<script src="js/viz.js?v=21" defer></script>
+<script src="js/panel.js?v=18" defer></script>
+<script src="js/main.js?v=14" defer></script>
 </body>
 </html>

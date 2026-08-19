@@ -13,14 +13,20 @@ async function fetchDetail(dept) {
   return d;
 }
 
-async function openPanel(props) {
+async function openPanel(props, lngLat) {
   const loc = props.l;
   const dept = loc.slice(0, 2);
   const detail = await fetchDetail(dept);
   const rec = detail[loc];
-  if (!rec) return;
+  // Never dead-end: a missing detail record used to make the tap do literally nothing.
+  // Fall back to the quick-read card, which needs nothing beyond the tile properties.
+  if (!rec) {
+    if (lngLat) showPopup(props, lngLat);
+    return;
+  }
   $("panel-body").innerHTML = renderPanel(loc, rec);
   $("panel").classList.remove("hidden");
+  document.body.classList.add("panel-open");
 }
 
 function bar(b, blk) {
@@ -123,5 +129,13 @@ function renderPanel(loc, rec) {
 }
 
 function initPanel() {
-  $("panel-close").onclick = () => $("panel").classList.add("hidden");
+  const close = () => {
+    $("panel").classList.add("hidden");
+    document.body.classList.remove("panel-open");
+  };
+  $("panel-close").onclick = close;
+  // On a tablet the panel covers most of the screen, so it needs an exit that is not a
+  // 26 px glyph: Escape, and a tap on the backdrop left of the sheet.
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  $("panel-scrim").onclick = close;
 }

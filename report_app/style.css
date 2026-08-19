@@ -11,7 +11,7 @@
   --tx-body:#a9a9b5;        /* body / lede secondary text */
   --tx-mute:#83838f;        /* muted captions */
   --accent:#e8434b;         /* brand red, brightened for dark */
-  --headerH:60px;
+  --headerH:36px;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -23,14 +23,11 @@ b{font-weight:700}
 #usecase-bar b{color:#fff;font-weight:700}
 .uc-tag{text-transform:uppercase;font-size:10.5px;letter-spacing:.08em;font-weight:700;
   color:var(--G);margin-right:9px;white-space:nowrap}
-#top{position:sticky;top:0;z-index:30;height:var(--headerH);display:flex;align-items:center;
-  gap:28px;padding:0 22px;background:rgba(18,18,27,.92);backdrop-filter:blur(6px);
+#top{position:sticky;top:0;z-index:30;min-height:var(--headerH);display:flex;align-items:center;
+  gap:28px;padding:6px 22px;background:rgba(18,18,27,.92);backdrop-filter:blur(6px);
   border-bottom:1px solid var(--line)}
-.brand{font-weight:800;font-size:16px;line-height:1.05}
-.brand span{display:block;font-weight:500;font-size:11px;color:var(--tx-body);letter-spacing:.02em}
-.hook{font-size:13px;color:var(--tx-body);max-width:540px}
-.hook strong{font-size:21px;color:var(--ink);margin-right:8px}
-.legend{margin-left:auto;font-size:11.5px;color:var(--tx-body);display:flex;align-items:center;gap:5px}
+.legend{margin-left:auto;font-size:11.5px;color:var(--tx-body);display:flex;align-items:center;
+  gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .legend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-left:10px}
 .legend i[data-b=G]{background:var(--G)} .legend i[data-b=CD]{background:var(--CD)} .legend i[data-b=ED]{background:var(--ED)}
 .legend-lab{font-weight:700;color:var(--G)}
@@ -70,6 +67,17 @@ b{font-weight:700}
 .hero-overlay h1{margin:0 0 10px;font-size:26px;line-height:1.12;letter-spacing:-.02em}
 .hero-overlay p{font-size:13.5px;line-height:1.55;color:var(--tx-body);margin:0 0 12px}
 .hero-cap{font-size:12px!important;color:var(--tx-mute)!important;font-style:italic;margin-bottom:0!important}
+/* The intro card sits ON the map. On touch it has to be foldable, or a quarter of the
+   map is text that eats taps meant for a zone. */
+#ov-toggle{float:right;margin:-6px -8px 0 10px;border:1px solid var(--line);border-radius:16px;
+  background:var(--surface-2);color:var(--tx-body);font:inherit;font-size:11.5px;
+  padding:7px 12px;min-height:32px;cursor:pointer}
+/* Folded keeps the controls (search, mode switch) and drops only the prose. */
+.hero-overlay.folded h1,.hero-overlay.folded p{display:none}
+.hero-overlay.folded{padding:10px 12px}
+.hero-overlay.folded .search{margin:0}
+.hero-overlay.folded .hero-check{margin:8px 0 0}
+.hero-overlay.folded #ov-toggle{float:none;margin:0 0 8px;display:block;width:100%}
 #map-hint{position:absolute;left:26px;bottom:18px;z-index:5;background:rgba(12,12,20,.85);color:#fff;
   font-size:11.5px;padding:7px 11px;border-radius:6px;pointer-events:none;transition:opacity .4s}
 #map-hint.gone{opacity:0}
@@ -79,6 +87,9 @@ b{font-weight:700}
 /* ---- Magazine grid: full width, many small panels ---- */
 .mag{max-width:1440px;margin:0 auto;padding:26px 24px 90px;display:grid;
   grid-template-columns:repeat(12,1fr);gap:18px;align-items:start}
+/* Grid items default to min-width:auto, so one wide child could stretch the whole 12-col
+   grid past the viewport — which on a tablet zooms the entire page out to fit. */
+.mag>*{min-width:0}
 .band{grid-column:1/-1;margin:14px 0 0;font-size:22px;letter-spacing:-.01em;
   padding-bottom:8px;border-bottom:2px solid var(--accent)}
 .band-sub{display:block;font-size:11px;font-weight:500;line-height:1.4;color:var(--tx-mute);
@@ -171,7 +182,9 @@ svg{width:100%;height:auto;display:block}
 .fineprint{font-size:11px;line-height:1.45;color:var(--tx-mute);margin:14px 0 0}
 .provr2{font-size:11px;line-height:1.5;color:var(--tx-mute);margin:12px 0 0;
   border-top:1px dashed var(--line);padding-top:10px}
-.provr2 span{margin-right:10px;white-space:nowrap}
+/* nowrap belongs to the little R² cells only — applied to every descendant span it also
+   caught the long parenthetical below, turning it into one unbreakable 1440 px line. */
+.provr2 .r2cell{margin-right:10px;white-space:nowrap}
 
 /* Provenance: local vs national share of a bureau's uncertainty */
 .prov-row{display:grid;grid-template-columns:108px 1fr;align-items:center;gap:10px;margin:9px 0;font-size:12.5px}
@@ -191,7 +204,11 @@ svg{width:100%;height:auto;display:block}
   background:var(--surface);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(0,0,0,.55);z-index:50;
   overflow-y:auto;transition:transform .28s ease}
 #panel.hidden{transform:translateX(100%)}
-#panel-close{position:absolute;top:10px;right:12px;border:none;background:none;font-size:26px;cursor:pointer;color:var(--tx-mute)}
+#panel-close{position:absolute;top:6px;right:6px;border:none;background:none;font-size:26px;
+  cursor:pointer;color:var(--tx-mute);width:44px;height:44px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+/* Backdrop: on a tablet the sheet covers the page, so tapping beside it must dismiss it. */
+#panel-scrim{position:fixed;inset:0;z-index:49;background:rgba(0,0,0,.45);display:none}
 #panel-body{padding:22px}
 .pv-head h3{margin:0;font-size:18px} .pv-head .sub{font-size:12px;color:var(--tx-mute);margin:2px 0 14px}
 .pv-lead{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px;line-height:1.5}
@@ -227,6 +244,28 @@ svg{width:100%;height:auto;display:block}
 
 @media(max-width:1080px){
   .span3,.span4,.span5,.span6,.span8{grid-column:span 6}
+}
+/* Tablets (768–1024) fell between the desktop and phone layouts: they kept the full-size
+   intro card over the map and a 400 px side sheet, leaving little map to tap. */
+@media(max-width:1024px){
+  .hero{height:70vh}
+  .hero-overlay{top:12px;left:12px;right:12px;max-width:none;max-height:46%;overflow-y:auto;
+    padding:14px 16px;-webkit-overflow-scrolling:touch}
+  .hero-overlay h1{font-size:22px}
+  #map-hint{left:12px;right:12px;bottom:12px}
+  #panel{width:min(460px,100%);max-width:100%}
+  #panel-body{padding:18px 18px 40px}
+  /* 150 px + 150 px + 58 px of fixed columns do not fit a half-width panel here. */
+  .tc-row{grid-template-columns:1fr;gap:3px} .tc-v,.tc-g{text-align:left}
+}
+/* Coarse pointers: no hover, so every readable thing must survive a tap. */
+@media(pointer:coarse){
+  body.panel-open #panel-scrim{display:block}
+  .maplibregl-popup.mini .maplibregl-popup-content{font-size:13px;padding:11px 14px;max-width:260px}
+  .maplibregl-popup-close-button{width:34px;height:34px;font-size:20px}
+  .maplibregl-ctrl button{width:36px;height:36px}
+  #results li{padding:13px}
+  .check{min-height:34px}
 }
 @media(max-width:720px){
   .mag{grid-template-columns:1fr}

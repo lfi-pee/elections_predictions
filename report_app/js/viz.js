@@ -150,8 +150,11 @@ function renderProvenance() {
   // Bureau-level skill, free of the national poll error: R² with the TRUE national level
   // (oracle) barely beats R² with the poll (realistic) — the skill is local, not borrowed.
   const r2 = (b, k) => p[b][k].toLocaleString("fr-FR", { minimumFractionDigits: 2 });
+  // Joined with a space, not glued: each cell is white-space:nowrap, so without a break
+  // opportunity between them the four became one unbreakable 1450 px box that widened the
+  // whole page — enough for a tablet to shrink-to-fit the entire site.
   const cells = ["G", "CD", "ED", "AB"].map((b) =>
-    `<span><b style="color:${APP.COL[b]}">${APP.NAME[b]}</b> ${r2(b, "r2_real")}</span>`).join("");
+    `<span class="r2cell"><b style="color:${APP.COL[b]}">${APP.NAME[b]}</b> ${r2(b, "r2_real")}</span>`).join(" ");
   $("provbars").innerHTML +=
     `<p class="provr2"><b>Et au bureau près ?</b> Part de la variabilité entre bureaux que le ` +
     `modèle explique : ${cells}. Donnez-lui le vrai national plutôt que le sondage, cette part ` +

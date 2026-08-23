@@ -12,6 +12,11 @@ screenshots/
 # déploiement Streamlit. On les ré-inclut malgré les règles `data` et `*.png`.
 !report_app/data/
 !report_app/data/**
+# Idem pour le site 2027 (carte des circonscriptions).
+!report_app/2027/data/
+!report_app/2027/data/**
+# Ancrage documenté des scénarios 2027 (malgré la règle `data`).
+!data/polls/legislatives/legislatives_2027_hypotheses.csv
 
 # Image d'aperçu du site embarquée dans le README (malgré `*.png`).
 !docs/apercu-site.png

@@ -1,0 +1,11 @@
+# Intentions de vote 1er tour — prochaines législatives (hypothèse dissolution / 2027).
+# Sources : sondages Ifop, OpinionWay, Elabe, Cluster17, Toluna-Harris (juin–octobre 2025),
+# agrégés par Toute l'Europe et Wikipédia (« Prochaines élections législatives françaises »).
+# Récupéré le 2026-08-23. Parts en % des suffrages exprimés (bruts, avant renormalisation
+# à 3 blocs). Sert d'ancrage aux curseurs nationaux du site 2027 ; l'utilisateur peut les régler.
+hypothese,institut,periode,RN_allies,gauche_unie_NFP,LFI,PS_PP_EELV_PCF,Ensemble,LR,source
+gauche_unie,agrégat 8 sondages,2025-06/2025-10,32.3,24.3,,,14.7,12.7,touteleurope.eu
+gauche_divisee,agrégat 8 sondages,2025-06/2025-10,31.7,,9.7,17.7,13.7,12.3,touteleurope.eu
+gauche_unie,Ifop,2025-10-07/08,36.0,24.0,,,14.0,12.0,fr.wikipedia
+gauche_unie,OpinionWay,2025-10-06/07,33.5,24.0,,,16.0,13.0,fr.wikipedia
+gauche_unie,Elabe,2025-08-28/29,31.25,23.5,,,14.0,10.5,fr.wikipedia

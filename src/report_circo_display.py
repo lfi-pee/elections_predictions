@@ -1,0 +1,144 @@
+"""Disposition d'affichage « toutes circonscriptions » : la métropole reste géographique,
+l'outre-mer et les Français de l'étranger sont ramenés en **encarts** à gauche de la carte
+(comme les cartes électorales usuelles), pour que les **577** circos soient visibles et
+cliquables — y compris les 11 circos de l'étranger (sans territoire) rendues en tuiles.
+
+Entrées : `circo.geojson` (559 polygones dissous) + `circo.json` (577, agrégats/props).
+Sorties : `circo_display.geojson` (577 features, géométrie d'affichage) + `circo_insets.json`
+(cadres + libellés des encarts).
+
+    python3 -u -m src.report_circo_display
+"""
+
+from __future__ import annotations
+
+import json
+from collections import defaultdict
+from pathlib import Path
+
+from shapely.geometry import mapping, shape
+from shapely.affinity import affine_transform
+
+DIR = Path("report_app/2027/data")
+GEO = DIR / "circo.geojson"
+ARR = DIR / "circo.json"
+OUT = DIR / "circo_display.geojson"
+INSETS = DIR / "circo_insets.json"
+
+# Libellés des territoires d'outre-mer / étranger (à défaut : le code).
+TERR = {
+    "ZA": "Guadeloupe", "ZB": "Martinique", "ZC": "Guyane", "ZD": "La Réunion",
+    "ZM": "Mayotte", "ZS": "St-Pierre, St-Martin…", "ZN": "Nouvelle-Calédonie",
+    "ZP": "Polynésie fr.", "ZW": "Wallis-et-Futuna", "ZX": "Outre-mer",
+    "ZZ": "Français de l'étranger",
+}
+# Ordre et emplacement des encarts. Colonne d'encarts à gauche (Atlantique), empilée en
+# latitude ; l'étranger (11 tuiles) en bandeau sous la métropole.
+LEFT_COL = ["ZS", "ZA", "ZB", "ZC", "ZD", "ZM", "ZN", "ZP", "ZW", "ZX"]
+
+
+def _fit_transform(src_bounds, dst):
+    """Matrice affine (shapely: [a,b,d,e,xoff,yoff]) qui place `src_bounds` dans la boîte
+    `dst`=(x0,y0,x1,y1) en conservant le rapport d'aspect (85 % de remplissage, centré)."""
+    sx0, sy0, sx1, sy1 = src_bounds
+    sw, sh = max(sx1 - sx0, 1e-6), max(sy1 - sy0, 1e-6)
+    dx0, dy0, dx1, dy1 = dst
+    s = min((dx1 - dx0) / sw, (dy1 - dy0) / sh) * 0.85
+    scx, scy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
+    dcx, dcy = (dx0 + dx1) / 2, (dy0 + dy1) / 2
+    return [s, 0, 0, s, dcx - s * scx, dcy - s * scy]
+
+
+def _square(cx, cy, r):
+    return {"type": "Polygon", "coordinates": [[[cx - r, cy - r], [cx + r, cy - r],
+            [cx + r, cy + r], [cx - r, cy + r], [cx - r, cy - r]]]}
+
+
+def _round_geom(geom, p=4):
+    def r(cs):
+        return [[round(x, p), round(y, p)] for x, y in cs]
+    m = mapping(geom)
+    if m["type"] == "Polygon":
+        return {"type": "Polygon", "coordinates": [r(ring) for ring in m["coordinates"]]}
+    return {"type": "MultiPolygon", "coordinates": [[r(ring) for ring in poly] for poly in m["coordinates"]]}
+
+
+def export() -> None:
+    geo = json.loads(GEO.read_text())
+    arr = json.loads(ARR.read_text())
+    poly_by_id = {f["properties"]["id"]: f for f in geo["features"]}
+    ids_by_dept = defaultdict(list)
+    for i, cid in enumerate(arr["id"]):
+        ids_by_dept[arr["dept"][i]].append((cid, i))
+
+    def props(i):
+        return {k: arr[k][i] for k in ("id", "nm", "dept", "ins", "nbv", "dG", "dCD", "dED", "dAB", "af")}
+
+    out = []
+    insets = []
+
+    # Métropole (dept numérique ou Corse) : géométrie inchangée.
+    for f in geo["features"]:
+        d = f["properties"]["dept"]
+        if d[0].isdigit() or d in ("2A", "2B"):
+            out.append(f)
+
+    # Encarts outre-mer/étranger, empilés à gauche (Atlantique).
+    x0, x1 = -14.0, -6.5           # colonne d'encarts
+    lat_top, lat_bot = 51.0, 42.0
+    n = len(LEFT_COL)
+    gap = 0.5
+    slot_h = (lat_top - lat_bot - gap * (n - 1)) / n
+    for k, dept in enumerate(LEFT_COL):
+        if dept not in ids_by_dept:
+            continue
+        top = lat_top - k * (slot_h + gap)
+        box = (x0, top - slot_h, x1, top)
+        insets.append({"dept": dept, "label": TERR.get(dept, dept), "box": [round(v, 3) for v in box]})
+        entries = ids_by_dept[dept]
+        withpoly = [poly_by_id[cid] for cid, _ in entries if cid in poly_by_id]
+        if withpoly:
+            geoms = [shape(f["geometry"]) for f in withpoly]
+            b = geoms[0].bounds
+            xs = [g.bounds[0] for g in geoms] + [g.bounds[2] for g in geoms]
+            ys = [g.bounds[1] for g in geoms] + [g.bounds[3] for g in geoms]
+            src = (min(xs), min(ys), max(xs), max(ys))
+            m = _fit_transform(src, (box[0] + 0.2, box[1] + 0.15, box[2] - 0.2, box[3] - 0.15))
+            for f in withpoly:
+                out.append({"type": "Feature",
+                            "geometry": _round_geom(affine_transform(shape(f["geometry"]), m)),
+                            "properties": f["properties"]})
+        else:
+            # Tuiles carrées (territoire sans contour) alignées dans l'encart.
+            cnt = len(entries)
+            cols = min(cnt, 6)
+            rows = (cnt + cols - 1) // cols
+            cw = (x1 - x0 - 0.4) / cols
+            r = min(cw, (slot_h - 0.3) / max(rows, 1)) * 0.42
+            for j, (cid, i) in enumerate(entries):
+                cx = x0 + 0.2 + cw * (j % cols) + cw / 2
+                cy = top - 0.15 - (slot_h - 0.3) * ((j // cols + 0.5) / rows)
+                out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
+
+    # Étranger : bandeau de 11 tuiles sous la métropole.
+    zz = ids_by_dept.get("ZZ", [])
+    if zz:
+        bx0, bx1, by0, by1 = -4.0, 8.5, 38.6, 40.6
+        insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
+        cols = len(zz)
+        cw = (bx1 - bx0) / cols
+        r = min(cw, (by1 - by0)) * 0.32
+        for j, (cid, i) in enumerate(zz):
+            cx = bx0 + cw * (j + 0.5)
+            cy = (by0 + by1) / 2
+            out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
+
+    OUT.write_text(json.dumps({"type": "FeatureCollection", "features": out},
+                              ensure_ascii=False, separators=(",", ":")))
+    INSETS.write_text(json.dumps(insets, ensure_ascii=False))
+    print(f"display : {len(out)} circos (dont encarts), {len(insets)} encarts → {OUT.name} "
+          f"({OUT.stat().st_size / 1e6:.1f} Mo)")
+
+
+if __name__ == "__main__":
+    export()

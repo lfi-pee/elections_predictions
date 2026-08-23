@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Législatives 2027 — la carte des circonscriptions</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<link href="style.css?v=1" rel="stylesheet" />
+<link href="app.css?v=1" rel="stylesheet" />
+</head>
+<body class="p2027">
+<header id="top">
+  <div class="brand">Législatives <b>2027</b><span> · prévision par circonscription</span></div>
+  <a class="meth-link" href="../" target="_blank" rel="noopener">Méthode &amp; validation (carte 2024) ↗</a>
+</header>
+
+<p id="intro" class="intro"></p>
+
+<section id="controls">
+  <div class="ctl-card ctl-scn">
+    <div class="ctl-h">Scénario — union de la gauche</div>
+    <div id="scenarios" class="scn-btns"></div>
+    <p id="scn-desc" class="scn-desc"></p>
+  </div>
+  <div class="ctl-card ctl-sliders">
+    <div class="ctl-h">Niveau national <span class="muted">(réglez les curseurs)</span></div>
+    <div id="sliders"></div>
+    <div id="natsum" class="natsum"></div>
+  </div>
+</section>
+
+<section id="bars">
+  <div class="ctl-card">
+    <div class="ctl-h">Projection en sièges <span class="muted">· 577 · majorité absolue 289</span></div>
+    <div id="seatbar" class="seatbar"></div>
+    <div id="seat-legend" class="seat-legend"></div>
+  </div>
+  <div class="ctl-card">
+    <div class="ctl-h">Jouabilité pour la gauche <span class="muted">· score par circonscription</span></div>
+    <div id="winsum"></div>
+  </div>
+</section>
+
+<div class="maptools">
+  <div class="modes">
+    <button id="mode-win" class="mode-btn">Jouabilité gauche</button>
+    <button id="mode-seat" class="mode-btn">Vainqueur du siège</button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="search"><input id="search" type="text" placeholder="Chercher une circonscription…" autocomplete="off" /><ul id="results"></ul></div>
+</div>
+
+<section class="hero">
+  <div id="map"></div>
+  <div id="map-hint">Cliquez une circonscription pour comprendre la prévision. L'outre-mer et l'étranger sont ramenés en encarts à gauche.</div>
+</section>
+
+<footer class="foot">
+  Prévision produite par un modèle de déviation entraîné sur les scrutins 1999–2026 ;
+  ancre nationale posée par l'utilisateur. Ce n'est pas une simulation de campagne ni un
+  sondage. Sources sondages (ancrage des scénarios) : Ifop, OpinionWay, Elabe, Cluster17,
+  Harris (2025). Méthode&nbsp;: <a href="../" target="_blank" rel="noopener">carte 2024</a>.
+</footer>
+
+<div id="panel-scrim"></div>
+<div id="panel" class="hidden"><button id="panel-close" aria-label="Fermer">×</button><div id="panel-body"></div></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="js/config.js?v=1" defer></script>
+<script src="js/compute.js?v=1" defer></script>
+<script src="js/map.js?v=1" defer></script>
+<script src="js/controls.js?v=1" defer></script>
+<script src="js/panel.js?v=1" defer></script>
+<script src="js/main.js?v=1" defer></script>
+</body>
+</html>

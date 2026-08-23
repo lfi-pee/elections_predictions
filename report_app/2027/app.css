@@ -1,0 +1,124 @@
+/* Styles propres au site 2027 (carte des circonscriptions + curseurs + barres). */
+
+/* Thème « clair-intermédiaire » : ni sombre ni blanc — fond gris doux, cartes plus claires,
+   texte foncé. Redéfinit les variables du thème sombre hérité de style.css (chargé avant). */
+:root{
+  --ink:#23262c;            /* texte principal (foncé sur fond clair) */
+  --paper:#dde0e4;          /* fond de page — gris intermédiaire */
+  --surface:#eef0f2;        /* cartes / panneaux */
+  --surface-2:#e2e5e9;      /* pistes, puces */
+  --surface-3:#d2d6db;      /* survol */
+  --line:#c2c6cd;           /* filets / bordures */
+  --bar-dark:#ccd0d6;       /* bandeaux (accroche, pied) */
+  --tx-strong:#33373f;
+  --tx-body:#545962;
+  --tx-mute:#787d86;
+  --accent:#cc2229;
+}
+body.p2027{background:var(--paper);color:var(--ink)}
+/* Chrome MapLibre sur fond clair : icônes et attribution non inversées. */
+.p2027 .maplibregl-ctrl button .maplibregl-ctrl-icon{filter:none}
+.p2027 .maplibregl-ctrl-group{background:#fff;box-shadow:0 0 0 1px var(--line)}
+.p2027 .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(255,255,255,.85)}
+.p2027 .maplibregl-ctrl-attrib-button{filter:none}
+.p2027 .maplibregl-popup-content{background:#fff;color:var(--ink);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.p2027 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:#fff}
+.p2027 .maplibregl-popup-anchor-top .maplibregl-popup-tip{border-bottom-color:#fff}
+
+.p2027 #top{gap:16px}
+.brand{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.brand b{color:var(--accent)}
+.brand span{color:var(--tx-mute);font-weight:400;font-size:13px}
+.meth-link{margin-left:auto;font-size:12.5px;color:var(--CD);text-decoration:none;white-space:nowrap}
+.meth-link:hover{text-decoration:underline}
+
+.intro{max-width:none;margin:0;padding:12px 22px;font-size:13px;line-height:1.5;
+  color:var(--tx-body);background:var(--bar-dark);border-bottom:1px solid var(--line)}
+.intro b{color:var(--ink)} .intro a{color:var(--CD)}
+
+#controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 22px 0}
+#bars{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px 22px}
+.ctl-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.ctl-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx-mute);
+  font-weight:700;margin-bottom:9px}
+.ctl-h .muted{text-transform:none;letter-spacing:0;font-weight:400}
+.muted{color:var(--tx-mute)}
+
+/* Scénarios */
+.scn-btns{display:flex;flex-wrap:wrap;gap:7px}
+.scn-btn{font-size:12.5px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--tx-strong);cursor:pointer;transition:.12s}
+.scn-btn:hover{background:var(--surface-3)}
+.scn-btn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.scn-desc{font-size:12px;color:var(--tx-body);line-height:1.45;margin:10px 0 0}
+
+/* Curseurs nationaux */
+.sl-row{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:12px;margin:7px 0}
+.sl-row label{font-size:12.5px;font-weight:600}
+.sl-v{display:block;font-size:11px;font-weight:400;color:var(--tx-mute)}
+.sl-row input[type=range]{-webkit-appearance:none;appearance:none;height:5px;border-radius:4px;
+  background:var(--surface-3);outline:none}
+.sl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+  border-radius:50%;background:var(--c,#fff);cursor:pointer;border:2px solid #12121b;box-shadow:0 0 0 1px var(--c,#fff)}
+.sl-row input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+  background:var(--c,#fff);cursor:pointer;border:2px solid #12121b}
+.natsum{margin-top:10px;font-size:11.5px;color:var(--tx-body)}
+
+/* Barre des sièges */
+.seatbar{position:relative;display:flex;height:30px;border-radius:6px;overflow:hidden;
+  background:var(--surface-2);border:1px solid var(--line)}
+.seat-seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;
+  font-weight:700;min-width:0;transition:width .2s}
+.seat-maj{position:absolute;top:-3px;bottom:-3px;width:2px;background:#111;box-shadow:0 0 0 1px rgba(255,255,255,.6)}
+.seat-maj::after{content:"289";position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  font-size:9px;color:var(--tx-mute)}
+.seat-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;align-items:center}
+.sl-leg{display:inline-flex;align-items:center;gap:5px;color:var(--tx-body)}
+.sl-leg i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.sl-leg b{color:var(--ink)}
+.seat-note{color:var(--tx-mute);font-size:11.5px;margin-left:auto}
+
+/* Jouabilité */
+.ws-head{font-size:13px;color:var(--tx-body);margin-bottom:8px}
+.ws-head b{color:var(--ink);font-size:15px}
+.ws-bar{display:flex;height:22px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.ws-seg{display:flex;align-items:center;justify-content:center;color:#12121b;font-size:11px;
+  font-weight:700;transition:width .2s}
+.ws-key{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11px;color:var(--tx-mute)}
+.ws-key span{display:inline-flex;align-items:center;gap:4px}
+.ws-key i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* Barre d'outils carte */
+.maptools{display:flex;align-items:center;gap:14px;padding:4px 22px 12px;flex-wrap:wrap}
+.modes{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.mode-btn{font-size:12.5px;padding:7px 13px;background:var(--surface-2);color:var(--tx-body);
+  border:none;cursor:pointer}
+.mode-btn.on{background:var(--accent);color:#fff;font-weight:600}
+.maptools .legend{margin-left:0}
+.maptools .legend i{width:12px;height:12px;border-radius:3px;margin-left:6px}
+.legend-ends{color:var(--tx-mute);margin-left:8px}
+.maptools .search{margin:0 0 0 auto;min-width:230px;max-width:320px}
+
+.p2027 .hero{height:70vh;min-height:520px}
+.p2027 #map-hint{max-width:340px}
+
+/* Panneau circo */
+.cs-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx-mute);margin:14px 0 6px}
+.cs-bar{display:flex;height:24px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.cs-bar>div{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600}
+.cs-leg{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:11.5px;color:var(--tx-body)}
+.cs-leg span{display:inline-flex;align-items:center;gap:4px}
+.cs-leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.cs-reason{margin:6px 0 0;font-size:13px;line-height:1.55}
+.cap{font-size:12px;color:var(--tx-mute);line-height:1.5;margin:12px 0 0}
+.cap a{color:var(--CD)}
+
+.foot{padding:16px 22px 30px;font-size:11.5px;color:var(--tx-mute);line-height:1.5;border-top:1px solid var(--line)}
+.foot a{color:var(--CD)}
+
+@media(max-width:760px){
+  #controls,#bars{grid-template-columns:1fr}
+  .sl-row{grid-template-columns:130px 1fr}
+  .maptools .search{margin-left:0;width:100%;max-width:none}
+  .seat-note{margin-left:0;flex-basis:100%}
+}

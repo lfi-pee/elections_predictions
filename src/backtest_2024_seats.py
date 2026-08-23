@@ -51,13 +51,20 @@ def backtest() -> dict:
                 ED=wa(g, "act_ED"), AB=wa(g, "act_AB"))
         for c, g in bm.groupby("circo")
     }
-    # Niveau national 2024 (parts d'exprimés, renormalisées 3 blocs) — sert le préréglage bouton.
-    ins = bm.inscrits.to_numpy(float)
-    nat = {b: float(np.average(bm[f"act_{b}"], weights=ins)) for b in VOTE}
-    s = sum(nat.values())
-    levels = {b: round(100 * nat[b] / s, 1) for b in VOTE}
+    # Niveau national 2024 « réel » (parts d'exprimés → 3 blocs) calculé depuis les VOIX BRUTES
+    # du 1er tour par nuance (source faisant autorité) — et NON depuis un cache de moyennes
+    # nationales, dont un ancien (`beat_it_extended`) surévaluait l'extrême droite de ~3 pts.
+    # Sert le repère « niveau 2024 » des curseurs et le préréglage du bouton « Rejouer 2024 ».
+    t1v = pq.read_table(CAND, columns=["id_election", "nuance", "voix"]).to_pandas()
+    t1v = t1v[t1v.id_election == "2024_legi_t1"].copy()
+    t1v["bloc"] = t1v.nuance.map(_bloc)
+    by = t1v.dropna(subset=["bloc"]).groupby("bloc").voix.sum()
+    s3 = float(by["G"] + by["CD"] + by["ED"])
+    levels = {"G": round(100 * by["G"] / s3, 1), "CD": round(100 * by["CD"] / s3, 1)}
     levels["ED"] = round(100 - levels["G"] - levels["CD"], 1)
-    levels["AB"] = round(float(np.average(bm.act_AB, weights=ins)), 1)
+    levels["AB"] = round(
+        float(np.average(bm.act_AB, weights=bm.inscrits.to_numpy(float))), 1
+    )
 
     c2 = pq.read_table(
         CAND, columns=["id_election", "id_brut_miom", "nuance", "voix"]

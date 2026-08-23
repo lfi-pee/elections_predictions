@@ -12,6 +12,11 @@ async function boot() {
   APP.scenario = summary.default_scenario;
   APP.scnObj = summary.scenarios.find((s) => s.key === APP.scenario);
   APP.nat = { ...APP.scnObj.means };
+  // Repère « niveau 2024 » = résultat réel 2024 calculé (backtest_2024.levels, voix brutes 1er
+  // tour → 3 blocs). Pilote les pointillés des curseurs et le bouton « Rejouer 2024 ».
+  if (summary.backtest_2024 && summary.backtest_2024.levels) {
+    APP.REF2024 = { ...APP.REF2024, ...summary.backtest_2024.levels };
+  }
 
   await initMap();
   initSplitter();

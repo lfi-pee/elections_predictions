@@ -41,9 +41,9 @@ const APP = {
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
   // Repère « niveau 2024 » (pointillé sur les curseurs) : résultat réel des législatives 2024,
-  // 1er tour, renormalisé sur 3 blocs (G/CD/ED) + abstention. Les reports 2nd tour ont leur
-  // propre repère = leur valeur calibrée sur 2024 (COEF_DEFAULT, dont désistement 0,60).
-  REF2024: { G: 30.1, CD: 32.1, ED: 37.8, AB: 31.0 },
+  // 1er tour, renormalisé sur 3 blocs (G/CD/ED) + abstention. Repli ; à l'exécution, main.js
+  // l'écrase par summary.backtest_2024.levels (calculé depuis les voix brutes du 1er tour).
+  REF2024: { G: 31.2, CD: 33.7, ED: 35.1, AB: 33.3 },
   data: {},
   map: null,
   bvByDept: new Map(),   // dept -> features brutes (dev), pour recalcul au curseur

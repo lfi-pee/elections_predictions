@@ -43,7 +43,7 @@ def _fit_transform(src_bounds, dst):
     sx0, sy0, sx1, sy1 = src_bounds
     sw, sh = max(sx1 - sx0, 1e-6), max(sy1 - sy0, 1e-6)
     dx0, dy0, dx1, dy1 = dst
-    s = min((dx1 - dx0) / sw, (dy1 - dy0) / sh) * 0.85
+    s = min((dx1 - dx0) / sw, (dy1 - dy0) / sh) * 0.96
     scx, scy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
     dcx, dcy = (dx0 + dx1) / 2, (dy0 + dy1) / 2
     return [s, 0, 0, s, dcx - s * scx, dcy - s * scy]
@@ -84,18 +84,20 @@ def export() -> None:
             out.append(f)
 
     # Encarts outre-mer/étranger : tous ramenés à GAUCHE de la métropole (Atlantique,
-    # lon < −6.5 → aucun chevauchement avec la métropole lon ≥ −5,1), en un bloc compact.
-    # 10 territoires en grille 2 colonnes × 5 lignes ; l'étranger en bandeau juste en dessous.
-    reg_x0, reg_x1 = -19.5, -6.5
-    reg_y0, reg_y1 = 43.2, 51.3
-    n_cols, n_rows = 2, 5
-    gap = 0.3
+    # lon < −6.5 → aucun chevauchement avec la métropole lon ≥ −5,1), en bloc compact.
+    # 10 territoires en grille 3 colonnes × 4 lignes (cellules ~carrées → les petits
+    # territoires comme Mayotte remplissent mieux et paraissent moins minuscules) ;
+    # l'étranger en bandeau en dessous.
+    reg_x0, reg_x1 = -16.5, -6.5
+    reg_y0, reg_y1 = 41.3, 51.3
+    n_cols, n_rows = 3, 4
+    gap = 0.12
     cw = (reg_x1 - reg_x0) / n_cols
     ch = (reg_y1 - reg_y0) / n_rows
     for k, dept in enumerate(LEFT_COL):
         if dept not in ids_by_dept:
             continue
-        col, row = k // n_rows, k % n_rows
+        col, row = k % n_cols, k // n_cols
         bx0 = reg_x0 + col * cw + gap
         bx1 = reg_x0 + (col + 1) * cw - gap
         by1 = reg_y1 - row * ch - gap
@@ -106,11 +108,10 @@ def export() -> None:
         withpoly = [poly_by_id[cid] for cid, _ in entries if cid in poly_by_id]
         if withpoly:
             geoms = [shape(f["geometry"]) for f in withpoly]
-            b = geoms[0].bounds
             xs = [g.bounds[0] for g in geoms] + [g.bounds[2] for g in geoms]
             ys = [g.bounds[1] for g in geoms] + [g.bounds[3] for g in geoms]
             src = (min(xs), min(ys), max(xs), max(ys))
-            m = _fit_transform(src, (box[0] + 0.2, box[1] + 0.15, box[2] - 0.2, box[3] - 0.15))
+            m = _fit_transform(src, (box[0] + 0.06, box[1] + 0.28, box[2] - 0.06, box[3] - 0.06))
             for f in withpoly:
                 out.append({"type": "Feature",
                             "geometry": _round_geom(affine_transform(shape(f["geometry"]), m)),
@@ -132,7 +133,7 @@ def export() -> None:
     # métropole, pas en dessous d'elle) — 2 rangées de grosses tuiles.
     zz = ids_by_dept.get("ZZ", [])
     if zz:
-        bx0, bx1, by0, by1 = -19.5, -6.5, 38.8, 42.7
+        bx0, bx1, by0, by1 = -16.5, -6.5, 37.0, 40.6
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
         zcols, zrows = 6, 2
         zcw = (bx1 - bx0) / zcols

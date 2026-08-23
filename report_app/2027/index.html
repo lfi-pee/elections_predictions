@@ -19,24 +19,26 @@
     <p id="intro" class="intro"></p>
 
     <div class="ctl-card ctl-scn">
-      <div class="ctl-h">Scénario — configuration de la gauche</div>
+      <div class="ctl-h">Scénario — configuration de la gauche
+        <span class="info">i<span class="tip" id="scn-desc"></span></span></div>
       <div id="scenarios" class="scn-btns"></div>
-      <p id="scn-desc" class="scn-desc"></p>
     </div>
 
     <div class="ctl-card ctl-sliders">
       <div class="ctl-h">Niveau national <span class="muted">(réglez les curseurs)</span>
+        <span class="info">i<span class="tip">Les scénarios ne touchent <b>jamais</b> ces
+          niveaux (ils ne changent que la configuration des candidatures) : le niveau national,
+          c'est vous qui le posez, et vos réglages survivent au changement de scénario. Baisser
+          l'abstention profite à la gauche (courbe 2024). « ↺ valeurs prédites » ramène à
+          l'ancrage sondages.</span></span>
         <button id="reset" class="reset-btn" title="Revenir aux valeurs prédites (ancrage sondages)">↺ valeurs prédites</button></div>
       <div id="sliders"></div>
       <div id="natsum" class="natsum"></div>
-      <p class="ctl-note">Les scénarios ne touchent <b>jamais</b> ces niveaux (ils ne changent
-        que la configuration des candidatures) : le niveau national, c'est vous qui le posez,
-        et vos réglages survivent au changement de scénario. Baisser l'abstention profite à la
-        gauche (courbe 2024). « ↺ valeurs prédites » ramène à l'ancrage sondages.</p>
     </div>
 
     <div class="ctl-card">
-      <div class="ctl-h">Projection en sièges <span class="muted">· 577 · majorité 289</span></div>
+      <div class="ctl-h">Projection en sièges <span class="muted">· 577 · majorité 289</span>
+        <button id="seat-detail" class="reset-btn" title="Détailler les sièges de gauche par pôle">détail pôles</button></div>
       <div id="seatbar" class="seatbar"></div>
       <div id="seat-legend" class="seat-legend"></div>
     </div>
@@ -46,29 +48,32 @@
       <div id="winsum"></div>
     </div>
 
-    <div class="ctl-card modes-card">
-      <div class="modes">
-        <button id="mode-win" class="mode-btn">Jouabilité gauche</button>
-        <button id="mode-seat" class="mode-btn">Vainqueur du siège</button>
-      </div>
-      <div class="legend" id="legend"></div>
-    </div>
-
     <div id="explain" class="ctl-card explain hidden">
       <button id="explain-close" aria-label="Fermer">×</button>
       <div id="explain-body"></div>
     </div>
 
+    <details class="inputs-card">
+      <summary>Données &amp; hypothèses du modèle — cette élection</summary>
+      <div class="inputs-body" id="inputs-body"></div>
+    </details>
+
     <p class="foot">
-      Modèle de déviation entraîné sur les scrutins 1999–2026 ; ancre nationale posée par
-      vous. Ni simulation de campagne ni sondage. Ancrage des scénarios : sondages Ifop,
+      Ni simulation de campagne ni sondage. Ancrage des scénarios : sondages Ifop,
       OpinionWay, Elabe, Cluster17, Harris (2025). Méthode&nbsp;:
       <a href="../" target="_blank" rel="noopener">carte 2024</a>.
     </p>
   </aside>
 
   <div id="mapcol">
-    <div class="search"><input id="search" type="text" placeholder="Chercher une circonscription…" autocomplete="off" /><ul id="results"></ul></div>
+    <div class="map-top">
+      <div class="modes">
+        <button id="mode-win" class="mode-btn">Jouabilité gauche</button>
+        <button id="mode-seat" class="mode-btn">Vainqueur du siège</button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="search"><input id="search" type="text" placeholder="Chercher une circonscription…" autocomplete="off" /><ul id="results"></ul></div>
+    </div>
     <div id="map"></div>
     <div id="map-hint">Cliquez une circonscription pour comprendre la prévision. L'outre-mer et l'étranger sont ramenés en encarts à gauche.</div>
   </div>

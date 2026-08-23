@@ -67,7 +67,14 @@ function seatWinner(g, cd, ed, ab, cfg, rad, ru) {
   if (!qE) { if (qL) sL += BARR.ed2left * ed; if (qC) sC += BARR.ed2cd * ed; }
   const arr = [["G", sL, qL], ["CD", sC, qC], ["ED", sE, qE]].filter((x) => x[2]);
   arr.sort((a, b) => b[1] - a[1]);
-  return arr.length ? arr[0][0] : (g >= cd && g >= ed ? "G" : cd >= ed ? "CD" : "ED");
+  const win = arr.length ? arr[0][0] : (g >= cd && g >= ed ? "G" : cd >= ed ? "CD" : "ED");
+  // Pôle de gauche qui emporte le siège = le plus fort pôle qualifié.
+  let pole = -1;
+  if (win === "G") {
+    const ql = left.map((p, i) => [p, i]).filter(([p]) => qual(p, second, thr));
+    pole = (ql.length ? ql.reduce((a, b) => (b[0] > a[0] ? b : a)) : [0, left.indexOf(Math.max(...left))])[1];
+  }
+  return { win, pole };
 }
 
 // Couplage participation → parts (résultat clé de 2024) : sous l'abstention de référence,
@@ -94,9 +101,13 @@ function circoEval(pr) {
     ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
   const ru = s.right_union;
-  const r = scoreCirco(g, cd, ed, ab, s.left_config, s.radical_share, ru);
-  const win = seatWinner(g, cd, ed, ab, s.left_config, s.radical_share, ru);
-  return { g, cd, ed, ab, win, ...r };
+  // Part radicale (LFI) modulée localement : le pôle radical pèse davantage là où la gauche
+  // est forte (bastions urbains/populaires), moins dans les circos où elle est faible — sinon
+  // un partage national uniforme donnerait 0 siège au pôle radical partout.
+  const rad = s.left_config === "union" ? 1.0 : clamp(s.radical_share + 0.006 * pr.dG, 0.12, 0.68);
+  const r = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru);
+  const sw = seatWinner(g, cd, ed, ab, s.left_config, rad, ru);
+  return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
 }
 
 // La géométrie (15 Mo) est chargée UNE fois comme données de la source. Au curseur, on ne
@@ -122,9 +133,10 @@ function eachCirco(fn) {
 }
 
 // Projection en sièges (tally des vainqueurs) au scénario/curseur courant (577 circos).
+// `poles` = répartition des sièges de gauche entre pôles (index → nb) pour le détail parti.
 function seatTally() {
-  const t = { G: 0, CD: 0, ED: 0 };
-  eachCirco((r) => t[r.win]++);
+  const t = { G: 0, CD: 0, ED: 0, poles: {} };
+  eachCirco((r) => { t[r.win]++; if (r.win === "G") t.poles[r.pole] = (t.poles[r.pole] || 0) + 1; });
   return t;
 }
 

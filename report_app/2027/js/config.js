@@ -13,8 +13,9 @@ const APP = {
   NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
   VOTE: ["G", "CD", "ED"],
   LYON: { center: [4.8357, 45.758], zoom: 12 },
-  // mode carte : "win" (jouabilité circo) par défaut, "mobil" (gisement), "lead" (bloc en tête)
-  state: { mode: "win" },
+  // mode carte : "win" (jouabilité circo) par défaut, "seat" (vainqueur du siège) ;
+  // seatDetail : barre des sièges détaillée par pôle de gauche (radicale/soc.-dém./éco).
+  state: { mode: "win", seatDetail: false },
   // État national courant (parts de bloc %, abstention % inscrits) — piloté par les curseurs.
   nat: { G: 32.2, CD: 30.6, ED: 37.3, AB: 48 },
   scenario: "split2",
@@ -67,6 +68,19 @@ function leadColorExpr(keys) {
 // Couleur « mobilisation » : densité d'abstentionnistes de gauche mobilisables.
 function voterColorExpr(key, t1, t2, t3) {
   return ["interpolate", ["linear"], ["get", key], 0, "#20222b", t1, APP.PALE.G, t2, APP.COL.G, t3, "#ff7a4d"];
+}
+
+// Pôles de gauche selon la configuration du scénario (pour le détail par parti des sièges).
+// Ce sont les seules sous-composantes que le modèle résout par circonscription.
+function poleMeta(cfg) {
+  if (cfg === "split2") return [
+    { lab: "Gauche radicale (LFI)", col: "#a01722" },
+    { lab: "Soc.-dém. (PS/PP/EELV/PCF)", col: "#ef7a5a" }];
+  if (cfg === "split3") return [
+    { lab: "Radicale (LFI)", col: "#a01722" },
+    { lab: "PS / Place publique", col: "#ef7a5a" },
+    { lab: "Écologistes / PCF", col: "#e39a3a" }];
+  return [{ lab: "Gauche unie (NFP)", col: APP.COL.G }];
 }
 
 // Couleur « jouabilité » : score 1→5 lu dans l'ÉTAT d'entité (feature-state), mis à jour

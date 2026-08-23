@@ -45,7 +45,13 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
   background:var(--paper);border-right:1px solid var(--line)}
 #mapcol{flex:1;position:relative;min-width:0}
 #mapcol #map{position:absolute;inset:0}
-#mapcol .search{position:absolute;top:12px;left:12px;z-index:6;width:300px;max-width:60%}
+.map-top{position:absolute;top:10px;left:10px;right:10px;z-index:6;display:flex;gap:10px;
+  align-items:center;flex-wrap:wrap;pointer-events:none}
+.map-top>*{pointer-events:auto}
+.map-top .modes,.map-top .legend{background:rgba(255,255,255,.92);border:1px solid var(--line);
+  border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.map-top .legend{padding:5px 9px}
+.map-top .search{margin-left:auto;width:270px;max-width:45%}
 #map-hint{position:absolute;left:12px;bottom:14px;z-index:5;background:rgba(255,255,255,.9);
   color:var(--tx-body);font-size:12px;padding:7px 11px;border-radius:8px;max-width:320px;
   border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.12)}
@@ -113,8 +119,9 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 .mode-btn{font-size:12px;padding:6px 11px;background:var(--surface-2);color:var(--tx-body);
   border:none;cursor:pointer}
 .mode-btn.on{background:var(--accent);color:#fff;font-weight:600}
-.modes-card .legend{margin-left:0;font-size:11px}
-.modes-card .legend i{width:12px;height:12px;border-radius:3px;margin-left:5px}
+.map-top .legend{margin-left:0;font-size:11px;color:var(--tx-body)}
+.map-top .legend .legend-lab{color:var(--accent)}
+.map-top .legend i{width:12px;height:12px;border-radius:3px;margin-left:5px}
 .legend-ends{color:var(--tx-mute);margin-left:6px}
 
 /* Panneau circo */
@@ -130,6 +137,25 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 .foot{font-size:10.5px;color:var(--tx-mute);line-height:1.45;margin:4px 0 0}
 .foot a{color:var(--CD)}
+
+/* Bouton info « i » avec infobulle au survol (gagne de la place). */
+.info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+  border-radius:50%;background:var(--surface-3);color:var(--tx-body);font-size:10px;font-style:italic;
+  font-weight:700;cursor:help;position:relative;margin-left:5px;vertical-align:middle;text-transform:none}
+.info .tip{display:none;position:absolute;top:20px;left:0;z-index:20;width:250px;
+  background:#1d1d28;color:#e9e9ef;font-weight:400;font-style:normal;text-transform:none;
+  letter-spacing:0;font-size:11.5px;line-height:1.45;padding:9px 11px;border-radius:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.info .tip b{color:#fff}
+.info:hover .tip,.info:focus .tip{display:block}
+
+/* Carte « données & hypothèses » repliable. */
+.inputs-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.inputs-card summary{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx-mute);
+  font-weight:700;cursor:pointer}
+.inputs-body{font-size:11.5px;line-height:1.5;color:var(--tx-body);margin-top:8px}
+.inputs-body ul{margin:0;padding-left:16px} .inputs-body li{margin:5px 0}
+.inputs-body b{color:var(--tx-strong)}
 
 /* Compactage pour tenir panneaux + carte sur un seul écran. */
 #side .ctl-card{padding:10px 12px}

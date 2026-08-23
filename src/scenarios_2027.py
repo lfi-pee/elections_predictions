@@ -22,8 +22,10 @@ from __future__ import annotations
 
 
 def _renorm3(g: float, cd: float, ed: float) -> dict[str, float]:
+    """Parts renormalisées sur 3 blocs, sommant **exactement** à 100 (le 3e absorbe l'arrondi)."""
     s = g + cd + ed
-    return {"G": round(100 * g / s, 1), "CD": round(100 * cd / s, 1), "ED": round(100 * ed / s, 1)}
+    gg, cc = round(100 * g / s, 1), round(100 * cd / s, 1)
+    return {"G": gg, "CD": cc, "ED": round(100 - gg - cc, 1)}
 
 
 # Abstention par défaut : une législative « à l'heure » (dans la foulée d'une

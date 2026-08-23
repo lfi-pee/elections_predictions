@@ -74,6 +74,13 @@ function initControls() {
   $("mode-win").onclick = () => { setMode("win"); syncModeBtns(); };
   $("mode-seat").onclick = () => { setMode("seat"); syncModeBtns(); };
   syncModeBtns();
+
+  // Bascule « détail par pôle de gauche » de la barre des sièges.
+  if ($("seat-detail")) $("seat-detail").onclick = () => {
+    APP.state.seatDetail = !APP.state.seatDetail;
+    $("seat-detail").classList.toggle("on", APP.state.seatDetail);
+    updateSeatBar();
+  };
 }
 
 // Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,
@@ -98,17 +105,32 @@ function syncModeBtns() {
 // ── Barre dynamique des sièges (projection) ──
 function updateSeatBar() {
   const t = seatTally(), tot = t.G + t.CD + t.ED || 1;
-  const seg = (b) => `<div class="seat-seg" style="width:${(t[b] / tot) * 100}%;background:${APP.COL[b]}"
-      title="${APP.NAME[b]} : ${t[b]} sièges">${t[b] >= 20 ? t[b] : ""}</div>`;
-  $("seatbar").innerHTML = seg("G") + seg("CD") + seg("ED") +
-    `<div class="seat-maj" style="left:${(MAJORITY / tot) * 100}%" title="majorité absolue : ${MAJORITY}"></div>`;
+  const seg = (w, col, lab, n) =>
+    `<div class="seat-seg" style="width:${(n / tot) * 100}%;background:${col}"
+      title="${lab} : ${n} sièges">${n >= 20 ? n : ""}</div>`;
+  const maj = `<div class="seat-maj" style="left:${(MAJORITY / tot) * 100}%" title="majorité absolue : ${MAJORITY}"></div>`;
+
+  let segs, legend;
+  if (APP.state.seatDetail) {
+    // Détail : sièges de gauche ventilés par pôle (seule sous-composante résolue par circo).
+    const pm = poleMeta(APP.scnObj.left_config);
+    const pseg = pm.map((p, i) => seg("G", p.col, p.lab, t.poles[i] || 0)).join("");
+    segs = pseg + seg("CD", APP.COL.CD, APP.NAME.CD, t.CD) + seg("ED", APP.COL.ED, APP.NAME.ED, t.ED);
+    legend = pm.map((p, i) =>
+      `<span class="sl-leg"><i style="background:${p.col}"></i>${p.lab} <b>${t.poles[i] || 0}</b></span>`).join("") +
+      ["CD", "ED"].map((b) =>
+        `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("");
+  } else {
+    segs = ["G", "CD", "ED"].map((b) => seg(b, APP.COL[b], APP.NAME[b], t[b])).join("");
+    legend = ["G", "CD", "ED"].map((b) =>
+      `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("");
+  }
+  $("seatbar").innerHTML = segs + maj;
   const lead = t.G >= t.CD && t.G >= t.ED ? "G" : t.CD >= t.ED ? "CD" : "ED";
-  const maj = Math.max(t.G, t.CD, t.ED) >= MAJORITY;
-  $("seat-legend").innerHTML =
-    ["G", "CD", "ED"].map((b) =>
-      `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("") +
-    `<span class="seat-note">${maj ? `majorité absolue : <b style="color:${APP.COL[lead]}">${APP.NAME[lead]}</b>`
-      : `aucune majorité absolue (${MAJORITY} requis) — <b style="color:${APP.COL[lead]}">${APP.NAME[lead]}</b> en tête`}</span>`;
+  const hasMaj = Math.max(t.G, t.CD, t.ED) >= MAJORITY;
+  $("seat-legend").innerHTML = legend +
+    `<span class="seat-note">${hasMaj ? `majorité absolue : <b style="color:${APP.COL[lead]}">${APP.NAME[lead]}</b>`
+      : `pas de majorité (${MAJORITY} requis) — <b style="color:${APP.COL[lead]}">${APP.NAME[lead]}</b> en tête</b>`}</span>`;
 }
 
 function updateNatBar() {

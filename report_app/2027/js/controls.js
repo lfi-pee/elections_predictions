@@ -203,10 +203,14 @@ function renderLfiShare() {
   el.innerHTML =
     `<div class="ctl-h sub">Part de la gauche radicale (LFI)
        <span class="info">i<span class="tip">Le modèle prédit le bloc de gauche entier ; cette
-         part fixe le poids du pôle radical (LFI) face au pôle social-démocrate
-         (PS·Place publique·EELV·PCF) quand la gauche concourt divisée. Défaut = ancrage
-         sondages « gauche divisée » (2025 ; aucun sondage législatif 2026 ne la scinde).
-         Modulée localement selon la force de la gauche dans la circo.</span></span>
+         part (MOYENNE nationale) fixe le poids du pôle radical (LFI) face au pôle social-démocrate
+         (PS·Place publique·EELV·PCF) en gauche divisée. Défaut = ancrage sondages « gauche
+         divisée » (2025 ; aucun sondage législatif 2026 ne la scinde). Le motif par
+         circonscription (bastions LFI vs reste) vient du <b>réel 2017</b>.
+         <b>Attention</b> : divisée, la gauche convertit peu en sièges pour LFI (~21 % des sièges
+         de gauche au niveau sondé). Les ~42 % de 2024 tenaient à l'<b>union négociée</b> (LFI
+         gardait ses circos sûres, sans duel PS) — un plafond hors d'atteinte en compétition
+         divisée.</span></span>
        <button id="lfi-reset" class="reset-btn" title="Revenir à la part du scénario">↺</button></div>
      <div class="sl-row"><label style="color:${POLE_RAD}">LFI
        <span class="sl-v" id="lfiv">${pct} %</span></label>

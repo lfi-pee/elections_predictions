@@ -18,6 +18,49 @@ html{scroll-behavior:smooth}
 body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--paper)}
 b{font-weight:700}
 
+/* ---- Light theme ---- The dark palette above is the default; this block only remaps
+   the CSS variables (higher specificity than :root, so order-independent) plus the few
+   surfaces/filters that were hard-coded for a dark basemap. Bloc hues stay identical. */
+:root[data-theme="light"]{
+  --ink:#1b1c24;
+  --paper:#f4f5f7;
+  --surface:#ffffff;
+  --surface-2:#eef0f4;
+  --surface-3:#e1e4ea;
+  --line:#d9dce2;
+  --bar-dark:#20222c;         /* keep the usecase ribbon a dark editorial strip */
+  --tx-strong:#33343d;
+  --tx-body:#54565f;
+  --tx-mute:#7c7e88;
+  --accent:#cc2229;
+}
+:root[data-theme="light"] #top{background:rgba(244,245,247,.9)}
+:root[data-theme="light"] .hero-overlay{background:rgba(255,255,255,.9)}
+/* Default CARTO control/attribution glyphs are dark — they read on the light basemap,
+   so undo the invert that made them white for the dark one. */
+:root[data-theme="light"] .maplibregl-ctrl button .maplibregl-ctrl-icon,
+:root[data-theme="light"] .maplibregl-ctrl-attrib-button{filter:none}
+:root[data-theme="light"] .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(255,255,255,.85)}
+/* Hatch textures were white-on-dark; flip to dark-on-light so "national" stays visible. */
+:root[data-theme="light"] .prov-nat,
+:root[data-theme="light"] .provkey .pk-nat{
+  background-image:repeating-linear-gradient(45deg,rgba(0,0,0,.05) 0,rgba(0,0,0,.05) 3px,rgba(0,0,0,.10) 3px,rgba(0,0,0,.10) 6px)}
+:root[data-theme="light"] .bar .ci-nat{background:rgba(0,0,0,.22)}
+:root[data-theme="light"] .dv-track::before{background:rgba(0,0,0,.15)}
+/* Chart axis labels are inline fill="#9a…" (low priority) — darken them for a light bg. */
+:root[data-theme="light"] #gammacurve text{fill:#6b6d77}
+/* Warning chips keep the red, with darker text on the light background. */
+:root[data-theme="light"] .pv-fallback{background:rgba(204,34,41,.10);color:#b3261e}
+:root[data-theme="light"] .mini-fb,
+:root[data-theme="light"] .tag.warn{color:#b3261e}
+:root[data-theme="light"] .tag.warn{background:rgba(204,34,41,.10)}
+
+/* Theme toggle button in the sticky header */
+#theme-toggle{border:1px solid var(--line);border-radius:16px;background:var(--surface-2);
+  color:var(--tx-body);font-size:15px;line-height:1;cursor:pointer;padding:5px 10px;
+  min-width:34px;min-height:32px;display:flex;align-items:center;justify-content:center}
+#theme-toggle:hover{background:var(--surface-3)}
+
 #usecase-bar{background:var(--bar-dark);color:#dcdce2;font-size:13.5px;line-height:1.45;
   padding:9px 22px;text-align:center;border-bottom:1px solid var(--line)}
 #usecase-bar b{color:#fff;font-weight:700}

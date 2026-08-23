@@ -1,26 +1,42 @@
 "use strict";
 
+// Which CARTO basemap flavour matches the current page theme (dark by default).
+function mapTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+const cartoTiles = (t) =>
+  ["a", "b"].map((s) => `https://${s}.basemaps.cartocdn.com/${t}_nolabels/{z}/{x}/{y}.png`);
+const cartoLabels = (t) => [`https://a.basemaps.cartocdn.com/${t}_only_labels/{z}/{x}/{y}.png`];
+
 function baseStyle() {
+  const t = mapTheme();
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
       carto: {
-        type: "raster",
-        tiles: ["https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png",
-          "https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png"],
+        type: "raster", tiles: cartoTiles(t),
         tileSize: 256, attribution: "© OpenStreetMap · CARTO",
       },
-      labels: {
-        type: "raster",
-        tiles: ["https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png"],
-        tileSize: 256,
-      },
+      labels: { type: "raster", tiles: cartoLabels(t), tileSize: 256 },
     },
     layers: [
       { id: "bg", type: "raster", source: "carto" },
     ],
   };
+}
+
+// Swap the raster basemap in place when the theme toggles — no full setStyle, which
+// would drop the commune/bureau layers and force a reload of the loaded departments.
+function setBasemapTheme(theme) {
+  const map = APP.map;
+  if (!map) return;
+  const t = theme === "light" ? "light" : "dark";
+  const carto = map.getSource("carto"), labels = map.getSource("labels");
+  if (carto && carto.setTiles) carto.setTiles(cartoTiles(t));
+  if (labels && labels.setTiles) labels.setTiles(cartoLabels(t));
+  if (map.getLayer("bv-line")) map.setPaintProperty("bv-line", "line-color", OUTLINE[t]);
+  if (map.getLayer("com-circ")) map.setPaintProperty("com-circ", "circle-stroke-color", OUTLINE[t]);
 }
 
 function initMap() {
@@ -47,8 +63,13 @@ function communeFC() {
   };
 }
 
+// Feature outlines: white reads on the dark basemap but vanishes on the light one, so
+// bureaux would blend into an unreadable blob. Pick a dark hairline for the light theme.
+const OUTLINE = { dark: "#ffffff", light: "#3a3a44" };
+
 function addLayers() {
   const map = APP.map;
+  const outline = OUTLINE[mapTheme()];
   map.addSource("communes", { type: "geojson", data: communeFC() });
   map.addSource("bv", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 
@@ -59,7 +80,7 @@ function addLayers() {
         5, ["interpolate", ["linear"], ["get", "i"], 200, 1.5, 20000, 9],
         10, ["interpolate", ["linear"], ["get", "i"], 200, 4, 20000, 22]],
       "circle-color": voterColorExpr("cmv", 1000, 15000, 60000),
-      "circle-opacity": 0.82, "circle-stroke-width": 0.3, "circle-stroke-color": "#fff",
+      "circle-opacity": 0.82, "circle-stroke-width": 0.3, "circle-stroke-color": outline,
     },
   });
   map.addLayer({
@@ -68,7 +89,7 @@ function addLayers() {
   });
   map.addLayer({
     id: "bv-line", type: "line", source: "bv", minzoom: 11,
-    paint: { "line-color": "#ffffff", "line-width": 0.4, "line-opacity": 0.5 },
+    paint: { "line-color": outline, "line-width": 0.4, "line-opacity": 0.5 },
   });
   map.addLayer({ id: "labels", type: "raster", source: "labels" });
 

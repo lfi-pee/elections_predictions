@@ -4,8 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>L'élection au bureau de vote près</title>
+<script>/* Set the theme before first paint so there is no flash of the wrong theme. */
+(function(){try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-<link href="style.css?v=22" rel="stylesheet" />
+<link href="style.css?v=23" rel="stylesheet" />
 </head>
 <body>
 <div id="usecase-bar"><span class="uc-tag">À quoi sert cet outil</span>
@@ -13,6 +15,7 @@
   bureau de vote par bureau — combien d'abstentionnistes reste-t-il à ramener aux urnes,
   et où concentrer le porte-à-porte pour qu'il rapporte le plus.</div>
 <header id="top">
+  <button id="theme-toggle" type="button" aria-label="Basculer le thème clair ou sombre" title="Thème clair / sombre"></button>
   <div class="legend" id="legend"></div>
 </header>
 
@@ -219,6 +222,7 @@
 <script src="js/scenario.js?v=13" defer></script>
 <script src="js/viz.js?v=21" defer></script>
 <script src="js/panel.js?v=18" defer></script>
-<script src="js/main.js?v=14" defer></script>
+<script src="js/theme.js?v=1" defer></script>
+<script src="js/main.js?v=15" defer></script>
 </body>
 </html>

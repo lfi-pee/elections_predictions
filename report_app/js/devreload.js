@@ -5,7 +5,7 @@
 // Inerte sur le livrable diffusé (tout port autre que 8000).
 if (location.port === "8000") {
   const files = ["", "style.css", "js/config.js", "js/map.js", "js/scenario.js",
-    "js/panel.js", "js/main.js", "js/devreload.js"];
+    "js/panel.js", "js/main.js", "js/theme.js", "js/devreload.js"];
   const stamps = {};
   const poll = async () => {
     for (const f of files) {

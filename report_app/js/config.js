@@ -4,10 +4,20 @@ const APP = {
   // Accent de marque (client = LFI) : touche éditoriale sur titres de bande / accroche,
   // sans toucher la sémantique des blocs (la Gauche reste #E4572E sur la carte).
   ACCENT: "#cc2229",
-  // Dark-theme faint end: each bloc hue mixed ~45% over the dark basemap, so the
-  // map fades toward the background as the margin shrinks — a knife-edge bureau
-  // sinks into the dark base, a landslide reads as the solid bloc colour.
+  // Faint end: each bloc hue mixed over the basemap, so the map fades toward the
+  // background as the margin shrinks — a knife-edge bureau sinks into the base, a
+  // landslide reads as the solid bloc colour. Two sets so the fade tracks the theme:
+  // toward the dark base by default, toward a light tint under the light theme.
+  PALE_DARK: { G: "#743627", CD: "#2F5074", ED: "#3D3155" },
+  // Kept clearly saturated (not near-white): on a light basemap a washed-out pale end
+  // makes knife-edge bureaux unreadable, so the fade stops at a visible tint.
+  PALE_LIGHT: { G: "#e08c6a", CD: "#77abdd", ED: "#9c86c4" },
+  // Heat-ramp faint end (mobilisation layer): near-background so sparse bureaux vanish.
+  FAINT_DARK: "#20222b",
+  FAINT_LIGHT: "#dfe3ea",
+  // Live values, swapped by theme.js; default to the dark theme.
   PALE: { G: "#743627", CD: "#2F5074", ED: "#3D3155" },
+  FAINT: "#20222b",
   MARGIN_FULL: 12,
   NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
   VOTE: ["G", "CD", "ED"],
@@ -57,6 +67,6 @@ function leadColorExpr(keys) {
 function voterColorExpr(key, t1, t2, t3) {
   return [
     "interpolate", ["linear"], ["get", key],
-    0, "#20222b", t1, APP.PALE.G, t2, APP.COL.G, t3, "#ff7a4d",
+    0, APP.FAINT, t1, APP.PALE.G, t2, APP.COL.G, t3, "#ff7a4d",
   ];
 }

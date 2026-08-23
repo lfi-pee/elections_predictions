@@ -24,9 +24,12 @@ CONCLUSION (voir aussi la mesure de variance spatiale ci-dessous) :
   divisé : à part de VOIX donnée, la part de SIÈGES radicale en est proche (winner-take-all par
   bastion), NON largement supérieure.
 
-  FIX. Remplacer la modulation linéaire par la variance spatiale RÉELLE (part radicale-dans-la-
-  gauche 2017 par circo, recentrée sur la moyenne du curseur). Supprime la falaise (courbe lisse)
-  et fonde le motif sur des données. Voir src/lfi_split_validate.py (démonstration numérique).
+  FIX RETENU (cf. src/radical_spatial.py). Remplacer la modulation linéaire par la variance
+  spatiale RÉELLE et RÉCENTE : part LFI-dans-la-gauche par circo mesurée aux EUROPÉENNES 2024 (le
+  scrutin divisé le plus récent), recentrée sur la moyenne du curseur, dispersion appliquée telle
+  quelle (RAD_GAIN 1,0, sans calage sur une cible). Supprime la falaise, fonde le motif sur des
+  données contemporaines → ~27 % des sièges de gauche à LFI en divisé (≠ 42 % de 2024, artefact
+  d'union négociée). Les chiffres ci-dessous illustrent le défaut de l'ANCIEN modèle (0,006·dG).
 
     python3 -u -m src.lfi_split_validate
 """

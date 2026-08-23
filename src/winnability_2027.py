@@ -54,13 +54,17 @@ REUNIF = 0.72
 # se sont abstenues. Report fortement ASYMÉTRIQUE : centre-droit→gauche 56 %, gauche→centre-droit
 # 81 % (la gauche fait mieux barrage). DESIST_TO_ED = 0,17 reprend la fuite mesurée.
 #
-# DESIST_TO_STRONG (0,60) < 0,69 mesuré à dessein : le modèle applique le désistement à TOUTE
-# triangulaire qualifiante, alors que ~⅓ des triangulaires 2024 ont été MAINTENUES (pas de
-# désistement). 0,60 est la valeur inconditionnelle qui recale le mieux les sièges sur le réel :
-# backtest (parts T1 réelles, gauche unie) SANS désistement → ~239 sièges RN pour 109 réels
-# (justesse par circo 68 %) ; à 0,60 → G/CD/ED = 161/241/99 contre 162/230/109 réels, justesse
-# 84 % (contre 83 % à 0,50). C'est la validation du modèle de sièges.
-DESIST_TO_STRONG = 0.60
+# DESIST_TO_STRONG (0,52) < 0,69 mesuré à dessein : le désistement mesuré (0,69) ne vaut que
+# dans les triangulaires où un pôle s'est EFFECTIVEMENT retiré, or ~⅓ des triangulaires 2024 ont
+# été MAINTENUES (pas de désistement). 0,52 est la force INCONDITIONNELLE (appliquée à toute
+# triangulaire) qui reproduit le NOMBRE RÉEL de sièges RN de 2024 — c.-à-d. SANS BIAIS sur le RN.
+# Backtest oracle (parts T1 réelles, gauche unie) : G/CD/ED = 169/223/109 contre 162/230/109
+# réels (RN exact ; erreur totale de sièges minimale), justesse par circo ~82 %. On calibre sur
+# le NOMBRE de sièges (l'objet de l'outil), pas sur la justesse par circo : à 0,60 la justesse par
+# circo est marginalement meilleure (82,6 %) MAIS le RN est sous-estimé de ~18 sièges (91 vs 109)
+# — biais inacceptable, surtout pour un public de gauche. Réglable au curseur (baisser = front qui
+# se délite → RN plus fort).
+DESIST_TO_STRONG = 0.52
 DESIST_TO_ED = 0.17
 
 

@@ -206,9 +206,10 @@ function renderLfiShare() {
          gauche (moyenne nationale ; défaut ~37 %, ancrage sondages 2025). Le modèle prédit le bloc
          de gauche entier ; cette part le répartit entre pôle radical (LFI) et pôle
          social-démocrate (PS·Place publique·EELV·PCF). Le motif par circonscription est le poids
-         réel de LFI dans la gauche mesuré en <b>2017</b>, recentré sur la moyenne du curseur. La
-         part de <b>SIÈGES</b> qui en résulte diffère de la part de voix : dans chaque circo, le
-         pôle le plus fort emporte le siège de gauche. Sans effet en gauche unie.</span></span>
+         réel de LFI dans la gauche mesuré aux <b>européennes 2024</b> (le scrutin divisé le plus
+         récent), recentré sur la moyenne du curseur. La part de <b>SIÈGES</b> qui en résulte
+         diffère de la part de voix (~37 % des voix → ~27 % des sièges de gauche) : dans chaque
+         circo, le pôle le plus fort emporte le siège. Sans effet en gauche unie.</span></span>
        <button id="lfi-reset" class="reset-btn" title="Revenir à la part du scénario">↺</button></div>
      <div class="sl-row"><label style="color:${POLE_RAD}">LFI
        <span class="sl-v" id="lfiv">${pct} %</span></label>
@@ -226,7 +227,7 @@ function renderLfiShare() {
 }
 
 // ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──
-const COEF_DEFAULT = { desist: 0.60, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 };
+const COEF_DEFAULT = { desist: 0.52, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 };
 const COEF_META = [
   { k: "desist", lab: "Désistement « front républicain » (triangulaire face au RN)" },
   { k: "cdLR", lab: "Part LR dans le bloc Centre+Droite (le reste = Ensemble)" },

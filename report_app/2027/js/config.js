@@ -27,11 +27,12 @@ const APP = {
   AB_REF: 48,
   // Coefficients de report au 2nd tour — RÉGLABLES au curseur (défauts = winnability_2027.py).
   // desist : désistement « front républicain » en triangulaire face au RN — mécanisme DOMINANT,
-  // mesuré sur 2024 (report ~69 % dans les triangulaires réelles ; 0,60 = valeur inconditionnelle
-  // qui recale les sièges). cdLR : part LR du bloc Centre+Droite (reste = Ensemble) — décompose
+  // mesuré sur 2024 (report ~69 % dans les triangulaires réelles ; 0,52 = valeur inconditionnelle
+  // qui reproduit le NOMBRE réel de sièges RN 2024, sans biais). cdLR : part LR du bloc C+D (reste
+  // = Ensemble) — décompose
   // les reports du CD. ed2left : report RN→gauche (duel face au centre-droit). reunif :
   // réunification imparfaite d'une gauche divisée. DESIST_ED : fuite vers le RN (mesurée 0,17).
-  coef: { desist: 0.60, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 },
+  coef: { desist: 0.52, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 },
   DESIST_ED: 0.17,
   // Décomposition des reports du bloc Centre+Droite : Ensemble (barrage) vs LR (ambivalent).
   // Constantes calées pour reproduire l'ancien barrage global (0,45/0,25) à cdLR=0,46 ; sous
@@ -40,12 +41,12 @@ const APP = {
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
-  // La part radicale par circo = curseur (MOYENNE nationale) + RAD_GAIN · motif spatial 2017
-  // (circo.rdev, part LFI-dans-la-gauche mesurée en 2017), borné [0,05 ; 0,95]. RAD_GAIN amplifie
-  // la dispersion réelle : à ~0,37 sondé, la part de SIÈGES LFI passe de ~17 % (ancien modèle,
-  // falaise à 0,5) à ~21 %, courbe lisse. Plafond ~29 % (compétition divisée) ; le repère 2024
-  // (42 %) est un plafond d'union négociée, inatteignable divisé. Cf. src/lfi_split_validate.py.
-  RAD_GAIN: 3.0,
+  // La part radicale par circo = curseur (MOYENNE nationale, sondages) + RAD_GAIN · motif spatial
+  // (circo.rdev = part LFI-dans-la-gauche mesurée aux EUROPÉENNES 2024, le scrutin divisé le plus
+  // récent), borné [0,05 ; 0,95]. RAD_GAIN = 1,0 : dispersion appliquée TELLE QUELLE, sans calage.
+  // À ~37 % sondé, LFI obtient ~27 % des sièges de gauche en gauche divisée (pôle minoritaire →
+  // moins de sièges que de voix). Cf. src/radical_spatial.py.
+  RAD_GAIN: 1.0,
   // Mode « Rejouer 2024 » : quand actif, les barres et la carte évaluent le modèle de 2nd tour
   // sur les parts de 1er tour RÉELLES 2024 par circo (circoArr.r24*, gauche unie) — reproduit
   // le backtest à l'identique. Toute action sur les curseurs / scénarios le désactive.

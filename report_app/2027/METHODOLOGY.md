@@ -21,15 +21,19 @@ applique le niveau national que vous posez au curseur.
 Qualification au seuil des **12,5 % des inscrits** ; puis reports, tous **mesurés sur données
 réelles** (réglables au curseur) :
 - **Désistement « front républicain »** (mécanisme dominant) — mesuré sur les 271 triangulaires
-  face au RN de 2024 (`desist_2024_measure.py`) : ~69 % au survivant anti-RN, 17 % au RN.
-  Défaut 0,60 (recale les sièges RN sur le réel).
+  face au RN de 2024 (`desist_2024_measure.py`) : ~69 % au survivant anti-RN, 17 % au RN, dans
+  celles où un pôle s'est effectivement retiré. Défaut **0,52** = force inconditionnelle (toutes
+  triangulaires, dont ~⅓ maintenues) qui reproduit le **nombre réel** de sièges RN 2024 (109
+  contre 109), sans biais.
 - **Reports Centre+Droite** décomposés Ensemble (barrage) / LR (ambivalent, bascule au RN sous
   « union des droites »).
 - **Réunification d'une gauche divisée** (`reunif`, défaut 0,72) — mesurée sur 2012 (gauche
   divisée : PS/Front de Gauche/EELV) : régression 0,69–0,73 (`reunif_measure.py`).
 - **Partage gauche radicale (LFI) / soc-dém** — la part LFI du VOTE (curseur, ~37 % sondé) est
-  répartie par circo selon le **motif réel 2017** (`radical_spatial.py`). La part de SIÈGES en
-  diffère (le pôle le plus fort d'une circo rafle le siège).
+  répartie par circo selon le **motif réel des européennes 2024** (le scrutin divisé le plus
+  récent ; `radical_spatial.py`), dispersion appliquée telle quelle (RAD_GAIN 1,0). La part de
+  SIÈGES en diffère (~27 % des sièges de gauche à LFI en divisé — le pôle le plus fort rafle le
+  siège).
 
 ## 3. Incertitude
 - **Locale** : intervalles conformes par bureau (validation croisée), ramenés au grain circo par
@@ -39,12 +43,13 @@ réelles** (réglables au curseur) :
 
 ## 4. Validation sur 2024
 - **À l'aveugle (chaîne complète)** : 2024 **retiré de l'entraînement**, prévision du 1er tour →
-  modèle de sièges → vrais sièges → **~76 %** des circos disputées (`backtest_2024_endtoend.py`).
-- **Oracle (modèle de sièges seul, parts réelles)** : 82 % des disputées.
+  modèle de sièges → vrais sièges → **~78 %** des circos disputées (`backtest_2024_endtoend.py`).
+- **Oracle (modèle de sièges seul, parts réelles)** : ~82 % des disputées ; **RN sans biais**
+  (109 sièges projetés contre 109 réels).
 - **1er tour (sièges sûrs, gagnés au 1er tour)** : 99 % ; **ensemble des 577 : ~84 %**
   (`backtest_2024_firstround.py`).
-- **Réserve connue** : privé de 2024, le modèle **sous-estime le RN** (~48 sièges rejoués vs 109
-  réels) — il lisse la poussée spatiale du RN. À lire comme un plancher prudent côté RN.
+- **Réserve** : le test à l'aveugle retire 2024 de l'entraînement, ce qui sous-estime le RN
+  (~70 rejoués vs 109) ; la prévision 2027 garde 2024 en mémoire, donc n'a pas ce handicap.
 
 ## 5. Reproductibilité
 - **Une commande** rebâtit chaque nombre servi depuis les données brutes : `./rebuild_2027.sh`.

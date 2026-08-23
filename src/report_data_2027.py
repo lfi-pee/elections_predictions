@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import scenarios_2027, winnability_2027
+from src import backtest_2024_seats, scenarios_2027, winnability_2027
 
 PRED = Path("data/predictions_2027.csv")
 MASTER24 = Path("data/report/bv_master.parquet")
@@ -186,6 +186,11 @@ def build() -> None:
         s["key"]: winnability_distribution(cir, s) for s in scenarios_2027.SCENARIOS
     }
     cv90 = {b: round(float(df[f"hw90_{b}"].median()), 1) for b in ("G", "CD", "ED", "AB")}
+    try:
+        bt2024 = backtest_2024_seats.backtest()
+    except Exception as e:  # candidats_results absent (certains environnements)
+        print(f"  (backtest sièges 2024 indisponible : {e})")
+        bt2024 = None
     summary = {
         "n_bv": int(len(df)),
         "n_circo": int(len(cir)),
@@ -205,6 +210,7 @@ def build() -> None:
         # fortement corrélées (mêmes réalités locales), donc on met à l'échelle par le rapport
         # observé σ_circo/σ_bv des résidus 2024 — et non par 1/√N (qui supposerait l'indépendance).
         "circo_halfwidth_90": circo_halfwidth(cv90),
+        "backtest_2024": bt2024,  # validation du modèle de sièges (bouton « Rejouer 2024 »)
         "lag_fallback_bv": int(df.lag_fallback.sum()),
     }
     (SERVED / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1))

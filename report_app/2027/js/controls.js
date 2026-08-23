@@ -102,6 +102,32 @@ function initControls() {
     $("seat-detail").classList.toggle("on", APP.state.seatDetail);
     updateSeatBar();
   };
+
+  if ($("replay-2024")) $("replay-2024").onclick = replay2024;
+}
+
+// « Rejouer 2024 » : règle les curseurs au niveau national réel de 2024 (gauche unie, comme le
+// NFP), puis affiche la VALIDATION du modèle de sièges — projection sur les parts de 1er tour
+// RÉELLES 2024 vs résultat réel (backtest servi dans summary.backtest_2024). La barre de sièges
+// vivante utilise, elle, les déviations 2027 ancrées au niveau 2024 : c'est une approximation ;
+// le chiffre de validation ci-dessous est le backtest rigoureux (parts 2024 réelles).
+function replay2024() {
+  APP.nat = { ...APP.REF2024 };
+  APP.radOverride = null;
+  setScenario("union");           // 2024 : gauche unie ; recompute + rendu LFI
+  syncSliders();
+  const bt = APP.data.summary.backtest_2024;
+  const box = $("replay-box");
+  if (!box) return;
+  if (!bt) { box.className = "replay"; box.textContent = "Backtest 2024 indisponible."; return; }
+  const seats = (o) => `<b style="color:${APP.COL.G}">${o.G}</b> · ` +
+    `<b style="color:${APP.COL.CD}">${o.CD}</b> · <b style="color:${APP.COL.ED}">${o.ED}</b>`;
+  box.className = "replay";
+  box.innerHTML =
+    `<div class="rp-h">Validation — rejeu de 2024 <span class="muted">(sur les parts de 1<sup>er</sup> tour réelles, ${bt.n_circo} circos)</span></div>` +
+    `<div>réel&nbsp;: ${seats(bt.actual)}</div>` +
+    `<div>modèle&nbsp;: ${seats(bt.model)} <span class="muted">— bon vainqueur dans <b>${bt.accuracy} %</b> des circonscriptions (pondéré inscrits)</span></div>` +
+    `<div class="muted">Curseurs réglés au niveau national 2024. La carte utilise les déviations 2027 (approximation) ; les chiffres ci-dessus sont le backtest exact.</div>`;
 }
 
 // Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,

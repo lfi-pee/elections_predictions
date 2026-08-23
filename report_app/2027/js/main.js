@@ -14,6 +14,7 @@ async function boot() {
   APP.nat = { ...APP.scnObj.means };
 
   await initMap();
+  initSplitter();
   initControls();
   initSearch();
   initPanel();
@@ -22,6 +23,32 @@ async function boot() {
   recomputeAll();
   renderIntro();
   renderInputs();
+}
+
+// Séparateur glissable : l'utilisateur ajuste la largeur des panneaux ↔ carte. La largeur
+// (px du panneau de gauche) est bornée puis persistée ; la carte se retaille en direct.
+function initSplitter() {
+  const bar = $("dragbar"), side = $("side"), KEY = "p2027-side-w";
+  if (!bar) return;
+  const maxW = () => Math.min(760, window.innerWidth - 420);
+  const apply = (w) => { side.style.width = clamp(w, 340, maxW()) + "px"; if (APP.map) APP.map.resize(); };
+  const saved = parseInt(localStorage.getItem(KEY), 10);
+  if (saved) apply(saved);
+
+  let drag = false;
+  const move = (e) => { if (drag) apply((e.touches ? e.touches[0].clientX : e.clientX)); };
+  const start = (e) => { drag = true; bar.classList.add("drag"); document.body.style.userSelect = "none"; e.preventDefault(); };
+  const stop = () => {
+    if (!drag) return;
+    drag = false; bar.classList.remove("drag"); document.body.style.userSelect = "";
+    localStorage.setItem(KEY, parseInt(side.style.width, 10));
+  };
+  bar.addEventListener("mousedown", start);
+  bar.addEventListener("touchstart", start, { passive: false });
+  window.addEventListener("mousemove", move);
+  window.addEventListener("touchmove", move, { passive: false });
+  window.addEventListener("mouseup", stop);
+  window.addEventListener("touchend", stop);
 }
 
 // Documente les entrées du modèle POUR CETTE élection (transparence, en bas de page).

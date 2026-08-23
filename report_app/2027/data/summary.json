@@ -185,5 +185,10 @@
   "ED": 8.0,
   "AB": 7.0
  },
+ "circo_halfwidth_90": {
+  "G": 7.5,
+  "CD": 9.7,
+  "ED": 6.0
+ },
  "lag_fallback_bv": 818
 }

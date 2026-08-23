@@ -102,6 +102,28 @@ def build_circo(df: pd.DataFrame) -> pd.DataFrame:
     return cir.reset_index(drop=True)
 
 
+def circo_halfwidth(cv90: dict[str, float]) -> dict[str, float]:
+    """Demi-largeur 90 % de l'erreur au niveau CIRCO, par bloc, pour la fourchette de sièges
+    Monte-Carlo du site. Les intervalles conformes `cv90` sont calibrés par BUREAU ; on les
+    ramène au grain circo par le rapport observé σ_circo/σ_bv des résidus 2024 (pred−réel). Ce
+    rapport (~0,7) est bien supérieur à 1/√N : au sein d'une circo les erreurs du modèle sont
+    fortement corrélées (même sociologie, mêmes candidats), elles ne se moyennent donc presque
+    pas — appliquer 1/√N sous-estimerait grossièrement l'incertitude de sièges."""
+    cols = ["circo", "inscrits"] + [f"{p}_{b}" for p in ("pred", "act") for b in VOTE]
+    m = pd.read_parquet(MASTER24, columns=cols)
+    m = m[m.circo.notna()].copy()
+    out = {}
+    for b in VOTE:
+        resid_bv = (m[f"pred_{b}"] - m[f"act_{b}"]).to_numpy()
+        circo_resid = m.groupby("circo").apply(
+            lambda g: float(np.average(g[f"pred_{b}"] - g[f"act_{b}"],
+                                       weights=g.inscrits.to_numpy(float)))
+        )
+        ratio = float(circo_resid.std() / (resid_bv.std() or 1.0))
+        out[b] = round(cv90[b] * ratio, 1)
+    return out
+
+
 def scenario_means(scn: dict) -> dict[str, float]:
     return scn["means"]
 
@@ -163,6 +185,7 @@ def build() -> None:
     per_scn = {
         s["key"]: winnability_distribution(cir, s) for s in scenarios_2027.SCENARIOS
     }
+    cv90 = {b: round(float(df[f"hw90_{b}"].median()), 1) for b in ("G", "CD", "ED", "AB")}
     summary = {
         "n_bv": int(len(df)),
         "n_circo": int(len(cir)),
@@ -176,9 +199,12 @@ def build() -> None:
             "r2": s24.get("r2"),
             "n_bv": s24.get("n_bv"),
         },
-        "cv_halfwidth_90": {
-            b: round(float(df[f"hw90_{b}"].median()), 1) for b in ("G", "CD", "ED", "AB")
-        },
+        "cv_halfwidth_90": cv90,
+        # Incertitude au niveau CIRCO (pour la fourchette de sièges Monte-Carlo du site) : la
+        # demi-largeur conforme est calibrée par BUREAU ; au niveau circo, les erreurs sont
+        # fortement corrélées (mêmes réalités locales), donc on met à l'échelle par le rapport
+        # observé σ_circo/σ_bv des résidus 2024 — et non par 1/√N (qui supposerait l'indépendance).
+        "circo_halfwidth_90": circo_halfwidth(cv90),
         "lag_fallback_bv": int(df.lag_fallback.sum()),
     }
     (SERVED / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1))

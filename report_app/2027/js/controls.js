@@ -265,6 +265,23 @@ function updateWinSummary() {
     `</div>`;
 }
 
+// Fourchette d'incertitude (Monte-Carlo des intervalles conformes) — calcul débounce, hors frame.
+function updateUncertainty() {
+  const d = seatDistribution(MC_DRAWS);
+  if (!d) return;
+  const rng = (b) => `${b.lo}–${b.hi}`;
+  const se = $("seat-range");
+  if (se) se.innerHTML =
+    `fourchette 90 % <span class="muted">(incertitude locale ; niveau national posé)</span> : ` +
+    `<b style="color:${APP.COL.G}">G ${rng(d.G)}</b> · ` +
+    `<b style="color:${APP.COL.CD}">C+D ${rng(d.CD)}</b> · ` +
+    `<b style="color:${APP.COL.ED}">ED ${rng(d.ED)}</b>`;
+  const we = $("win-range");
+  if (we) we.innerHTML =
+    `fourchette 90 % : <b>${rng(d.play)}</b> circonscriptions jouables ` +
+    `<span class="muted">(médiane ${d.play.med})</span>`;
+}
+
 function updateLegend() {
   const el = $("legend");
   if (APP.state.mode === "seat") {

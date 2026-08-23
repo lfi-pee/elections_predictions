@@ -184,6 +184,68 @@ function scoreTally() {
   return t;
 }
 
+// ── Incertitude : Monte-Carlo des fourchettes conformes à travers le modèle de sièges ──
+// Le modèle donne une erreur LOCALE (par bureau) calibrée par validation croisée ; la
+// demi-largeur 90 % par bloc (summary.cv_halfwidth_90) donne un σ ≈ hw/1,645. On tire un bruit
+// gaussien indépendant par circo et par bloc, on rejoue le 2nd tour, et on lit la distribution
+// des sièges. Indépendant par circo car l'erreur est locale (le niveau national est POSÉ, pas
+// prédit) : les erreurs se compensent en masse et seules les circos serrées basculent — donc
+// la fourchette dit « combien de sièges dépendent vraiment de circos indécises ».
+let _gaussSpare = null;
+function gauss() {
+  if (_gaussSpare != null) { const v = _gaussSpare; _gaussSpare = null; return v; }
+  const u = Math.random() || 1e-9, v = Math.random();
+  const r = Math.sqrt(-2 * Math.log(u));
+  _gaussSpare = r * Math.sin(2 * Math.PI * v);
+  return r * Math.cos(2 * Math.PI * v);
+}
+
+// Outcome (score + vainqueur) d'une circo avec bruit ajouté aux parts prédites — même pipeline
+// que circoEval mais allégé (pas de champs d'affichage), pour le tirage Monte-Carlo.
+function circoOutcome(dG, dCD, dED, dAB, eG, eCD, eED) {
+  const n = APP.nat, s = APP.scnObj;
+  const g0 = clamp(n.G + dG + eG, 0, 100), cd0 = clamp(n.CD + dCD + eCD, 0, 100),
+    ed0 = clamp(n.ED + dED + eED, 0, 100), ab = clamp(n.AB + dAB, 0, 100);
+  const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, dAB);
+  const ru = s.right_union;
+  const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
+  const rad = s.left_config === "union" ? 1.0 : clamp(radBase + 0.006 * dG, 0.12, 0.68);
+  const sc = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru).sc;
+  const win = seatWinner(g, cd, ed, ab, s.left_config, rad, ru).win;
+  return { sc, win };
+}
+
+function _pctl(sorted, q) {
+  const i = clamp(Math.round((sorted.length - 1) * q), 0, sorted.length - 1);
+  return sorted[i];
+}
+
+// Distribution des sièges (et des circos jouables) sur `nDraws` tirages. Renvoie médiane et
+// bornes 5 %/95 % par bloc + jouables.
+function seatDistribution(nDraws) {
+  const a = APP.data.circoArr; if (!a) return null;
+  // Demi-largeur CIRCO (pas par bureau) : erreurs fortement corrélées dans une circo — voir
+  // report_data_2027.circo_halfwidth. Repli sur la conforme par bureau si absente.
+  const cv = APP.data.summary.circo_halfwidth_90 || APP.data.summary.cv_halfwidth_90 || {};
+  const Z = 1.645; // demi-largeur 90 % → σ
+  const sG = (cv.G || 0) / Z, sC = (cv.CD || 0) / Z, sE = (cv.ED || 0) / Z;
+  const n = a.id.length;
+  const G = new Array(nDraws), C = new Array(nDraws), E = new Array(nDraws), P = new Array(nDraws);
+  for (let d = 0; d < nDraws; d++) {
+    let g = 0, c = 0, e = 0, play = 0;
+    for (let i = 0; i < n; i++) {
+      const r = circoOutcome(a.dG[i], a.dCD[i], a.dED[i], a.dAB[i],
+        sG * gauss(), sC * gauss(), sE * gauss());
+      if (r.win === "G") g++; else if (r.win === "CD") c++; else e++;
+      if (r.sc <= 3) play++;
+    }
+    G[d] = g; C[d] = c; E[d] = e; P[d] = play;
+  }
+  const band = (arr) => { const s = arr.slice().sort((x, y) => x - y);
+    return { med: _pctl(s, 0.5), lo: _pctl(s, 0.05), hi: _pctl(s, 0.95) }; };
+  return { G: band(G), CD: band(C), ED: band(E), play: band(P) };
+}
+
 // Recalcule carte + barres après changement de curseur / scénario. Coalescé sur une frame
 // d'animation : dix « input » de curseur dans la même frame → un seul recalcul.
 let _raf = 0;
@@ -195,5 +257,15 @@ function recomputeAll() {
     updateSeatBar();
     updateNatBar();
     updateWinSummary();
+    scheduleUncertainty();
   });
+}
+
+// La fourchette Monte-Carlo (577 circos × ~240 tirages) est trop lourde pour chaque frame de
+// glissement : on la calcule une fois le curseur STABILISÉ (débounce), sans bloquer le glisser.
+const MC_DRAWS = 240;
+let _uncT = 0;
+function scheduleUncertainty() {
+  if (_uncT) clearTimeout(_uncT);
+  _uncT = setTimeout(() => { _uncT = 0; if (typeof updateUncertainty === "function") updateUncertainty(); }, 180);
 }

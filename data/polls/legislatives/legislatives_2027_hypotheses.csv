@@ -1,11 +1,23 @@
 # Intentions de vote 1er tour — prochaines législatives (hypothèse dissolution / 2027).
-# Sources : sondages Ifop, OpinionWay, Elabe, Cluster17, Toluna-Harris (juin–octobre 2025),
-# agrégés par Toute l'Europe et Wikipédia (« Prochaines élections législatives françaises »).
-# Récupéré le 2026-08-23. Parts en % des suffrages exprimés (bruts, avant renormalisation
-# à 3 blocs). Sert d'ancrage aux curseurs nationaux du site 2027 ; l'utilisateur peut les régler.
+# Sources : sondages Ifop, OpinionWay, Elabe, Cluster17, Toluna-Harris (juin 2025 → oct. 2025),
+# agrégés par Toute l'Europe, Wikipédia (« Prochaines élections législatives françaises ») et
+# PolitPro (tendance agrégée, mise à jour continue). Récupéré le 2026-08-23.
+#
+# ÉTAT DES DONNÉES (2026-08-23) : le baromètre LÉGISLATIF (hypothèse dissolution) n'est plus
+# rafraîchi par les instituts depuis oct. 2025 — le suivi s'est reporté sur la PRÉSIDENTIELLE
+# 2027. La lecture de bloc la plus récente est donc la tendance agrégée PolitPro (ci-dessous,
+# 2026-08) : RN en hausse (~35), gauche unie ~24, Ensemble ~14, LR ~12 ; corroborée par les
+# sondages présidentiels 2026 (Le Pen 34–35,5 en hausse ; Mélenchon 14,5–16 en hausse,
+# Glucksmann 8,5–11). AUCUN sondage législatif 2026 ne scinde LFI du reste de la gauche : le
+# partage radical/social-démocrate reste calé sur les tests « gauche divisée » de 2025.
+#
+# Parts en % des suffrages exprimés (bruts, avant renormalisation à 3 blocs). Sert d'ancrage
+# aux curseurs nationaux du site 2027 ; l'utilisateur peut les régler (tout est curseur).
 hypothese,institut,periode,RN_allies,gauche_unie_NFP,LFI,PS_PP_EELV_PCF,Ensemble,LR,source
+gauche_unie,agrégat PolitPro (tendance),2026-08-23,35.0,24.0,,,14.0,12.0,politpro.eu
 gauche_unie,agrégat 8 sondages,2025-06/2025-10,32.3,24.3,,,14.7,12.7,touteleurope.eu
 gauche_divisee,agrégat 8 sondages,2025-06/2025-10,31.7,,9.7,17.7,13.7,12.3,touteleurope.eu
+gauche_divisee,Elabe (dissolution),2025-06-03/05,32.75,,10.0,16.0,15.5,10.25,elabe.fr
 gauche_unie,Ifop,2025-10-07/08,36.0,24.0,,,14.0,12.0,fr.wikipedia
 gauche_unie,OpinionWay,2025-10-06/07,33.5,24.0,,,16.0,13.0,fr.wikipedia
 gauche_unie,Elabe,2025-08-28/29,31.25,23.5,,,14.0,10.5,fr.wikipedia

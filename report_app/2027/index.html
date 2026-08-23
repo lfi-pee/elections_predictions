@@ -22,6 +22,7 @@
       <div class="ctl-h">Scénario — configuration de la gauche
         <span class="info">i<span class="tip" id="scn-desc"></span></span></div>
       <div id="scenarios" class="scn-btns"></div>
+      <div id="lfi-share" class="lfi-share"></div>
     </div>
 
     <div class="ctl-card ctl-sliders">
@@ -53,14 +54,33 @@
       <div id="explain-body"></div>
     </div>
 
+    <details class="inputs-card ctl-transfers">
+      <summary>Reports de 2nd tour — hypothèses réglables</summary>
+      <div class="inputs-body">
+        <p class="tf-note">Les scores de jouabilité et la projection en sièges reposent sur ces
+          reports du 1<sup>er</sup> au 2<sup>nd</sup> tour. Défauts calés sur le « front
+          républicain » observé ; réglez-les pour tester votre propre hypothèse.</p>
+        <div id="transfers"></div>
+        <button id="transfers-reset" class="reset-btn tf-reset">↺ valeurs par défaut</button>
+      </div>
+    </details>
+
     <details class="inputs-card">
       <summary>Données &amp; hypothèses du modèle — cette élection</summary>
       <div class="inputs-body" id="inputs-body"></div>
     </details>
 
     <p class="foot">
-      Ni simulation de campagne ni sondage. Ancrage des scénarios : sondages Ifop,
-      OpinionWay, Elabe, Cluster17, Harris (2025). Méthode&nbsp;:
+      Ni simulation de campagne ni sondage. Ancrage des scénarios : sondages
+      <a href="https://www.ifop.com/en/article/voting-intentions-in-the-event-of-a-general-election" target="_blank" rel="noopener">Ifop</a>,
+      <a href="https://www.cnews.fr/france/2025-10-08/sondage-en-cas-de-legislatives-le-rassemblement-national-loin-devant-au-premier" target="_blank" rel="noopener">OpinionWay</a>,
+      <a href="https://elabe.fr/legislatives-dissolution/" target="_blank" rel="noopener">Elabe</a>,
+      <a href="https://fr.wikipedia.org/wiki/Prochaines_%C3%A9lections_l%C3%A9gislatives_fran%C3%A7aises" target="_blank" rel="noopener">Cluster17</a>,
+      <a href="https://fr.wikipedia.org/wiki/Prochaines_%C3%A9lections_l%C3%A9gislatives_fran%C3%A7aises" target="_blank" rel="noopener">Harris</a>
+      (2025) ; tendance agrégée
+      <a href="https://politpro.eu/en/france" target="_blank" rel="noopener">PolitPro</a> /
+      <a href="https://www.touteleurope.eu/vie-politique-des-etats-membres/qu-indiquent-les-sondages-en-cas-de-dissolution-de-l-assemblee-nationale/" target="_blank" rel="noopener">Toute l'Europe</a>
+      (2026). Méthode&nbsp;:
       <a href="../" target="_blank" rel="noopener">carte 2024</a>.
     </p>
   </aside>

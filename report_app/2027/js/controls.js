@@ -18,9 +18,12 @@ function setScenario(key) {
   if (!s) return;
   APP.scenario = key;
   APP.scnObj = s;
+  // Changer de scénario réancre la part LFI sur l'ancrage sondages de ce scénario.
+  APP.radOverride = null;
   document.querySelectorAll(".scn-btn").forEach((b) =>
     b.classList.toggle("on", b.dataset.k === key));
   $("scn-desc").textContent = s.desc;
+  renderLfiShare();
   recomputeAll();
 }
 
@@ -70,6 +73,9 @@ function initControls() {
   }
   if ($("reset")) $("reset").onclick = resetSliders;
 
+  renderLfiShare();
+  renderTransfers();
+
   // Bascule de mode carte.
   $("mode-win").onclick = () => { setMode("win"); syncModeBtns(); };
   $("mode-seat").onclick = () => { setMode("seat"); syncModeBtns(); };
@@ -100,6 +106,73 @@ function setNat(b, v) {
 function syncModeBtns() {
   $("mode-win").classList.toggle("on", APP.state.mode === "win");
   $("mode-seat").classList.toggle("on", APP.state.mode === "seat");
+}
+
+// ── Part de la gauche radicale (LFI) dans le bloc de gauche ──
+// Ancrage sondages via le scénario ; réglable au curseur (sans effet en gauche unie).
+const POLE_RAD = "#a01722";
+function currentRad() {
+  return APP.radOverride != null ? APP.radOverride : APP.scnObj.radical_share;
+}
+function renderLfiShare() {
+  const el = $("lfi-share");
+  if (!el) return;
+  if (APP.scnObj.left_config === "union") {
+    el.innerHTML = `<div class="lfi-na">Gauche unie : une candidature unique capte tout le
+      bloc — la part LFI ne s'applique pas.</div>`;
+    return;
+  }
+  const pct = Math.round(currentRad() * 100);
+  el.innerHTML =
+    `<div class="ctl-h sub">Part de la gauche radicale (LFI)
+       <span class="info">i<span class="tip">Le modèle prédit le bloc de gauche entier ; cette
+         part fixe le poids du pôle radical (LFI) face au pôle social-démocrate
+         (PS·Place publique·EELV·PCF) quand la gauche concourt divisée. Défaut = ancrage
+         sondages « gauche divisée » (2025 ; aucun sondage législatif 2026 ne la scinde).
+         Modulée localement selon la force de la gauche dans la circo.</span></span>
+       <button id="lfi-reset" class="reset-btn" title="Revenir à la part du scénario">↺</button></div>
+     <div class="sl-row"><label style="color:${POLE_RAD}">LFI
+       <span class="sl-v" id="lfiv">${pct} %</span></label>
+       <input type="range" id="sl-lfi" min="5" max="80" step="1" value="${pct}" style="--c:${POLE_RAD}"></div>
+     <div class="natsum muted" id="lfi-rest">reste du bloc → PS·PP·EELV·PCF : ${100 - pct} %</div>`;
+  $("sl-lfi").addEventListener("input", (e) => {
+    APP.radOverride = parseFloat(e.target.value) / 100;
+    const p = Math.round(APP.radOverride * 100);
+    $("lfiv").textContent = p + " %";
+    $("lfi-rest").textContent = `reste du bloc → PS·PP·EELV·PCF : ${100 - p} %`;
+    recomputeAll();
+  });
+  $("lfi-reset").onclick = () => { APP.radOverride = null; renderLfiShare(); recomputeAll(); };
+}
+
+// ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──
+const COEF_DEFAULT = { cd2left: 0.45, ed2left: 0.15, reunif: 0.72 };
+const COEF_META = [
+  { k: "cd2left", lab: "Centre-droit → gauche (barrage anti-RN)" },
+  { k: "ed2left", lab: "RN → gauche (duel gauche vs centre-droit)" },
+  { k: "reunif", lab: "Réunification d'une gauche divisée" },
+];
+function renderTransfers() {
+  const el = $("transfers");
+  if (!el) return;
+  el.innerHTML = COEF_META.map((c) => {
+    const pct = Math.round(APP.coef[c.k] * 100);
+    return `<div class="sl-row"><label>${c.lab}
+      <span class="sl-v" id="cfv-${c.k}">${pct} %</span></label>
+      <input type="range" id="cf-${c.k}" min="0" max="100" step="1" value="${pct}" style="--c:#8a8f98"></div>`;
+  }).join("");
+  for (const c of COEF_META) {
+    $("cf-" + c.k).addEventListener("input", (e) => {
+      APP.coef[c.k] = parseFloat(e.target.value) / 100;
+      $("cfv-" + c.k).textContent = Math.round(APP.coef[c.k] * 100) + " %";
+      recomputeAll();
+    });
+  }
+  if ($("transfers-reset")) $("transfers-reset").onclick = () => {
+    Object.assign(APP.coef, COEF_DEFAULT);
+    renderTransfers();
+    recomputeAll();
+  };
 }
 
 // ── Barre dynamique des sièges (projection) ──
@@ -135,9 +208,20 @@ function updateSeatBar() {
 
 function updateNatBar() {
   const n = APP.nat, s = (n.G + n.CD + n.ED);
+  // Parts « effectives » = parts posées aux curseurs APRÈS couplage participation (γ) : sous
+  // l'abstention de référence (48 %), les revenants penchent à gauche (résultat 2024). Les
+  // curseurs restent les parts d'exprimés que VOUS posez ; ce sont ces parts effectives qui
+  // colorent la carte. C'est là que l'abstention agit sur les blocs (dominante nationale).
+  const [eg, ec, ee] = turnoutAdjust(n.G, n.CD, n.ED, n.AB, 0);
+  const moved = Math.abs(n.AB - APP.AB_REF) > 0.4;
+  const eff = moved
+    ? `<span class="eff">→ après participation (${fmt1(n.AB)} % abst.) : ` +
+      `<b>G ${fmt1(eg)}</b> · <b>C+D ${fmt1(ec)}</b> · <b>ED ${fmt1(ee)}</b> ` +
+      `<span class="muted">(la carte utilise ces parts)</span></span>`
+    : `<span class="eff muted">→ à l'abstention de référence (48 %), parts effectives = parts posées</span>`;
   $("natsum").innerHTML =
-    `bloc : G ${fmt1(n.G)} · C+D ${fmt1(n.CD)} · ED ${fmt1(n.ED)} ` +
-    `<span class="muted">(somme ${fmt1(s)} %)</span> · abstention ${fmt1(n.AB)} %`;
+    `bloc posé : G ${fmt1(n.G)} · C+D ${fmt1(n.CD)} · ED ${fmt1(n.ED)} ` +
+    `<span class="muted">(somme ${fmt1(s)} %)</span> · abstention ${fmt1(n.AB)} %` + eff;
 }
 
 // ── Répartition de la jouabilité (1→5) ──

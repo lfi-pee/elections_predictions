@@ -6,10 +6,11 @@
 //   bloc vainqueur du siège → projection en sièges (barre dynamique).
 // Le serveur n'envoie que le motif spatial (dev) ; tout le reste réagit aux curseurs.
 
-const BARR = { cd2left: 0.45, cd2ed: 0.25, ed2left: 0.15, ed2cd: 0.45,
-  elimL2cd: 0.55, elimL2ed: 0.10 };
-// Réunification imparfaite au 2nd tour d'une gauche divisée (voir winnability_2027.py).
-const REUNIF = 0.72;
+// Reports NON réglables (secondaires) : ils restent des constantes (miroir winnability_2027.py).
+const BARR = { cd2ed: 0.25, ed2cd: 0.45, elimL2cd: 0.55, elimL2ed: 0.10 };
+// Les trois coefficients RÉGLABLES au curseur vivent dans APP.coef (défauts = winnability_2027.py) :
+//   cd2left = barrage centre-droit→gauche · ed2left = report RN→gauche · reunif = réunification
+//   imparfaite d'une gauche divisée au 2nd tour. Lus à chaque évaluation → réagissent au curseur.
 
 function leftCandidates(g, cfg, rad) {
   if (cfg === "union") return [g];
@@ -22,16 +23,17 @@ function leftCandidates(g, cfg, rad) {
 function qual(share, second, thr) { return share >= second - 1e-9 || share >= thr; }
 
 // Score de gauche réuni au 2nd tour + un pôle qualifié ? (pôles qualifiés pleins +
-// pôles éliminés × REUNIF).
+// pôles éliminés × APP.coef.reunif, le taux de réunification réglable au curseur).
 function leftT2(left, second, thr) {
   const ql = left.filter((p) => qual(p, second, thr));
   if (!ql.length) return [0, false];
   const elim = left.filter((p) => !qual(p, second, thr)).reduce((a, b) => a + b, 0);
-  return [ql.reduce((a, b) => a + b, 0) + REUNIF * elim, true];
+  return [ql.reduce((a, b) => a + b, 0) + APP.coef.reunif * elim, true];
 }
 
 // Reports du centre-droit au 2nd tour (union des droites → LR se reporte sur le RN).
-function cdTransfer(ru) { return ru ? [0.20, 0.55] : [BARR.cd2left, BARR.cd2ed]; }
+// Hors union des droites, le barrage CD→gauche est le curseur APP.coef.cd2left.
+function cdTransfer(ru) { return ru ? [0.20, 0.55] : [APP.coef.cd2left, BARR.cd2ed]; }
 
 // Score 1→5 de la GAUCHE (miroir de src/winnability_2027.py).
 function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
@@ -44,7 +46,7 @@ function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
   if (!qL) return { sc: 5, lbest, ql: false, mt2: null, opp: ed >= cd ? "ED" : "CD" };
   let l2, oppT2, opp;
   if (ed >= cd) { l2 = lbase + cd2l * cd; oppT2 = ed + cd2e * cd; opp = "ED"; }
-  else { l2 = lbase + BARR.ed2left * ed; oppT2 = cd + BARR.ed2cd * ed; opp = "CD"; }
+  else { l2 = lbase + APP.coef.ed2left * ed; oppT2 = cd + BARR.ed2cd * ed; opp = "CD"; }
   const mt2 = l2 - oppT2, leadsFirst = lbest >= leader - 1e-9;
   let sc;
   if (leadsFirst && mt2 > 8) sc = 1; else if (mt2 > 0) sc = 2;
@@ -64,7 +66,7 @@ function seatWinner(g, cd, ed, ab, cfg, rad, ru) {
   let sL = qL ? lbase : 0, sC = qC ? cd : 0, sE = qE ? ed : 0;
   if (!qL) { if (qC) sC += BARR.elimL2cd * g; if (qE) sE += BARR.elimL2ed * g; }
   if (!qC) { if (qL) sL += cd2l * cd; if (qE) sE += cd2e * cd; }
-  if (!qE) { if (qL) sL += BARR.ed2left * ed; if (qC) sC += BARR.ed2cd * ed; }
+  if (!qE) { if (qL) sL += APP.coef.ed2left * ed; if (qC) sC += BARR.ed2cd * ed; }
   const arr = [["G", sL, qL], ["CD", sC, qC], ["ED", sE, qE]].filter((x) => x[2]);
   arr.sort((a, b) => b[1] - a[1]);
   const win = arr.length ? arr[0][0] : (g >= cd && g >= ed ? "G" : cd >= ed ? "CD" : "ED");
@@ -101,10 +103,12 @@ function circoEval(pr) {
     ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
   const ru = s.right_union;
-  // Part radicale (LFI) modulée localement : le pôle radical pèse davantage là où la gauche
-  // est forte (bastions urbains/populaires), moins dans les circos où elle est faible — sinon
-  // un partage national uniforme donnerait 0 siège au pôle radical partout.
-  const rad = s.left_config === "union" ? 1.0 : clamp(s.radical_share + 0.006 * pr.dG, 0.12, 0.68);
+  // Part radicale (LFI) : base = curseur (APP.radOverride) sinon valeur du scénario (ancrage
+  // sondages), puis modulée localement — le pôle radical pèse davantage là où la gauche est
+  // forte (bastions urbains/populaires), moins là où elle est faible ; sinon un partage
+  // national uniforme donnerait 0 siège au pôle radical partout.
+  const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
+  const rad = s.left_config === "union" ? 1.0 : clamp(radBase + 0.006 * pr.dG, 0.12, 0.68);
   const r = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru);
   const sw = seatWinner(g, cd, ed, ab, s.left_config, rad, ru);
   return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };

@@ -17,12 +17,22 @@ const APP = {
   // seatDetail : barre des sièges détaillée par pôle de gauche (radicale/soc.-dém./éco).
   state: { mode: "win", seatDetail: false },
   // État national courant (parts de bloc %, abstention % inscrits) — piloté par les curseurs.
-  nat: { G: 32.2, CD: 30.6, ED: 37.3, AB: 48 },
+  // Repli seulement : au chargement, main.js écrase avec les moyennes du scénario (summary.json,
+  // ancrage sondages 2026 : G ~30,7 · C+D ~29,5 · ED ~39,8).
+  nat: { G: 30.7, CD: 29.5, ED: 39.8, AB: 48 },
   scenario: "split2",
   // Abstention de référence à laquelle les curseurs de parts (G/CD/ED) sont calés : en
   // deçà, les revenants aux urnes se répartissent selon la courbe γ (les abstentionnistes
   // mobilisables penchent à gauche — le résultat clé de 2024), ce qui relève la gauche.
   AB_REF: 48,
+  // Coefficients de report au 2nd tour — désormais RÉGLABLES au curseur (défauts = hypothèses
+  // barrage de src/winnability_2027.py). cd2left : part du centre-droit qui fait barrage vers
+  // la gauche face au RN ; ed2left : report RN→gauche (duel gauche vs centre-droit) ;
+  // reunif : réunification imparfaite d'une gauche divisée au 2nd tour.
+  coef: { cd2left: 0.45, ed2left: 0.15, reunif: 0.72 },
+  // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
+  // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
+  radOverride: null,
   data: {},
   map: null,
   bvByDept: new Map(),   // dept -> features brutes (dev), pour recalcul au curseur

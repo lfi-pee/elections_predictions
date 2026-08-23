@@ -65,14 +65,20 @@ function renderInputs() {
         INSEE</b> (dernier millésime). Modèle : Ridge (régression linéaire régularisée) + PCA,
         un réglage par bloc.`)}
     ${li(`<b>Ancre nationale</b> : posée par vous (curseurs). Présélections = intentions de vote
-        1<sup>er</sup> tour 2025 (Ifop, OpinionWay, Elabe, Cluster17, Harris), renormalisées sur
-        3 blocs. Abstention = axe séparé ; la baisser réaffecte les revenants selon la courbe γ
-        (résultat 2024).`)}
+        1<sup>er</sup> tour, rafraîchies en 2026 (tendance agrégée PolitPro / Toute l'Europe :
+        RN ~35, gauche unie ~24, Ensemble ~14, LR ~12 ; le baromètre législatif des instituts
+        n'est plus mis à jour depuis oct. 2025, le suivi s'étant reporté sur la présidentielle),
+        renormalisées sur 3 blocs. Abstention = axe séparé ; la baisser réaffecte les revenants
+        selon la courbe γ (résultat 2024), ce qui relève les parts <i>effectives</i> de gauche.`)}
+    ${li(`<b>Part de la gauche radicale (LFI)</b> : <b>réglable au curseur</b>. Défaut = dernier
+        test « gauche divisée » disponible (2025 : LFI ~35 % du bloc de gauche) ; aucun sondage
+        législatif 2026 ne la scinde. Sans effet en « gauche unie ».`)}
     ${li(`<b>Fourchette d'incertitude</b> (prédiction conforme, erreur locale) — demi-largeur à
         90 %, par bloc : G ±${cv.G}, C+D ±${cv.CD}, ED ±${cv.ED}, Abst. ±${cv.AB} pts.`)}
     ${li(`<b>Second tour</b> (jouabilité &amp; sièges) : qualification à <b>12,5 % des inscrits</b> ;
-        barrage centre-droit→gauche 45 % (contre le RN) ; <b>réunification imparfaite</b> d'une
-        gauche divisée (72 %) ; « union des droites » = report LR→RN.`)}
+        reports <b>réglables au curseur</b> (défauts : barrage centre-droit→gauche 45 % contre le
+        RN, report RN→gauche 15 %, <b>réunification imparfaite</b> d'une gauche divisée 72 %) ;
+        « union des droites » = report LR→RN.`)}
     ${li(`<b>Contours</b> : circonscriptions reconstituées depuis les législatives 2022 (stables
         2012–2024) ; outre-mer et étranger ramenés en encarts.`)}
     ${li(`<b>Validité</b> : rejoué sur 2024, le modèle désigne le bon bloc en tête dans

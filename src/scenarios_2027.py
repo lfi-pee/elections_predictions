@@ -34,12 +34,15 @@ def _renorm3(g: float, cd: float, ed: float) -> dict[str, float]:
 # creux à 33 % de la dissolution surprise de 2024). Réglable au curseur.
 DEFAULT_ABSTENTION = 48.0
 
-# Base commune : le **soutien réel** de la gauche (somme des intentions 1er tour des
-# composantes, gauche divisée = 27,4 % des exprimés bruts) et le rapport de force à droite
-# (CD 26,0, ED/RN 31,7). Les trois premiers scénarios partent du **même total** — seule la
-# **configuration** de la gauche change — pour isoler l'effet propre de l'union (à total
-# égal, l'union convertit mieux en sièges ; la division en perd). Réglable au curseur.
-_L, _CD, _ED = 27.4, 26.0, 31.7
+# Base commune, rafraîchie au 2026-08-23 (cf. `legislatives_2027_hypotheses.csv`). La lecture
+# de bloc la plus récente est la tendance agrégée PolitPro (août 2026, le baromètre législatif
+# des instituts n'étant plus mis à jour depuis oct. 2025) : RN ~35, gauche unie ~24, Ensemble
+# ~14, LR ~12. Traduits en blocs « propres » (autres/divers exclus, renormalisés à 100 par
+# `_renorm3`) : soutien de gauche total _L ~27, centre+droite _CD = Ensemble+LR ~26, extrême
+# droite _ED = RN ~35. Les trois premiers scénarios partent du **même total** — seule la
+# **configuration** de la gauche change — pour isoler l'effet propre de l'union (à total égal,
+# l'union convertit mieux en sièges ; la division en perd). Tout est réglable au curseur.
+_L, _CD, _ED = 27.0, 26.0, 35.0
 
 SCENARIOS = [
     {
@@ -60,7 +63,11 @@ SCENARIOS = [
         "concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
         "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "split2",
-        # Part du pôle radical dans le total de gauche : LFI 9,7 / (9,7+17,7) = 0,354.
+        # Part du pôle radical (LFI) dans le total de gauche = ancrage sondages : dernier test
+        # législatif « gauche divisée » disponible (2025), LFI 9,7 / (9,7+17,7) = 0,354 (agrégat
+        # Touteleurope) ; Elabe juin 2025 donnait 10/26 = 0,385. Aucun sondage législatif 2026
+        # ne scinde la gauche (suivi reporté sur la présidentielle, où Mélenchon remonte : LFI à
+        # la hausse). Valeur de départ, désormais **réglable au curseur** sur le site.
         "radical_share": 0.354,
     },
     {

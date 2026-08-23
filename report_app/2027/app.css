@@ -41,7 +41,7 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #top{flex:none}
 .intro{border-bottom:none;border-radius:10px;background:var(--surface);border:1px solid var(--line);padding:12px 14px}
 #app{flex:1;display:flex;min-height:0}
-#side{width:500px;flex:none;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;
+#side{width:560px;flex:none;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;
   background:var(--paper)}
 /* Séparateur glissable panneaux ↔ carte (largeur persistée en localStorage). */
 #dragbar{flex:none;width:7px;cursor:col-resize;background:var(--line);position:relative;z-index:6}
@@ -161,6 +161,16 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 .inputs-body{font-size:11.5px;line-height:1.5;color:var(--tx-body);margin-top:8px}
 .inputs-body ul{margin:0;padding-left:16px} .inputs-body li{margin:5px 0}
 .inputs-body b{color:var(--tx-strong)}
+
+/* Part LFI (dans la carte scénario) + reports réglables. */
+.lfi-share{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
+.ctl-h.sub{font-size:12px;margin-bottom:6px}
+.lfi-na{font-size:11.5px;color:var(--tx-mute);font-style:italic}
+.tf-note{font-size:11px;line-height:1.45;color:var(--tx-mute);margin:0 0 9px}
+.reset-btn.tf-reset{float:none;margin-top:9px}
+/* Parts « effectives » après couplage participation (γ) — rendu sous les curseurs. */
+.natsum .eff{display:block;margin-top:3px;color:var(--tx-mute)}
+.natsum .eff b{color:var(--tx-body)}
 
 /* Compactage pour tenir panneaux + carte sur un seul écran. */
 #side .ctl-card{padding:10px 12px}

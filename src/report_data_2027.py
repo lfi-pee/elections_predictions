@@ -24,7 +24,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import backtest_2024_endtoend, backtest_2024_seats, scenarios_2027, winnability_2027
+from src import (
+    backtest_2024_endtoend,
+    backtest_2024_seats,
+    radical_spatial,
+    scenarios_2027,
+    winnability_2027,
+)
 
 PRED = Path("data/predictions_2027.csv")
 MASTER24 = Path("data/report/bv_master.parquet")
@@ -140,8 +146,11 @@ def winnability_distribution(cir: pd.DataFrame, scn: dict) -> dict:
     for r in cir.itertuples():
         G, CD, ED, AB = m["G"] + r.dG, m["CD"] + r.dCD, m["ED"] + r.dED, m["AB"] + r.dAB
         G, CD, ED, AB = (min(100, max(0, v)) for v in (G, CD, ED, AB))
-        # Part radicale modulée localement (miroir de compute.js).
-        rad = 1.0 if cfg == "union" else min(0.68, max(0.12, scn["radical_share"] + 0.006 * r.dG))
+        # Part radicale (LFI) DANS la gauche : moyenne = curseur (sondages), motif SPATIAL = 2017
+        # amplifié (radical_spatial), borné [0,05 ; 0,95]. Miroir exact de compute.js.
+        rdev = getattr(r, "rdev", 0.0)
+        rad = 1.0 if cfg == "union" else min(
+            0.95, max(0.05, scn["radical_share"] + radical_spatial.RAD_GAIN * rdev))
         res = winnability_2027.score_circo(G, CD, ED, AB, cfg, rad, ru)
         counts[res["score"]] += 1
         ins[res["score"]] += int(r.ins)
@@ -165,6 +174,15 @@ def build() -> None:
     code2idx = {c: i for i, c in enumerate(com.code_commune)}
 
     cir = build_circo(df)
+    # Déviation spatiale de la part radicale (LFI) dans la gauche, mesurée sur 2017 (cf.
+    # radical_spatial) : pilote le partage des sièges de gauche entre pôles. 0 hors couverture.
+    try:
+        rdev_map = radical_spatial.radical_deviation()
+    except Exception as e:
+        print(f"  (motif radical 2017 indisponible : {e})")
+        rdev_map = {}
+    cir["rdev"] = cir.circo.map(rdev_map).fillna(0.0)
+    print(f"  motif radical (LFI dans la gauche, 2017) : {sum(c in rdev_map for c in cir.circo)} circos")
     circo_arrays = {
         "id": cir.circo.tolist(),
         "nm": cir.nm.fillna("").tolist(),
@@ -172,6 +190,7 @@ def build() -> None:
         "ins": [int(v) for v in cir.ins],
         "nbv": [int(v) for v in cir.nbv],
         **{k: [round(float(v), 3) for v in cir[k]] for k in ("dG", "dCD", "dED", "dAB", "af")},
+        "rdev": [round(float(v), 4) for v in cir["rdev"]],
     }
     # Parts de 1er tour RÉELLES 2024 par circo (null hors des 501 circos du backtest) : le bouton
     # « Rejouer 2024 » du site évalue le modèle de 2nd tour dessus, reproduisant le backtest à

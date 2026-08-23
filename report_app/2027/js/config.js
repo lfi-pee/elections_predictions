@@ -40,6 +40,12 @@ const APP = {
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
+  // La part radicale par circo = curseur (MOYENNE nationale) + RAD_GAIN · motif spatial 2017
+  // (circo.rdev, part LFI-dans-la-gauche mesurée en 2017), borné [0,05 ; 0,95]. RAD_GAIN amplifie
+  // la dispersion réelle : à ~0,37 sondé, la part de SIÈGES LFI passe de ~17 % (ancien modèle,
+  // falaise à 0,5) à ~21 %, courbe lisse. Plafond ~29 % (compétition divisée) ; le repère 2024
+  // (42 %) est un plafond d'union négociée, inatteignable divisé. Cf. src/lfi_split_validate.py.
+  RAD_GAIN: 3.0,
   // Mode « Rejouer 2024 » : quand actif, les barres et la carte évaluent le modèle de 2nd tour
   // sur les parts de 1er tour RÉELLES 2024 par circo (circoArr.r24*, gauche unie) — reproduit
   // le backtest à l'identique. Toute action sur les curseurs / scénarios le désactive.

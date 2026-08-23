@@ -142,11 +142,12 @@ function circoEval(pr) {
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
   const ru = s.right_union;
   // Part radicale (LFI) : base = curseur (APP.radOverride) sinon valeur du scénario (ancrage
-  // sondages), puis modulée localement — le pôle radical pèse davantage là où la gauche est
-  // forte (bastions urbains/populaires), moins là où elle est faible ; sinon un partage
-  // national uniforme donnerait 0 siège au pôle radical partout.
+  // sondages) = MOYENNE nationale ; le MOTIF par circo vient du réel 2017 (pr.rdev, part LFI-
+  // dans-la-gauche, amplifiée ×RAD_GAIN). Sans ce motif spatial, un partage uniforme donnerait
+  // 0 siège au pôle radical jusqu'à 0,5 puis tous d'un coup (falaise) — cf. lfi_split_validate.
   const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
-  const rad = s.left_config === "union" ? 1.0 : clamp(radBase + 0.006 * pr.dG, 0.12, 0.68);
+  const rad = s.left_config === "union" ? 1.0
+    : clamp(radBase + APP.RAD_GAIN * (pr.rdev || 0), 0.05, 0.95);
   const r = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru);
   const sw = seatWinner(g, cd, ed, ab, s.left_config, rad, ru);
   return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
@@ -196,7 +197,8 @@ function eachCirco(fn) {
     return;
   }
   for (let i = 0; i < a.id.length; i++)
-    fn(circoEval({ dG: a.dG[i], dCD: a.dCD[i], dED: a.dED[i], dAB: a.dAB[i] }), i);
+    fn(circoEval({ dG: a.dG[i], dCD: a.dCD[i], dED: a.dED[i], dAB: a.dAB[i],
+      rdev: a.rdev ? a.rdev[i] : 0 }), i);
 }
 
 // Projection en sièges (tally des vainqueurs) au scénario/curseur courant (577 circos).
@@ -232,14 +234,15 @@ function gauss() {
 
 // Outcome (score + vainqueur) d'une circo avec bruit ajouté aux parts prédites — même pipeline
 // que circoEval mais allégé (pas de champs d'affichage), pour le tirage Monte-Carlo.
-function circoOutcome(dG, dCD, dED, dAB, eG, eCD, eED) {
+function circoOutcome(dG, dCD, dED, dAB, eG, eCD, eED, rdev) {
   const n = APP.nat, s = APP.scnObj;
   const g0 = clamp(n.G + dG + eG, 0, 100), cd0 = clamp(n.CD + dCD + eCD, 0, 100),
     ed0 = clamp(n.ED + dED + eED, 0, 100), ab = clamp(n.AB + dAB, 0, 100);
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, dAB);
   const ru = s.right_union;
   const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
-  const rad = s.left_config === "union" ? 1.0 : clamp(radBase + 0.006 * dG, 0.12, 0.68);
+  const rad = s.left_config === "union" ? 1.0
+    : clamp(radBase + APP.RAD_GAIN * (rdev || 0), 0.05, 0.95);
   const sc = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru).sc;
   const win = seatWinner(g, cd, ed, ab, s.left_config, rad, ru).win;
   return { sc, win };
@@ -265,7 +268,7 @@ function seatDistribution(nDraws) {
     let g = 0, c = 0, e = 0, play = 0;
     for (let i = 0; i < n; i++) {
       const r = circoOutcome(a.dG[i], a.dCD[i], a.dED[i], a.dAB[i],
-        sG * gauss(), sC * gauss(), sE * gauss());
+        sG * gauss(), sC * gauss(), sE * gauss(), a.rdev ? a.rdev[i] : 0);
       if (r.win === "G") g++; else if (r.win === "CD") c++; else e++;
       if (r.sc <= 3) play++;
     }

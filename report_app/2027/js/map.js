@@ -39,10 +39,12 @@ function initMap() {
 
 function addLayers() {
   const map = APP.map;
-  map.addSource("circo", { type: "geojson", data: circoFC() });
+  // Géométrie chargée UNE fois ; promoteId → chaque entité a un id stable (le code circo)
+  // pour setFeatureState. La couleur lit l'état d'entité, mis à jour au curseur.
+  map.addSource("circo", { type: "geojson", promoteId: "id", data: APP.data.circoGeo });
   map.addLayer({
     id: "circo-fill", type: "fill", source: "circo",
-    paint: { "fill-color": winColorExpr(), "fill-opacity": 0.72 },
+    paint: { "fill-color": winColorExpr(), "fill-opacity": 0.82 },
   });
   map.addLayer({
     id: "circo-line", type: "line", source: "circo",
@@ -94,12 +96,11 @@ function addInsets() {
 }
 
 // Couleur des polygones selon le mode : jouabilité (score 1→5) ou vainqueur du siège.
+// Les deux lisent l'état d'entité (feature-state) mis à jour au curseur.
 function applyColor() {
-  const expr = APP.state.mode === "seat"
-    ? ["match", ["get", "win"], "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "#888"]
-    : winColorExpr();
-  APP.map.setPaintProperty("circo-fill", "fill-color", expr);
-  APP.map.setPaintProperty("circo-fill", "fill-opacity", APP.state.mode === "seat" ? 0.8 : 0.72);
+  APP.map.setPaintProperty("circo-fill", "fill-color",
+    APP.state.mode === "seat" ? seatColorExpr() : winColorExpr());
+  APP.map.setPaintProperty("circo-fill", "fill-opacity", 0.82);
 }
 
 function setMode(mode) { APP.state.mode = mode; applyColor(); updateLegend(); }
@@ -107,10 +108,11 @@ function setMode(mode) { APP.state.mode = mode; applyColor(); updateLegend(); }
 let popup = null;
 function showPopup(p, lngLat) {
   if (!popup) popup = new maplibregl.Popup({ closeButton: COARSE, closeOnClick: false, className: "mini" });
-  const w = APP.NAME[p.win];
+  // Recalcul léger (une circo) au scénario/curseur courant — les props ne portent que les dev.
+  const r = circoEval(p);
   const body = APP.state.mode === "seat"
-    ? `<br>Siège probable : <b style="color:${APP.COL[p.win]}">${w}</b>`
-    : `<br>Gauche : <b>${APP.WIN_LAB[p.sc]}</b>`;
+    ? `<br>Siège probable : <b style="color:${APP.COL[r.win]}">${APP.NAME[r.win]}</b>`
+    : `<br>Gauche : <b style="color:${APP.WIN[r.sc]}">${APP.WIN_LAB[r.sc]}</b>`;
   popup.setLngLat(lngLat).setHTML(`<b>${p.id} · ${p.nm}</b>${body}`).addTo(APP.map);
 }
 function hover(e) { showPopup(e.features[0].properties, e.lngLat); }

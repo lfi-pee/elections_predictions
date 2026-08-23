@@ -83,17 +83,24 @@ def export() -> None:
         if d[0].isdigit() or d in ("2A", "2B"):
             out.append(f)
 
-    # Encarts outre-mer/étranger, empilés à gauche (Atlantique).
-    x0, x1 = -14.0, -6.5           # colonne d'encarts
-    lat_top, lat_bot = 51.0, 42.0
-    n = len(LEFT_COL)
-    gap = 0.5
-    slot_h = (lat_top - lat_bot - gap * (n - 1)) / n
+    # Encarts outre-mer/étranger : grille 2 colonnes × 5 lignes de grandes boîtes, à gauche
+    # de la métropole (Atlantique). Des boîtes larges pour que les territoires soient lisibles
+    # et cliquables (et non « minuscules »).
+    reg_x0, reg_x1 = -20.0, -6.0
+    reg_y0, reg_y1 = 39.5, 52.0
+    n_cols, n_rows = 2, 5
+    gap = 0.4
+    cw = (reg_x1 - reg_x0) / n_cols
+    ch = (reg_y1 - reg_y0) / n_rows
     for k, dept in enumerate(LEFT_COL):
         if dept not in ids_by_dept:
             continue
-        top = lat_top - k * (slot_h + gap)
-        box = (x0, top - slot_h, x1, top)
+        col, row = k // n_rows, k % n_rows
+        bx0 = reg_x0 + col * cw + gap
+        bx1 = reg_x0 + (col + 1) * cw - gap
+        by1 = reg_y1 - row * ch - gap
+        by0 = reg_y1 - (row + 1) * ch + gap
+        box = (bx0, by0, bx1, by1)
         insets.append({"dept": dept, "label": TERR.get(dept, dept), "box": [round(v, 3) for v in box]})
         entries = ids_by_dept[dept]
         withpoly = [poly_by_id[cid] for cid, _ in entries if cid in poly_by_id]
@@ -109,28 +116,30 @@ def export() -> None:
                             "geometry": _round_geom(affine_transform(shape(f["geometry"]), m)),
                             "properties": f["properties"]})
         else:
-            # Tuiles carrées (territoire sans contour) alignées dans l'encart.
+            # Tuiles carrées (territoire sans contour) alignées dans la boîte de l'encart.
             cnt = len(entries)
-            cols = min(cnt, 6)
-            rows = (cnt + cols - 1) // cols
-            cw = (x1 - x0 - 0.4) / cols
-            r = min(cw, (slot_h - 0.3) / max(rows, 1)) * 0.42
+            tcols = min(cnt, 3)
+            trows = (cnt + tcols - 1) // tcols
+            tcw = (bx1 - bx0) / tcols
+            tch = (by1 - by0) / max(trows, 1)
+            r = min(tcw, tch) * 0.4
             for j, (cid, i) in enumerate(entries):
-                cx = x0 + 0.2 + cw * (j % cols) + cw / 2
-                cy = top - 0.15 - (slot_h - 0.3) * ((j // cols + 0.5) / rows)
+                cx = bx0 + tcw * (j % tcols + 0.5)
+                cy = by1 - tch * (j // tcols + 0.5)
                 out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
 
-    # Étranger : bandeau de 11 tuiles sous la métropole.
+    # Étranger : bandeau de 11 tuiles sous la métropole (2 rangées pour de grosses tuiles).
     zz = ids_by_dept.get("ZZ", [])
     if zz:
-        bx0, bx1, by0, by1 = -4.0, 8.5, 38.6, 40.6
+        bx0, bx1, by0, by1 = -6.0, 9.5, 34.5, 39.0
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
-        cols = len(zz)
-        cw = (bx1 - bx0) / cols
-        r = min(cw, (by1 - by0)) * 0.32
+        zcols, zrows = 6, 2
+        zcw = (bx1 - bx0) / zcols
+        zch = (by1 - by0) / zrows
+        r = min(zcw, zch) * 0.4
         for j, (cid, i) in enumerate(zz):
-            cx = bx0 + cw * (j + 0.5)
-            cy = (by0 + by1) / 2
+            cx = bx0 + zcw * (j % zcols + 0.5)
+            cy = by1 - zch * (j // zcols + 0.5)
             out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
 
     OUT.write_text(json.dumps({"type": "FeatureCollection", "features": out},

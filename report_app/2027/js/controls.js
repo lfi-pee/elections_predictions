@@ -23,6 +23,13 @@ function setScenario(key) {
   recomputeAll();
 }
 
+// Réinitialise les curseurs aux valeurs **prédites** du scénario courant (ancrage sondages).
+function resetSliders() {
+  APP.nat = { ...APP.scnObj.means };
+  syncSliders();
+  recomputeAll();
+}
+
 function syncSliders() {
   for (const b of BLOCKS) {
     const sl = $("sl-" + b);
@@ -61,6 +68,7 @@ function initControls() {
       recomputeAll();
     });
   }
+  if ($("reset")) $("reset").onclick = resetSliders;
 
   // Bascule de mode carte.
   $("mode-win").onclick = () => { setMode("win"); syncModeBtns(); };

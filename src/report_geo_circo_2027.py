@@ -17,10 +17,33 @@ from pathlib import Path
 
 import ijson
 import pandas as pd
-from shapely.geometry import mapping, shape
+from shapely.geometry import MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 
 from src.report_geo import CONTOURS
+
+# Fermeture morphologique : les bureaux d'une même circo ne se raccordent pas parfaitement
+# après simplification → des fentes/trous minuscules subsistent dans le polygone dissous.
+# buffer(+δ) puis buffer(−δ) comble les fentes plus fines que 2δ (les vraies enclaves, bien
+# plus grandes, sont conservées). On supprime aussi les trous résiduels sous un seuil d'aire.
+CLOSE = 0.006
+HOLE_MIN_AREA = 0.002  # deg² : en-deçà = artefact de découpe, on bouche
+
+
+def _strip_small_holes(poly: Polygon) -> Polygon:
+    holes = [r for r in poly.interiors if Polygon(r).area >= HOLE_MIN_AREA]
+    return Polygon(poly.exterior, holes)
+
+
+def _clean(geom):
+    g = geom.buffer(CLOSE).buffer(-CLOSE)
+    if g.is_empty:
+        g = geom
+    if g.geom_type == "Polygon":
+        return _strip_small_holes(g)
+    if g.geom_type == "MultiPolygon":
+        return MultiPolygon([_strip_small_holes(p) for p in g.geoms])
+    return g
 
 MASTER = Path("data/report/bv_master_2027.parquet")
 CIRCO_JSON = Path("report_app/2027/data/circo.json")
@@ -77,9 +100,9 @@ def export() -> None:
         if cid not in props_by_id:
             continue
         try:
-            merged = unary_union(gs).simplify(SIMPLIFY_OUT, True)
+            merged = _clean(unary_union(gs)).simplify(SIMPLIFY_OUT, True)
         except Exception:
-            merged = unary_union([g.buffer(0) for g in gs]).simplify(SIMPLIFY_OUT, True)
+            merged = _clean(unary_union([g.buffer(0) for g in gs])).simplify(SIMPLIFY_OUT, True)
         if merged.is_empty:
             continue
         feats.append({"type": "Feature", "geometry": _round_geom(merged),

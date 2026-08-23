@@ -63,6 +63,9 @@ body.p2027{background:var(--paper);color:var(--ink)}
 .sl-row input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
   background:var(--c,#fff);cursor:pointer;border:2px solid #12121b}
 .natsum{margin-top:10px;font-size:11.5px;color:var(--tx-body)}
+.reset-btn{float:right;font-size:11px;padding:3px 9px;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface-2);color:var(--tx-strong);cursor:pointer;text-transform:none;letter-spacing:0}
+.reset-btn:hover{background:var(--surface-3)}
 
 /* Barre des sièges */
 .seatbar{position:relative;display:flex;height:30px;border-radius:6px;overflow:hidden;

@@ -32,23 +32,31 @@ def _renorm3(g: float, cd: float, ed: float) -> dict[str, float]:
 # creux à 33 % de la dissolution surprise de 2024). Réglable au curseur.
 DEFAULT_ABSTENTION = 48.0
 
+# Base commune : le **soutien réel** de la gauche (somme des intentions 1er tour des
+# composantes, gauche divisée = 27,4 % des exprimés bruts) et le rapport de force à droite
+# (CD 26,0, ED/RN 31,7). Les trois premiers scénarios partent du **même total** — seule la
+# **configuration** de la gauche change — pour isoler l'effet propre de l'union (à total
+# égal, l'union convertit mieux en sièges ; la division en perd). Réglable au curseur.
+_L, _CD, _ED = 27.4, 26.0, 31.7
+
 SCENARIOS = [
     {
         "key": "union",
         "label": "Union de la gauche large",
-        "desc": "Un seul candidat de gauche par circonscription (type NFP/Front populaire). "
-        "Tout le bloc Gauche derrière une candidature.",
-        "means": {**_renorm3(24.3, 27.4, 32.3), "AB": DEFAULT_ABSTENTION},
+        "desc": "À soutien de gauche égal, une seule candidature par circonscription "
+        "(type NFP/Front populaire) capte tout le bloc. C'est la configuration qui "
+        "convertit le mieux le soutien en sièges.",
+        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "union",
         "radical_share": 1.0,
     },
     {
         "key": "split2",
         "label": "Gauche radicale vs néolibérale",
-        "desc": "Scénario de référence : la gauche se scinde en un pôle radical (LFI) et un "
-        "pôle social-démocrate/néolibéral (PS-Place publique-EELV-PCF) qui concourent "
-        "séparément — le bloc est divisé entre deux candidatures.",
-        "means": {**_renorm3(27.4, 26.0, 31.7), "AB": DEFAULT_ABSTENTION},
+        "desc": "Scénario de référence : même soutien de gauche, mais scindé en un pôle "
+        "radical (LFI) et un pôle social-démocrate (PS-Place publique-EELV-PCF) qui "
+        "concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
+        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "split2",
         # Part du pôle radical dans le total de gauche : LFI 9,7 / (9,7+17,7) = 0,354.
         "radical_share": 0.354,
@@ -56,18 +64,19 @@ SCENARIOS = [
     {
         "key": "frag",
         "label": "Fragmentation (statu quo)",
-        "desc": "« Autre » : gauche dispersée sans pôle dominant (LFI / PS-PP / EELV-PCF "
-        "chacun de son côté) et démobilisation partielle — aucune candidature ne fédère.",
-        "means": {**_renorm3(20.0, 27.0, 33.0), "AB": DEFAULT_ABSTENTION + 4},
+        "desc": "« Autre » : même soutien, mais éclaté en trois (LFI / PS-PP / éco-PCF) "
+        "sans pôle fédérateur — dispersion maximale, presque aucune qualification.",
+        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "split3",
-        "radical_share": 0.35,
+        "radical_share": 0.354,
     },
     {
         "key": "droite_unie",
         "label": "Droites unies en face",
-        "desc": "Une partie de LR fait alliance avec le RN (union des droites) : la barre à "
-        "franchir pour la gauche (ici unie) monte fortement.",
-        "means": {**_renorm3(24.3, 21.4, 38.3), "AB": DEFAULT_ABSTENTION},
+        "desc": "Même soutien de gauche (ici unie), mais une partie de LR bascule au RN "
+        "(union des droites) : la barre à franchir au 2nd tour monte fortement.",
+        # ~6 pts du centre-droit passent au RN ; le total de gauche est inchangé.
+        "means": {**_renorm3(_L, _CD - 6.0, _ED + 6.0), "AB": DEFAULT_ABSTENTION},
         "left_config": "union",
         "radical_share": 1.0,
     },

@@ -6,8 +6,8 @@ const APP = {
   COL: { G: "#E4572E", CD: "#4A90D9", ED: "#6A4C93", AB: "#9AA0A6" },
   ACCENT: "#cc2229",
   PALE: { G: "#743627", CD: "#2F5074", ED: "#3D3155" },
-  // Échelle de couleur des scores de jouabilité (1 = victoire facile → 5 = impossible).
-  WIN: { 1: "#1a9850", 2: "#91cf60", 3: "#fee08b", 4: "#fc8d59", 5: "#4d4d4d" },
+  // Échelle de couleur des scores de jouabilité (1 = victoire facile → 5 = impossible, rouge plein).
+  WIN: { 1: "#1a9850", 2: "#91cf60", 3: "#fee08b", 4: "#fc8d59", 5: "#d7191c" },
   WIN_LAB: { 1: "victoire facile", 2: "jouable", 3: "disputé", 4: "difficile", 5: "quasi impossible" },
   MARGIN_FULL: 12,
   NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
@@ -18,6 +18,10 @@ const APP = {
   // État national courant (parts de bloc %, abstention % inscrits) — piloté par les curseurs.
   nat: { G: 32.2, CD: 30.6, ED: 37.3, AB: 48 },
   scenario: "split2",
+  // Abstention de référence à laquelle les curseurs de parts (G/CD/ED) sont calés : en
+  // deçà, les revenants aux urnes se répartissent selon la courbe γ (les abstentionnistes
+  // mobilisables penchent à gauche — le résultat clé de 2024), ce qui relève la gauche.
+  AB_REF: 48,
   data: {},
   map: null,
   bvByDept: new Map(),   // dept -> features brutes (dev), pour recalcul au curseur
@@ -65,7 +69,14 @@ function voterColorExpr(key, t1, t2, t3) {
   return ["interpolate", ["linear"], ["get", key], 0, "#20222b", t1, APP.PALE.G, t2, APP.COL.G, t3, "#ff7a4d"];
 }
 
-// Couleur « jouabilité » : score 1→5 discret (attribué côté client, champ `sc`).
+// Couleur « jouabilité » : score 1→5 lu dans l'ÉTAT d'entité (feature-state), mis à jour
+// au curseur sans retoucher la géométrie. Défaut (état non posé) = gris neutre.
 function winColorExpr() {
-  return ["match", ["get", "sc"], 1, APP.WIN[1], 2, APP.WIN[2], 3, APP.WIN[3], 4, APP.WIN[4], APP.WIN[5]];
+  return ["match", ["feature-state", "sc"],
+    1, APP.WIN[1], 2, APP.WIN[2], 3, APP.WIN[3], 4, APP.WIN[4], 5, APP.WIN[5], "#c8ccd2"];
+}
+// Couleur « vainqueur du siège » depuis l'état d'entité.
+function seatColorExpr() {
+  return ["match", ["feature-state", "win"],
+    "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "#c8ccd2"];
 }

@@ -65,36 +65,44 @@ function seatWinner(g, cd, ed, ab, cfg, rad) {
   return arr.length ? arr[0][0] : (g >= cd && g >= ed ? "G" : cd >= ed ? "CD" : "ED");
 }
 
+// Couplage participation → parts (résultat clé de 2024) : sous l'abstention de référence,
+// les électeurs qui reviennent aux urnes se répartissent selon la courbe γ — nettement plus
+// à gauche que l'électorat assis (de ~24 % dans les bureaux les plus à droite à ~56 % dans
+// les plus à gauche). Baisser l'abstention relève donc la part de gauche, partout.
+function turnoutAdjust(g, cd, ed, ab, dAB) {
+  const T = clamp(1 - ab / 100, 0.05, 0.98);
+  const T0 = clamp(1 - (APP.AB_REF + dAB) / 100, 0.05, 0.98);
+  const dT = T - T0;
+  if (Math.abs(dT) < 1e-6) return [g, cd, ed];
+  const gm = gammaAt(g) / 100, rest = Math.max(0, 1 - gm), den = cd + ed || 1;
+  let Gv = Math.max(0, g / 100 * T0 + gm * dT);
+  let CDv = Math.max(0, cd / 100 * T0 + rest * dT * cd / den);
+  let EDv = Math.max(0, ed / 100 * T0 + rest * dT * ed / den);
+  const tot = Gv + CDv + EDv || 1;
+  return [100 * Gv / tot, 100 * CDv / tot, 100 * EDv / tot];
+}
+
 // pred + score + vainqueur d'une circo depuis les déviations portées par sa feature.
 function circoEval(pr) {
   const n = APP.nat, s = APP.scnObj;
-  const g = clamp(n.G + pr.dG, 0, 100), cd = clamp(n.CD + pr.dCD, 0, 100),
-    ed = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
+  const g0 = clamp(n.G + pr.dG, 0, 100), cd0 = clamp(n.CD + pr.dCD, 0, 100),
+    ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
+  const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
   const r = scoreCirco(g, cd, ed, ab, s.left_config, s.radical_share);
   const win = seatWinner(g, cd, ed, ab, s.left_config, s.radical_share);
   return { g, cd, ed, ab, win, ...r };
 }
 
-// Choroplèthe : on ré-étiquette chaque polygone servi (dev bruts) au scénario courant.
-function circoFC() {
-  const src = APP.data.circoGeo;
-  if (!src) return { type: "FeatureCollection", features: [] };
-  return {
-    type: "FeatureCollection",
-    features: src.features.map((f) => {
-      const pr = f.properties, r = circoEval(pr);
-      return {
-        type: "Feature", geometry: f.geometry,
-        properties: {
-          id: pr.id, nm: pr.nm, dept: pr.dept, ins: pr.ins, nbv: pr.nbv,
-          dG: pr.dG, dCD: pr.dCD, dED: pr.dED, dAB: pr.dAB,
-          pG: r.g, pCD: r.cd, pED: r.ed, pAB: r.ab,
-          sc: r.sc, win: r.win, lbest: +r.lbest.toFixed(1),
-          mt2: r.mt2 === null ? -99 : +r.mt2.toFixed(1), opp: r.opp,
-        },
-      };
-    }),
-  };
+// La géométrie (15 Mo) est chargée UNE fois comme données de la source. Au curseur, on ne
+// met à jour qu'un état léger par entité (score/vainqueur) via setFeatureState — aucune
+// re-sérialisation ni re-tuilage des polygones : c'est ce qui rend le glissement fluide.
+function updateCircoStates() {
+  const map = APP.map, src = APP.data.circoGeo;
+  if (!map || !src || !map.getSource("circo")) return;
+  for (const f of src.features) {
+    const r = circoEval(f.properties);
+    map.setFeatureState({ source: "circo", id: f.properties.id }, { sc: r.sc, win: r.win });
+  }
 }
 
 // Itère sur les 577 circos (tableaux de circo.json), y compris outre-mer/étranger sans
@@ -121,10 +129,16 @@ function scoreTally() {
   return t;
 }
 
-// Recalcule carte + barres après changement de curseur / scénario.
+// Recalcule carte + barres après changement de curseur / scénario. Coalescé sur une frame
+// d'animation : dix « input » de curseur dans la même frame → un seul recalcul.
+let _raf = 0;
 function recomputeAll() {
-  if (APP.map && APP.map.getSource("circo")) APP.map.getSource("circo").setData(circoFC());
-  updateSeatBar();
-  updateNatBar();
-  updateWinSummary();
+  if (_raf) return;
+  _raf = requestAnimationFrame(() => {
+    _raf = 0;
+    updateCircoStates();
+    updateSeatBar();
+    updateNatBar();
+    updateWinSummary();
+  });
 }

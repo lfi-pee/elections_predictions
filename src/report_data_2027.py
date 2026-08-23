@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import backtest_2024_seats, scenarios_2027, winnability_2027
+from src import backtest_2024_endtoend, backtest_2024_seats, scenarios_2027, winnability_2027
 
 PRED = Path("data/predictions_2027.csv")
 MASTER24 = Path("data/report/bv_master.parquet")
@@ -191,6 +191,14 @@ def build() -> None:
     except Exception as e:  # candidats_results absent (certains environnements)
         print(f"  (backtest sièges 2024 indisponible : {e})")
         bt2024 = None
+    try:
+        # Backtest DE BOUT EN BOUT : 2024 retiré de l'entraînement, prévision de 1er tour à
+        # l'aveugle → modèle de sièges → vrais sièges. La validation « honnête » de la chaîne
+        # complète (l'oracle ci-dessus ne teste que le modèle de sièges).
+        bt2024_e2e = backtest_2024_endtoend.backtest()
+    except Exception as e:
+        print(f"  (backtest bout-en-bout 2024 indisponible : {e})")
+        bt2024_e2e = None
     summary = {
         "n_bv": int(len(df)),
         "n_circo": int(len(cir)),
@@ -211,6 +219,7 @@ def build() -> None:
         # observé σ_circo/σ_bv des résidus 2024 — et non par 1/√N (qui supposerait l'indépendance).
         "circo_halfwidth_90": circo_halfwidth(cv90),
         "backtest_2024": bt2024,  # validation du modèle de sièges (bouton « Rejouer 2024 »)
+        "backtest_2024_e2e": bt2024_e2e,  # validation de la chaîne complète (prévision à l'aveugle)
         "lag_fallback_bv": int(df.lag_fallback.sum()),
     }
     (SERVED / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1))

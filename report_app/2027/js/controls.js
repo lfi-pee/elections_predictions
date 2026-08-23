@@ -131,12 +131,19 @@ function replay2024() {
   if (!bt) { box.className = "replay"; box.textContent = "Backtest 2024 indisponible."; return; }
   const seats = (o) => `<b style="color:${APP.COL.G}">${o.G}</b> · ` +
     `<b style="color:${APP.COL.CD}">${o.CD}</b> · <b style="color:${APP.COL.ED}">${o.ED}</b>`;
+  const e2e = APP.data.summary.backtest_2024_e2e;
   box.className = "replay";
   box.innerHTML =
-    `<div class="rp-h">Validation — rejeu de 2024 <span class="muted">(sur les parts de 1<sup>er</sup> tour réelles, ${bt.n_circo} circos)</span></div>` +
-    `<div>réel&nbsp;: ${seats(bt.actual)}</div>` +
-    `<div>modèle&nbsp;: ${seats(bt.model)} <span class="muted">— bon vainqueur dans <b>${bt.accuracy} %</b> des circonscriptions (pondéré inscrits)</span></div>` +
-    `<div class="muted">Curseurs posés au niveau national réel de 2024. La barre de sièges applique le motif spatial <b>2027</b> à ce niveau, sur les 577 circos (approximation) ; l'encadré est le backtest <b>exact</b> du modèle de 2nd tour sur les parts de 1<sup>er</sup> tour <b>réelles</b> de 2024 (${bt.n_circo} circos cartographiables). Les deux diffèrent (motif 2027 vs réel, outre-mer inclus/exclu) — l'encadré est la validation.</div>`;
+    `<div class="rp-h">Validation — rejeu de 2024 <span class="muted">(${bt.n_circo} circonscriptions cartographiables)</span></div>` +
+    `<div>résultat réel&nbsp;: ${seats(bt.actual)} <span class="muted">(G · C+D · ED)</span></div>` +
+    (e2e
+      ? `<div class="rp-sub"><b>À l'aveugle — chaîne complète</b>&nbsp;: ${seats(e2e.model)} ` +
+        `<span class="muted">— <b>${e2e.n_correct}/${e2e.n_circo}</b> bons vainqueurs (<b>${e2e.accuracy_seats}&nbsp;%</b> ; ${e2e.accuracy}&nbsp;% pondéré inscrits)</span></div>` +
+        `<div class="muted">2024 <b>entièrement retiré de l'entraînement</b> : le modèle prédit le <b>motif local</b> du 1<sup>er</sup> tour à l'aveugle (niveau national posé au réel 2024, comme les curseurs le poseront pour 2027 ; erreur ~${e2e.mae_t1.G}–${e2e.mae_t1.CD} pts/circo) — puis le modèle de sièges tranche. Validation honnête de <b>bout en bout</b>. Il <b>sous-estime le RN</b> (${e2e.model.ED} sièges projetés vs ${e2e.actual.ED} réels) : privé de 2024, il lisse la poussée spatiale du RN.</div>`
+      : "") +
+    `<div class="rp-sub">Modèle de sièges seul <span class="muted">(1<sup>er</sup> tour réel)</span>&nbsp;: ${seats(bt.model)} ` +
+    `<span class="muted">— <b>${bt.accuracy}&nbsp;%</b> (pondéré inscrits) ; isole l'erreur du 2nd tour, ancre de 1<sup>er</sup> tour parfaite.</span></div>` +
+    `<div class="muted">La barre de sièges vivante applique le motif spatial <b>2027</b> au niveau 2024 sur les 577 circos (approximation) ; les encadrés sont les backtests sur 2024.</div>`;
 }
 
 // Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,

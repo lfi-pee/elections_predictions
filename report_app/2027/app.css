@@ -172,6 +172,7 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
   background:var(--surface-2);font-size:11.5px;line-height:1.5}
 .replay.hidden{display:none}
 .rp-h{font-weight:700;color:var(--tx-strong);margin-bottom:4px}
+.rp-sub{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
 .sl-hint{font-size:10.5px;margin-top:8px;display:flex;align-items:center;gap:6px}
 .ref-key{display:inline-block;width:0;height:12px;border-left:2px dotted #1d1d28;opacity:.6}
 

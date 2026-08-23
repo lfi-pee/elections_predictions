@@ -210,5 +210,32 @@
    "AB": 33.3
   }
  },
- "lag_fallback_bv": 818
+ "lag_fallback_bv": 818,
+ "backtest_2024_e2e": {
+  "n_circo": 501,
+  "actual": {
+   "G": 162,
+   "CD": 230,
+   "ED": 109
+  },
+  "model": {
+   "G": 195,
+   "CD": 258,
+   "ED": 48
+  },
+  "accuracy": 77.4,
+  "accuracy_seats": 76.4,
+  "n_correct": 383,
+  "mae_t1": {
+   "G": 3.21,
+   "CD": 3.73,
+   "ED": 3.52
+  },
+  "national_2024": {
+   "G": 32.2,
+   "CD": 32.3,
+   "ED": 34.0,
+   "AB": 33.3
+  }
+ }
 }

@@ -59,6 +59,7 @@ function initSplitter() {
 // Documente les entrées du modèle POUR CETTE élection (transparence, en bas de page).
 function renderInputs() {
   const s = APP.data.summary, cv = s.cv_halfwidth_90 || {};
+  const e2e = s.backtest_2024_e2e;
   const li = (t) => `<li>${t}</li>`;
   $("inputs-body").innerHTML = `<ul>
     ${li(`<b>Cible</b> : Législatives 2027, 1<sup>er</sup> tour, <b>${s.n_circo}</b> circonscriptions,
@@ -84,6 +85,13 @@ function renderInputs() {
         reports <b>réglables au curseur</b> (défauts : barrage centre-droit→gauche 45 % contre le
         RN, report RN→gauche 15 %, <b>réunification imparfaite</b> d'une gauche divisée 72 %) ;
         « union des droites » = report LR→RN.`)}
+    ${e2e ? li(`<b>Validation (à l'aveugle)</b> : 2024 <b>entièrement retiré de l'entraînement</b>,
+        la chaîne complète (prévision du motif local de 1<sup>er</sup> tour, niveau national posé au réel → modèle de sièges) rejoue 2024 et
+        appelle le bon vainqueur dans <b>${e2e.n_correct}/${e2e.n_circo}</b> circonscriptions
+        (<b>${e2e.accuracy_seats} %</b> ; ${e2e.accuracy} % pondéré inscrits). C'est la preuve
+        « hors échantillon » — le bouton <i>↻ Rejouer 2024</i> la détaille. Réserve connue : le
+        modèle, privé de 2024, <b>sous-estime le RN</b> (${e2e.model.ED} sièges projetés vs
+        ${e2e.actual.ED} réels).`) : ""}
   </ul>`;
 }
 

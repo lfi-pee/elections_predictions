@@ -84,8 +84,8 @@ function renderInputs() {
         90 %, par bloc : G ±${cv.G}, C+D ±${cv.CD}, ED ±${cv.ED}, Abst. ±${cv.AB} pts.`)}
     ${li(`<b>Second tour</b> (jouabilité &amp; sièges) : qualification à <b>12,5 % des inscrits</b> ;
         reports <b>réglables au curseur</b> (défauts : barrage centre-droit→gauche 45 % contre le
-        RN, report RN→gauche 15 %, <b>réunification imparfaite</b> d'une gauche divisée 72 %) ;
-        « union des droites » = report LR→RN.`)}
+        RN, report RN→gauche 15 %, <b>réunification imparfaite</b> d'une gauche divisée 72 %
+        — mesurée ~0,7 sur la gauche divisée de 2012) ; « union des droites » = report LR→RN.`)}
     ${e2e ? li(`<b>Validation (à l'aveugle)</b> : 2024 <b>entièrement retiré de l'entraînement</b>,
         la chaîne complète (prévision du motif local de 1<sup>er</sup> tour, niveau national posé au réel → modèle de sièges) rejoue 2024 et
         appelle le bon vainqueur dans <b>${e2e.n_correct}/${e2e.n_circo}</b> circonscriptions

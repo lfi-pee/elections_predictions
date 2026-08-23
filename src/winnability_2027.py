@@ -33,6 +33,13 @@ LR_TO_LEFT_RU, LR_TO_RN_RU = 0.10, 0.60    # LR sous « droites unies » : bascu
 # ses voix ne se reportent qu'en partie sur le pôle de gauche qualifié (les électorats
 # radical et social-démocrate ne fusionnent pas entièrement). C'est le coût propre de la
 # division, distinct du niveau national : à niveau égal, la gauche unie fait mieux.
+#
+# MESURÉ (src/reunif_measure.py) sur les législatives à gauche réellement divisée. Référence
+# 2012 (PS vs Front de Gauche vs EELV, découpage actuel) : régression écologique du gain T2 du
+# pôle de gauche survivant sur les voix de gauche éliminées, en contrôlant les reports CD/ED et
+# la mobilisation → β = 0,69–0,73 ; ratio direct (sur-estime, mobilisation incluse) ~0,86.
+# Pool 2012+2017 : régression 0,66, ratio 0,86. 0,72 est donc en haut de la fourchette de
+# régression et sous le ratio — valeur centrale-à-légèrement-haute, empiriquement soutenue.
 REUNIF = 0.72
 
 # Désistement (« front républicain ») — le mécanisme DOMINANT du 2nd tour, MESURÉ sur le réel

@@ -40,6 +40,11 @@ const APP = {
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
+  // Mode « Rejouer 2024 » : quand actif, les barres et la carte évaluent le modèle de 2nd tour
+  // sur les parts de 1er tour RÉELLES 2024 par circo (circoArr.r24*, gauche unie) — reproduit
+  // le backtest à l'identique. Toute action sur les curseurs / scénarios le désactive.
+  replayMode: false,
+  idIdx: null,   // Map id de circo → index dans circoArr (rejeu : carte ← parts réelles par id)
   // Repère « niveau 2024 » (pointillé sur les curseurs) : résultat réel des législatives 2024,
   // 1er tour, renormalisé sur 3 blocs (G/CD/ED) + abstention. Repli ; à l'exécution, main.js
   // l'écrase par summary.backtest_2024.levels (calculé depuis les voix brutes du 1er tour).

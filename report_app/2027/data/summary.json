@@ -210,7 +210,6 @@
    "AB": 33.3
   }
  },
- "lag_fallback_bv": 818,
  "backtest_2024_e2e": {
   "n_circo": 501,
   "actual": {
@@ -237,5 +236,6 @@
    "ED": 34.0,
    "AB": 33.3
   }
- }
+ },
+ "lag_fallback_bv": 818
 }

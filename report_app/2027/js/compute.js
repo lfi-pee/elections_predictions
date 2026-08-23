@@ -152,6 +152,19 @@ function circoEval(pr) {
   return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
 }
 
+// « Rejouer 2024 » : évalue le modèle de 2nd tour sur les parts de 1er tour RÉELLES 2024 de la
+// circo (circoArr.r24*, gauche unie comme le NFP) — pas de curseur, pas de couplage γ, pas de
+// motif 2027. Reproduit le backtest à l'identique. Renvoie null hors des 501 circos du backtest.
+function replayEval(i) {
+  const a = APP.data.circoArr;
+  const g = a.r24G[i];
+  if (g == null) return null;
+  const cd = a.r24CD[i], ed = a.r24ED[i], ab = a.r24AB[i];
+  const r = scoreCirco(g, cd, ed, ab, "union", 1.0, false);
+  const sw = seatWinner(g, cd, ed, ab, "union", 1.0, false);
+  return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
+}
+
 // La géométrie (15 Mo) est chargée UNE fois comme données de la source. Au curseur, on ne
 // met à jour qu'un état léger par entité (score/vainqueur) via setFeatureState — aucune
 // re-sérialisation ni re-tuilage des polygones : c'est ce qui rend le glissement fluide.
@@ -159,8 +172,11 @@ function updateCircoStates() {
   const map = APP.map, src = APP.data.circoGeo;
   if (!map || !src || !map.getSource("circo")) return;
   for (const f of src.features) {
-    const r = circoEval(f.properties);
-    map.setFeatureState({ source: "circo", id: f.properties.id }, { sc: r.sc, win: r.win });
+    const id = f.properties.id;
+    // En rejeu, la carte lit les parts RÉELLES 2024 par id (les circos sans données 2024 —
+    // hors des 501 — repassent au gris neutre : état sc/win vidé).
+    const r = APP.replayMode ? replayEval(APP.idIdx.get(id)) : circoEval(f.properties);
+    map.setFeatureState({ source: "circo", id }, r ? { sc: r.sc, win: r.win } : { sc: 0, win: "" });
   }
 }
 
@@ -170,6 +186,15 @@ function updateCircoStates() {
 function eachCirco(fn) {
   const a = APP.data.circoArr;
   if (!a) return;
+  if (APP.replayMode) {
+    // Rejeu 2024 : on ne somme que sur les 501 circos à parts réelles connues → le total
+    // reproduit exactement le backtest (G/CD/ED = summary.backtest_2024.model).
+    for (let i = 0; i < a.id.length; i++) {
+      const r = replayEval(i);
+      if (r) fn(r, i);
+    }
+    return;
+  }
   for (let i = 0; i < a.id.length; i++)
     fn(circoEval({ dG: a.dG[i], dCD: a.dCD[i], dED: a.dED[i], dAB: a.dAB[i] }), i);
 }
@@ -255,9 +280,9 @@ function seatDistribution(nDraws) {
 // d'animation : dix « input » de curseur dans la même frame → un seul recalcul.
 let _raf = 0;
 function recomputeAll() {
-  // La validation « rejeu 2024 » n'est valable qu'aux curseurs réglés sur 2024 : dès qu'on
-  // touche quoi que ce soit (elle passe par ici), on la masque — sauf pendant replay2024 lui-même.
-  if (!APP._replaying) {
+  // La validation « rejeu 2024 » reste affichée tant qu'on est en mode rejeu (replayMode) ou
+  // pendant replay2024 lui-même ; c'est exitReplay() (au moindre curseur/scénario) qui la masque.
+  if (!APP._replaying && !APP.replayMode) {
     const rb = document.getElementById("replay-box");
     if (rb) rb.className = "replay hidden";
   }

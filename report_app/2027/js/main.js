@@ -9,6 +9,7 @@ async function boot() {
     loadJSON("data/gamma_curve.json"),
   ]);
   APP.data = { summary, circoArr, circoGeo, insets, gamma };
+  APP.idIdx = new Map(circoArr.id.map((id, i) => [id, i]));
   APP.scenario = summary.default_scenario;
   APP.scnObj = summary.scenarios.find((s) => s.key === APP.scenario);
   APP.nat = { ...APP.scnObj.means };

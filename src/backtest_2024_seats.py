@@ -34,7 +34,10 @@ def _bloc(n: str) -> str | None:
     return "ED" if n in _ED else "G" if n in _G else "CD" if n in _CD else None
 
 
-def backtest() -> dict:
+def _first_round_and_winner() -> tuple[dict, pd.Series, list[str]]:
+    """Parts de 1er tour RÉELLES 2024 par circo (t1), vrai vainqueur du 2nd tour (winner), et
+    la liste des circos jouables au backtest (idx = t1 ∩ vainqueur réel connu). Factorisé pour
+    être partagé entre `backtest()` (validation) et `first_round_by_circo()` (rejeu du site)."""
     bm = pd.read_parquet(
         MASTER24,
         columns=["location", "circo", "inscrits", "act_G", "act_CD", "act_ED", "act_AB"],
@@ -51,20 +54,6 @@ def backtest() -> dict:
                 ED=wa(g, "act_ED"), AB=wa(g, "act_AB"))
         for c, g in bm.groupby("circo")
     }
-    # Niveau national 2024 « réel » (parts d'exprimés → 3 blocs) calculé depuis les VOIX BRUTES
-    # du 1er tour par nuance (source faisant autorité) — et NON depuis un cache de moyennes
-    # nationales, dont un ancien (`beat_it_extended`) surévaluait l'extrême droite de ~3 pts.
-    # Sert le repère « niveau 2024 » des curseurs et le préréglage du bouton « Rejouer 2024 ».
-    t1v = pq.read_table(CAND, columns=["id_election", "nuance", "voix"]).to_pandas()
-    t1v = t1v[t1v.id_election == "2024_legi_t1"].copy()
-    t1v["bloc"] = t1v.nuance.map(_bloc)
-    by = t1v.dropna(subset=["bloc"]).groupby("bloc").voix.sum()
-    s3 = float(by["G"] + by["CD"] + by["ED"])
-    levels = {"G": round(100 * by["G"] / s3, 1), "CD": round(100 * by["CD"] / s3, 1)}
-    levels["ED"] = round(100 - levels["G"] - levels["CD"], 1)
-    levels["AB"] = round(
-        float(np.average(bm.act_AB, weights=bm.inscrits.to_numpy(float))), 1
-    )
 
     c2 = pq.read_table(
         CAND, columns=["id_election", "id_brut_miom", "nuance", "voix"]
@@ -77,6 +66,41 @@ def backtest() -> dict:
     winner = gt.loc[gt.groupby("circo").voix.idxmax()].set_index("circo").bloc
 
     idx = [c for c in t1 if c in winner.index]
+    return t1, winner, idx
+
+
+def first_round_by_circo() -> dict[str, dict]:
+    """Parts de 1er tour RÉELLES 2024 (G/CD/ED/AB, exprimés/inscrits) par circo, restreintes aux
+    circos du backtest de sièges (idx). Servies au site pour que « Rejouer 2024 » évalue le
+    modèle de 2nd tour sur les VRAIES parts 2024 par circo — reproduisant le backtest à
+    l'identique — au lieu du motif spatial 2027 approché."""
+    t1, _winner, idx = _first_round_and_winner()
+    return {
+        c: {k: round(t1[c][k], 3) for k in ("G", "CD", "ED", "AB")}
+        for c in idx
+    }
+
+
+def backtest() -> dict:
+    t1, winner, idx = _first_round_and_winner()
+
+    # Niveau national 2024 « réel » (parts d'exprimés → 3 blocs) calculé depuis les VOIX BRUTES
+    # du 1er tour par nuance (source faisant autorité) — et NON depuis un cache de moyennes
+    # nationales, dont un ancien (`beat_it_extended`) surévaluait l'extrême droite de ~3 pts.
+    # Sert le repère « niveau 2024 » des curseurs et le préréglage du bouton « Rejouer 2024 ».
+    t1v = pq.read_table(CAND, columns=["id_election", "nuance", "voix"]).to_pandas()
+    t1v = t1v[t1v.id_election == "2024_legi_t1"].copy()
+    t1v["bloc"] = t1v.nuance.map(_bloc)
+    by = t1v.dropna(subset=["bloc"]).groupby("bloc").voix.sum()
+    s3 = float(by["G"] + by["CD"] + by["ED"])
+    levels = {"G": round(100 * by["G"] / s3, 1), "CD": round(100 * by["CD"] / s3, 1)}
+    levels["ED"] = round(100 - levels["G"] - levels["CD"], 1)
+    abw = pd.read_parquet(MASTER24, columns=["circo", "inscrits", "act_AB"])
+    abw = abw[abw.circo.notna()]
+    levels["AB"] = round(
+        float(np.average(abw.act_AB, weights=abw.inscrits.to_numpy(float))), 1
+    )
+
     actual = {b: 0 for b in VOTE}
     model = {b: 0 for b in VOTE}
     ok = wsum = 0.0

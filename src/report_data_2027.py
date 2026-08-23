@@ -173,6 +173,19 @@ def build() -> None:
         "nbv": [int(v) for v in cir.nbv],
         **{k: [round(float(v), 3) for v in cir[k]] for k in ("dG", "dCD", "dED", "dAB", "af")},
     }
+    # Parts de 1er tour RÉELLES 2024 par circo (null hors des 501 circos du backtest) : le bouton
+    # « Rejouer 2024 » du site évalue le modèle de 2nd tour dessus, reproduisant le backtest à
+    # l'identique — au lieu d'approcher 2024 par le motif spatial 2027 + curseurs.
+    try:
+        r24 = backtest_2024_seats.first_round_by_circo()
+    except Exception as e:  # candidats_results absent (certains environnements)
+        print(f"  (rejeu 2024 par circo indisponible : {e})")
+        r24 = {}
+    for b in ("G", "CD", "ED", "AB"):
+        circo_arrays["r24" + b] = [
+            (r24[c][b] if c in r24 else None) for c in circo_arrays["id"]
+        ]
+    print(f"  rejeu 2024 : parts réelles servies pour {len(r24)} circos")
     (SERVED / "circo.json").write_text(json.dumps(circo_arrays, separators=(",", ":")))
 
     # Preuve : chiffres hors-échantillon de 2024 (désormais un pli de la validation croisée).

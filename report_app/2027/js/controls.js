@@ -36,6 +36,7 @@ function setScenario(key) {
 
 // Réinitialise les curseurs aux valeurs **prédites** du scénario courant (ancrage sondages).
 function resetSliders() {
+  exitReplay();
   APP.nat = { ...APP.scnObj.means };
   syncSliders();
   recomputeAll();
@@ -67,7 +68,7 @@ function initControls() {
     `<button class="scn-btn${s.key === APP.scenario ? " on" : ""}" data-k="${s.key}">${s.label}</button>`
   ).join("");
   document.querySelectorAll(".scn-btn").forEach((b) =>
-    (b.onclick = () => setScenario(b.dataset.k)));
+    (b.onclick = () => { exitReplay(); setScenario(b.dataset.k); }));
   $("scn-desc").textContent = APP.scnObj.desc;
 
   // Curseurs nationaux par parti.
@@ -82,6 +83,7 @@ function initControls() {
   }).join("");
   for (const b of BLOCKS) {
     $("sl-" + b).addEventListener("input", (e) => {
+      exitReplay();
       setNat(b, parseFloat(e.target.value));
       recomputeAll();
     });
@@ -106,23 +108,23 @@ function initControls() {
   if ($("replay-2024")) $("replay-2024").onclick = replay2024;
 }
 
-// « Rejouer 2024 » : règle les curseurs au niveau national réel de 2024 (gauche unie, comme le
-// NFP), puis affiche la VALIDATION du modèle de sièges — projection sur les parts de 1er tour
-// RÉELLES 2024 vs résultat réel (backtest servi dans summary.backtest_2024). La barre de sièges
-// vivante utilise, elle, les déviations 2027 ancrées au niveau 2024 : c'est une approximation ;
-// le chiffre de validation ci-dessous est le backtest rigoureux (parts 2024 réelles).
+// « Rejouer 2024 » : bascule en mode REJEU — la barre de sièges, la carte et la répartition
+// évaluent le modèle de 2nd tour sur les parts de 1er tour RÉELLES 2024 par circo (gauche unie,
+// comme le NFP), reproduisant le backtest « modèle de sièges seul » À L'IDENTIQUE (fini le motif
+// spatial 2027 approché). On pose aussi les curseurs au niveau national 2024 (indicatif) et on
+// affiche la validation. Le moindre curseur/scénario (exitReplay) rebascule vers la prévision 2027.
 function replay2024() {
   APP._replaying = true;          // empêche recomputeAll() de masquer la validation qu'on affiche
-  // REF2024 est le résultat EFFECTIF 2024 (à ~33 % d'abstention). On le pose comme parts
-  // effectives et on INVERSE le couplage γ pour obtenir la base — sinon on double-compterait la
-  // mobilisation (le modèle rajouterait des revenants de gauche par-dessus un résultat qui les
-  // contient déjà, gonflant faussement la gauche). Même traitement que le glissement d'un curseur.
+  APP.replayMode = true;          // barres + carte lisent désormais les parts RÉELLES 2024 (circoArr.r24*)
+  // Curseurs au niveau national 2024 : REF2024 est le résultat EFFECTIF (à ~33 % d'abstention) ;
+  // on inverse le couplage γ pour la base. Indicatif en rejeu (le calcul par circo lit les parts
+  // réelles, pas les curseurs) mais cohérent avec le repère « niveau 2024 » des curseurs.
   const r = APP.REF2024;
   APP.nat.AB = r.AB;
   const [bg, bc, be] = natBaseFromEffective(r.G, r.CD, r.ED, r.AB);
   APP.nat.G = bg; APP.nat.CD = bc; APP.nat.ED = be;
   APP.radOverride = null;
-  setScenario("union");           // 2024 : gauche unie ; recompute + rendu LFI
+  setScenario("union");           // 2024 : gauche unie ; recompute (lit replayMode) + rendu LFI
   syncSliders();
   APP._replaying = false;
   const bt = APP.data.summary.backtest_2024;
@@ -143,7 +145,16 @@ function replay2024() {
       : "") +
     `<div class="rp-sub">Modèle de sièges seul <span class="muted">(1<sup>er</sup> tour réel)</span>&nbsp;: ${seats(bt.model)} ` +
     `<span class="muted">— <b>${bt.accuracy}&nbsp;%</b> (pondéré inscrits) ; isole l'erreur du 2nd tour, ancre de 1<sup>er</sup> tour parfaite.</span></div>` +
-    `<div class="muted">La barre de sièges vivante applique le motif spatial <b>2027</b> au niveau 2024 sur les 577 circos (approximation) ; les encadrés sont les backtests sur 2024.</div>`;
+    `<div class="muted">La barre de sièges et la carte affichent MAINTENANT <b>exactement</b> cette dernière ligne : le modèle de 2nd tour sur les parts de 1<sup>er</sup> tour <b>réelles</b> de 2024 (gauche unie, ${bt.n_circo} circos). Bougez un curseur pour revenir à la prévision 2027.</div>`;
+}
+
+// Sort du mode rejeu (au moindre réglage curseur/scénario) : retour à la prévision 2027 et on
+// masque la validation. Rappelé par tous les points d'entrée « réglage » ci-dessous.
+function exitReplay() {
+  if (!APP.replayMode) return;
+  APP.replayMode = false;
+  const rb = $("replay-box");
+  if (rb) rb.className = "replay hidden";
 }
 
 // Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,
@@ -202,13 +213,14 @@ function renderLfiShare() {
        <input type="range" id="sl-lfi" min="5" max="80" step="1" value="${pct}" style="--c:${POLE_RAD}"></div>
      <div class="natsum muted" id="lfi-rest">reste du bloc → PS·PP·EELV·PCF : ${100 - pct} %</div>`;
   $("sl-lfi").addEventListener("input", (e) => {
+    exitReplay();
     APP.radOverride = parseFloat(e.target.value) / 100;
     const p = Math.round(APP.radOverride * 100);
     $("lfiv").textContent = p + " %";
     $("lfi-rest").textContent = `reste du bloc → PS·PP·EELV·PCF : ${100 - p} %`;
     recomputeAll();
   });
-  $("lfi-reset").onclick = () => { APP.radOverride = null; renderLfiShare(); recomputeAll(); };
+  $("lfi-reset").onclick = () => { exitReplay(); APP.radOverride = null; renderLfiShare(); recomputeAll(); };
 }
 
 // ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──
@@ -231,12 +243,14 @@ function renderTransfers() {
   }).join("");
   for (const c of COEF_META) {
     $("cf-" + c.k).addEventListener("input", (e) => {
+      exitReplay();
       APP.coef[c.k] = parseFloat(e.target.value) / 100;
       $("cfv-" + c.k).textContent = Math.round(APP.coef[c.k] * 100) + " %";
       recomputeAll();
     });
   }
   if ($("transfers-reset")) $("transfers-reset").onclick = () => {
+    exitReplay();
     Object.assign(APP.coef, COEF_DEFAULT);
     renderTransfers();
     recomputeAll();
@@ -246,6 +260,10 @@ function renderTransfers() {
 // ── Barre dynamique des sièges (projection) ──
 function updateSeatBar() {
   const t = seatTally(), tot = t.G + t.CD + t.ED || 1;
+  const stn = $("seat-total-note");
+  // En rejeu, la barre somme sur les 501 circos cartographiables (= backtest) ; sinon 577.
+  if (stn) stn.textContent = APP.replayMode
+    ? "· rejeu 2024 · 501 circos cartographiables" : "· 577 · majorité 289";
   const seg = (w, col, lab, n) =>
     `<div class="seat-seg" style="width:${(n / tot) * 100}%;background:${col}"
       title="${lab} : ${n} sièges">${n >= 20 ? n : ""}</div>`;
@@ -309,6 +327,15 @@ function updateWinSummary() {
 
 // Fourchette d'incertitude (Monte-Carlo des intervalles conformes) — calcul débounce, hors frame.
 function updateUncertainty() {
+  // En rejeu 2024, il n'y a pas d'incertitude de prévision : c'est un résultat réel projeté par
+  // le modèle de sièges. On remplace la fourchette par la mention du rejeu (ponctuel).
+  if (APP.replayMode) {
+    const se = $("seat-range");
+    if (se) se.innerHTML = `<span class="muted">rejeu 2024 — projection ponctuelle sur les parts réelles (pas de fourchette de prévision)</span>`;
+    const we = $("win-range");
+    if (we) we.innerHTML = "";
+    return;
+  }
   const d = seatDistribution(MC_DRAWS);
   if (!d) return;
   const rng = (b) => `${b.lo}–${b.hi}`;

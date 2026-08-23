@@ -33,8 +33,16 @@ function leftBreakdown(g, s) {
 }
 
 function renderCirco(prIn) {
-  // Recalcule tout au scénario/curseur courant à partir des déviations de la circo.
-  const s = APP.scnObj, r = circoEval(prIn);
+  // Recalcule tout au scénario/curseur courant à partir des déviations de la circo. En rejeu
+  // 2024, on lit à la place les parts de 1er tour RÉELLES de la circo (comme la barre & la carte),
+  // pour que le panneau soit cohérent avec la projection affichée.
+  const s = APP.scnObj;
+  let r = null;
+  if (APP.replayMode) {
+    const i = APP.idIdx.get(prIn.id);
+    if (i != null) r = replayEval(i);
+  }
+  if (!r) r = circoEval(prIn);
   const turnout = Math.max(0.05, 1 - r.ab / 100), thr = 12.5 / turnout;
   const sc = r.sc, win = r.win;
 

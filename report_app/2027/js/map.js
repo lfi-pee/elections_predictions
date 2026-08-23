@@ -28,6 +28,9 @@ function initMap() {
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  // Molette moins sensible (défaut 1/450) → réglage plus fin du niveau de zoom.
+  map.scrollZoom.setWheelZoomRate(1 / 1100);
+  map.scrollZoom.setZoomRate(1 / 300);
   APP.map = map;
   return new Promise((res) => map.on("load", () => {
     addLayers();

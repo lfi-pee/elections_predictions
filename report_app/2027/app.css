@@ -162,6 +162,14 @@ body.p2027{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 .inputs-body ul{margin:0;padding-left:16px} .inputs-body li{margin:5px 0}
 .inputs-body b{color:var(--tx-strong)}
 
+/* Piste de curseur + repère pointillé « niveau 2024 ». */
+.sl-track{position:relative;display:flex;align-items:center}
+.sl-track input[type=range]{width:100%}
+.sl-ref{position:absolute;top:-3px;bottom:-3px;width:0;border-left:2px dotted #1d1d28;
+  opacity:.55;pointer-events:none;z-index:1}
+.sl-hint{font-size:10.5px;margin-top:8px;display:flex;align-items:center;gap:6px}
+.ref-key{display:inline-block;width:0;height:12px;border-left:2px dotted #1d1d28;opacity:.6}
+
 /* Part LFI (dans la carte scénario) + reports réglables. */
 .lfi-share{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
 .ctl-h.sub{font-size:12px;margin-bottom:6px}

@@ -35,6 +35,10 @@ const APP = {
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
+  // Repère « niveau 2024 » (pointillé sur les curseurs) : résultat réel des législatives 2024,
+  // 1er tour, renormalisé sur 3 blocs (G/CD/ED) + abstention. Les reports 2nd tour ont leur
+  // propre repère = leur valeur calibrée sur 2024 (COEF_DEFAULT, dont désistement 0,50).
+  REF2024: { G: 30.1, CD: 32.1, ED: 37.8, AB: 31.0 },
   data: {},
   map: null,
   bvByDept: new Map(),   // dept -> features brutes (dev), pour recalcul au curseur

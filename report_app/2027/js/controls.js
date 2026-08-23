@@ -10,6 +10,13 @@ function currentScenario() {
   return APP.data.summary.scenarios.find((s) => s.key === APP.scenario);
 }
 
+// Repère pointillé « niveau 2024 » posé sur la piste d'un curseur (valeur → position en %).
+function refTick(lo, hi, val, label) {
+  if (val == null) return "";
+  const pct = clamp((val - lo) / (hi - lo) * 100, 0, 100);
+  return `<span class="sl-ref" style="left:${pct}%" title="${label} : ${fmt1(val)}"></span>`;
+}
+
 // Un scénario ne change QUE la configuration (union/division à gauche, union des droites) :
 // il **préserve** le niveau national réglé aux curseurs. Le niveau, c'est « valeurs prédites »
 // ou vos réglages — jamais le scénario. (« Réinitialiser » ramène aux valeurs prédites.)
@@ -70,8 +77,8 @@ function initControls() {
     const [lo, hi] = R[b];
     return `<div class="sl-row"><label style="color:${APP.COL[b]}">${names[b]}
       <span class="sl-v" id="slv-${b}">${fmt1(APP.nat[b])} %</span></label>
-      <input type="range" id="sl-${b}" min="${lo}" max="${hi}" step="0.5" value="${APP.nat[b]}"
-        style="--c:${APP.COL[b]}"></div>`;
+      <div class="sl-track"><input type="range" id="sl-${b}" min="${lo}" max="${hi}" step="0.5"
+        value="${APP.nat[b]}" style="--c:${APP.COL[b]}">${refTick(lo, hi, APP.REF2024[b], "niveau 2024")}</div></div>`;
   }).join("");
   for (const b of BLOCKS) {
     $("sl-" + b).addEventListener("input", (e) => {
@@ -177,7 +184,8 @@ function renderTransfers() {
     const pct = Math.round(APP.coef[c.k] * 100);
     return `<div class="sl-row"><label>${c.lab}
       <span class="sl-v" id="cfv-${c.k}">${pct} %</span></label>
-      <input type="range" id="cf-${c.k}" min="0" max="100" step="1" value="${pct}" style="--c:#8a8f98"></div>`;
+      <div class="sl-track"><input type="range" id="cf-${c.k}" min="0" max="100" step="1" value="${pct}"
+        style="--c:#8a8f98">${refTick(0, 100, COEF_DEFAULT[c.k] * 100, "calibré 2024")}</div></div>`;
   }).join("");
   for (const c of COEF_META) {
     $("cf-" + c.k).addEventListener("input", (e) => {

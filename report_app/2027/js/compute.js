@@ -255,6 +255,12 @@ function seatDistribution(nDraws) {
 // d'animation : dix « input » de curseur dans la même frame → un seul recalcul.
 let _raf = 0;
 function recomputeAll() {
+  // La validation « rejeu 2024 » n'est valable qu'aux curseurs réglés sur 2024 : dès qu'on
+  // touche quoi que ce soit (elle passe par ici), on la masque — sauf pendant replay2024 lui-même.
+  if (!APP._replaying) {
+    const rb = document.getElementById("replay-box");
+    if (rb) rb.className = "replay hidden";
+  }
   if (_raf) return;
   _raf = requestAnimationFrame(() => {
     _raf = 0;

@@ -112,10 +112,19 @@ function initControls() {
 // vivante utilise, elle, les déviations 2027 ancrées au niveau 2024 : c'est une approximation ;
 // le chiffre de validation ci-dessous est le backtest rigoureux (parts 2024 réelles).
 function replay2024() {
-  APP.nat = { ...APP.REF2024 };
+  APP._replaying = true;          // empêche recomputeAll() de masquer la validation qu'on affiche
+  // REF2024 est le résultat EFFECTIF 2024 (à ~33 % d'abstention). On le pose comme parts
+  // effectives et on INVERSE le couplage γ pour obtenir la base — sinon on double-compterait la
+  // mobilisation (le modèle rajouterait des revenants de gauche par-dessus un résultat qui les
+  // contient déjà, gonflant faussement la gauche). Même traitement que le glissement d'un curseur.
+  const r = APP.REF2024;
+  APP.nat.AB = r.AB;
+  const [bg, bc, be] = natBaseFromEffective(r.G, r.CD, r.ED, r.AB);
+  APP.nat.G = bg; APP.nat.CD = bc; APP.nat.ED = be;
   APP.radOverride = null;
   setScenario("union");           // 2024 : gauche unie ; recompute + rendu LFI
   syncSliders();
+  APP._replaying = false;
   const bt = APP.data.summary.backtest_2024;
   const box = $("replay-box");
   if (!box) return;
@@ -127,7 +136,7 @@ function replay2024() {
     `<div class="rp-h">Validation — rejeu de 2024 <span class="muted">(sur les parts de 1<sup>er</sup> tour réelles, ${bt.n_circo} circos)</span></div>` +
     `<div>réel&nbsp;: ${seats(bt.actual)}</div>` +
     `<div>modèle&nbsp;: ${seats(bt.model)} <span class="muted">— bon vainqueur dans <b>${bt.accuracy} %</b> des circonscriptions (pondéré inscrits)</span></div>` +
-    `<div class="muted">Curseurs réglés au niveau national 2024. La carte utilise les déviations 2027 (approximation) ; les chiffres ci-dessus sont le backtest exact.</div>`;
+    `<div class="muted">Curseurs posés au niveau national réel de 2024. La barre de sièges applique le motif spatial <b>2027</b> à ce niveau, sur les 577 circos (approximation) ; l'encadré est le backtest <b>exact</b> du modèle de 2nd tour sur les parts de 1<sup>er</sup> tour <b>réelles</b> de 2024 (${bt.n_circo} circos cartographiables). Les deux diffèrent (motif 2027 vs réel, outre-mer inclus/exclu) — l'encadré est la validation.</div>`;
 }
 
 // Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,

@@ -21,6 +21,14 @@ function baseStyle() {
   };
 }
 
+// Cadre initial : métropole + encarts outre-mer/étranger (bloc compact à gauche) visibles.
+// Bord est/sud volontairement dégagé pour que la Corse reste dans le cadre même après un
+// re-layout (barre du haut / panneau qui grandissent → carte plus courte → recadrage nécessaire,
+// sinon MapLibre garde center+zoom et rogne le bord sud, là où est la Corse).
+function frameFrance() {
+  if (APP.map) APP.map.fitBounds([[-14.8, 40.6], [10.2, 51.5]], { padding: 14, animate: false });
+}
+
 function initMap() {
   const map = new maplibregl.Map({
     container: "map", style: baseStyle(),
@@ -34,9 +42,7 @@ function initMap() {
   APP.map = map;
   return new Promise((res) => map.on("load", () => {
     addLayers();
-    // Cadre initial : métropole + encarts outre-mer/étranger (bloc compact à gauche) visibles.
-    // Cadre serré sur le bloc d'encarts réduit (x≥−14,5) → la métropole occupe plus de place.
-    map.fitBounds([[-15.2, 40.9], [10, 51.5]], { padding: 14, animate: false });
+    frameFrance();
     res(map);
   }));
 }

@@ -29,6 +29,9 @@ async function boot() {
   recomputeAll();
   renderIntro();
   renderInputs();
+  // Le rendu de l'intro / des inputs peut changer la hauteur des colonnes après le fitBounds
+  // initial ; on recadre une fois la mise en page stabilisée pour ne pas rogner la Corse (sud-est).
+  requestAnimationFrame(() => { if (APP.map) { APP.map.resize(); frameFrance(); } });
 }
 
 // Séparateur glissable : l'utilisateur ajuste la largeur des panneaux ↔ carte. La largeur

@@ -10,26 +10,29 @@ situe loin de l'année de calage du désistement (2024 : ~33 %).
 
 Ce script balaie l'abstention nationale (parts de vote FIXÉES à l'ancre du scénario, seul le
 seuil bouge) et reporte, par circo : sièges G/CD/ED, nombre de triangulaires qualifiées face
-au RN, et nombre de désistements déclenchés. Objectif : vérifier que la courbe est LISSE (pas
-de falaise artificielle) et chiffrer l'ampleur de l'effet.
+au RN, et nombre de désistements déclenchés. Objectif : vérifier que la courbe du SEUIL est
+LISSE (pas de falaise artificielle) et chiffrer ce canal.
 
-RÉSULTATS (ancre 2027 par défaut G/CD/ED = 30,4/29,6/40,0 ; abstention 30 → 52 %) :
+⚠️ PORTÉE LIMITÉE. Ce script isole le SEUL canal du SEUIL (parts de vote gelées). Le curseur
+d'abstention du SITE fait AUSSI jouer le couplage γ (turnoutAdjust) : moins d'abstention →
+électeurs de retour plutôt à gauche → part de gauche EFFECTIVE plus haute. Dans l'appli réelle
+c'est γ qui DOMINE, et il rend la gauche TRÈS sensible à l'abstention dans TOUS les cas (unie
+comme divisée). Ne pas conclure de ce script seul sur la sensibilité vécue.
 
-  - AUCUNE falaise : les courbes sont lisses et monotones sur toute la plage. Le seuil de
-    qualification (exprimés) passe de 17,9 % à 26,0 %, les triangulaires face au RN fondent
-    (318→125 en gauche unie, 173→8 en gauche divisée), sans discontinuité de sièges.
+RÉSULTATS (canal du seuil seul ; ancre 2027 par défaut G/CD/ED = 30,4/29,6/40,0 ; 30 → 52 %) :
 
-  - Le nombre de sièges RN est ROBUSTE à l'hypothèse d'abstention : ~212→219 (gauche unie),
-    ~225→226 (gauche divisée). La crainte « le RN gonfle quand l'abstention monte » est
-    infondée — la raréfaction des désistements ne lui profite pas mécaniquement.
+  - AUCUNE falaise : courbes lisses et monotones. Le seuil de qualif. (exprimés) passe de 17,9 %
+    à 26,0 %, les triangulaires face au RN fondent (318→125 unie, 173→8 divisée), sans saut.
 
-  - La sensibilité réelle est PROPRE À LA GAUCHE et dépend de la division :
-        gauche UNIE     : 184 → 177 sièges  (amplitude 7)   → quasi insensible à l'abstention
-        gauche DIVISÉE  : 159 → 102 sièges  (amplitude 57)  → très fragile à l'abstention
-    Une gauche divisée dépend des triangulaires + désistements pour convertir ; ceux-ci
-    s'effondrent quand le seuil grimpe. L'union AMORTIT le risque d'abstention. (Le couplage γ,
-    tenu fixe ici, renforcerait encore l'écart : à basse abstention les revenants penchent à
-    gauche.) C'est un argument rigoureux, chiffré, en faveur de l'union.
+  - Le nombre de sièges RN est ROBUSTE au canal du seuil : ~212→219 (unie), ~225→226 (divisée).
+    La raréfaction des désistements ne profite pas mécaniquement au RN.
+
+  - À parts gelées, le canal du seuil déplace peu la gauche unie (184→177) et davantage la
+    divisée (159→102). MAIS ce contraste est SECONDAIRE : une fois γ inclus (site réel), la
+    gauche perd ~65 sièges de 30 % à 52 % d'abstention DANS LES DEUX configurations (unie
+    232→168, divisée 201→130). L'ancienne conclusion « l'union amortit le risque d'abstention »
+    était un artefact du gel des parts — RETIRÉE. Ce qui reste vrai : à abstention ÉGALE, l'union
+    rapporte ~30 à 40 sièges de plus que la division.
 
     python3 -u -m src.abstention_sensitivity
 """

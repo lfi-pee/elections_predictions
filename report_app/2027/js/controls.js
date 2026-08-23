@@ -170,10 +170,10 @@ function renderLfiShare() {
 }
 
 // ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──
-const COEF_DEFAULT = { desist: 0.50, cd2left: 0.45, ed2left: 0.15, reunif: 0.72 };
+const COEF_DEFAULT = { desist: 0.60, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 };
 const COEF_META = [
   { k: "desist", lab: "Désistement « front républicain » (triangulaire face au RN)" },
-  { k: "cd2left", lab: "Barrage : électeurs centre-droit → gauche (duel gauche vs RN)" },
+  { k: "cdLR", lab: "Part LR dans le bloc Centre+Droite (le reste = Ensemble)" },
   { k: "ed2left", lab: "Report : électeurs RN → gauche (duel gauche vs centre-droit)" },
   { k: "reunif", lab: "Gauche divisée : voix d'un pôle éliminé → pôle de gauche restant" },
 ];

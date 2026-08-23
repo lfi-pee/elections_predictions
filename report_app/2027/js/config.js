@@ -26,18 +26,23 @@ const APP = {
   // mobilisables penchent à gauche — le résultat clé de 2024), ce qui relève la gauche.
   AB_REF: 48,
   // Coefficients de report au 2nd tour — RÉGLABLES au curseur (défauts = winnability_2027.py).
-  // cd2left : barrage centre-droit→gauche (duel face au RN) ; ed2left : report RN→gauche (duel
-  // face au centre-droit) ; reunif : réunification imparfaite d'une gauche divisée ;
   // desist : désistement « front républicain » en triangulaire face au RN — mécanisme DOMINANT,
-  // calibré sur 2024. DESIST_ED : fuite vers le RN du pôle qui se désiste (constante).
-  coef: { cd2left: 0.45, ed2left: 0.15, reunif: 0.72, desist: 0.50 },
-  DESIST_ED: 0.15,
+  // mesuré sur 2024 (report ~69 % dans les triangulaires réelles ; 0,60 = valeur inconditionnelle
+  // qui recale les sièges). cdLR : part LR du bloc Centre+Droite (reste = Ensemble) — décompose
+  // les reports du CD. ed2left : report RN→gauche (duel face au centre-droit). reunif :
+  // réunification imparfaite d'une gauche divisée. DESIST_ED : fuite vers le RN (mesurée 0,17).
+  coef: { desist: 0.60, cdLR: 0.46, ed2left: 0.15, reunif: 0.72 },
+  DESIST_ED: 0.17,
+  // Décomposition des reports du bloc Centre+Droite : Ensemble (barrage) vs LR (ambivalent).
+  // Constantes calées pour reproduire l'ancien barrage global (0,45/0,25) à cdLR=0,46 ; sous
+  // « droites unies » (RU) seul LR bascule vers le RN. Miroir de winnability_2027.py.
+  CDT: { ensL: 0.55, ensE: 0.12, lrL: 0.33, lrE: 0.40, lrLru: 0.10, lrEru: 0.60 },
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
   // Repère « niveau 2024 » (pointillé sur les curseurs) : résultat réel des législatives 2024,
   // 1er tour, renormalisé sur 3 blocs (G/CD/ED) + abstention. Les reports 2nd tour ont leur
-  // propre repère = leur valeur calibrée sur 2024 (COEF_DEFAULT, dont désistement 0,50).
+  // propre repère = leur valeur calibrée sur 2024 (COEF_DEFAULT, dont désistement 0,60).
   REF2024: { G: 30.1, CD: 32.1, ED: 37.8, AB: 31.0 },
   data: {},
   map: null,

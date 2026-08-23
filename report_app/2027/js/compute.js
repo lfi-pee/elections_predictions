@@ -7,10 +7,11 @@
 // Le serveur n'envoie que le motif spatial (dev) ; tout le reste réagit aux curseurs.
 
 // Reports NON réglables (secondaires) : ils restent des constantes (miroir winnability_2027.py).
-const BARR = { cd2ed: 0.25, ed2cd: 0.45, elimL2cd: 0.55, elimL2ed: 0.10 };
-// Les trois coefficients RÉGLABLES au curseur vivent dans APP.coef (défauts = winnability_2027.py) :
-//   cd2left = barrage centre-droit→gauche · ed2left = report RN→gauche · reunif = réunification
-//   imparfaite d'une gauche divisée au 2nd tour. Lus à chaque évaluation → réagissent au curseur.
+const BARR = { ed2cd: 0.45, elimL2cd: 0.55, elimL2ed: 0.10 };
+// Coefficients RÉGLABLES au curseur dans APP.coef (défauts = winnability_2027.py) : desist
+// (désistement front républicain), cdLR (part LR du bloc CD → compose les reports du CD via
+// APP.CDT), ed2left (report RN→gauche), reunif (réunification gauche divisée). Lus à chaque
+// évaluation → réagissent au curseur.
 
 function leftCandidates(g, cfg, rad) {
   if (cfg === "union") return [g];
@@ -31,9 +32,13 @@ function leftT2(left, second, thr) {
   return [ql.reduce((a, b) => a + b, 0) + APP.coef.reunif * elim, true];
 }
 
-// Reports du centre-droit au 2nd tour (union des droites → LR se reporte sur le RN).
-// Hors union des droites, le barrage CD→gauche est le curseur APP.coef.cd2left.
-function cdTransfer(ru) { return ru ? [0.20, 0.55] : [APP.coef.cd2left, BARR.cd2ed]; }
+// Reports du centre-droit, composés Ensemble (barrage) + LR (ambivalent, part APP.coef.cdLR).
+// Sous droites unies, seul LR bascule vers le RN ; Ensemble fait toujours barrage. Miroir Python.
+function cdTransfer(ru) {
+  const lr = APP.coef.cdLR, ens = 1 - lr, T = APP.CDT;
+  const [lrl, lre] = ru ? [T.lrLru, T.lrEru] : [T.lrL, T.lrE];
+  return [ens * T.ensL + lr * lrl, ens * T.ensE + lr * lre];
+}
 
 // Score 1→5 de la GAUCHE (miroir de src/winnability_2027.py).
 function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {

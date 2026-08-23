@@ -27,6 +27,18 @@ BARRAGE_ED_TO_CD = 0.45
 # division, distinct du niveau national : à niveau égal, la gauche unie fait mieux.
 REUNIF = 0.72
 
+# Désistement (« front républicain ») — le mécanisme DOMINANT du 2nd tour, calibré sur le
+# résultat réel 2024. En triangulaire face au RN, le pôle anti-RN le plus faible (gauche ou
+# centre-droit) se retire au profit du plus fort : `DESIST_TO_STRONG` de ses voix vont au
+# survivant anti-RN, `DESIST_TO_ED` fuient vers le RN, le reste s'abstient. Réglable au curseur ;
+# la baisser modélise un front républicain qui se délite.
+#
+# Backtest sur le réel 2024 (parts T1 réelles, gauche unie) : SANS désistement le modèle donnait
+# ~192 sièges RN pour 109 réels (justesse par circo 74 %) ; AVEC (défaut 0,50), sièges G/CD/ED =
+# 169/223/109 contre 162/230/109 réels — justesse 82 %. C'est la validation du modèle de sièges.
+DESIST_TO_STRONG = 0.50
+DESIST_TO_ED = 0.15
+
 
 def _left_candidates(g: float, cfg: str, rad: float) -> list[float]:
     """Parts (en % des exprimés) des candidatures de gauche selon la configuration."""
@@ -58,7 +70,7 @@ def _cd_transfer(right_union: bool) -> tuple[float, float]:
 
 
 def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
-                right_union: bool = False) -> dict:
+                right_union: bool = False, desist: float = DESIST_TO_STRONG) -> dict:
     """Renvoie {score 1..5, l_best, qualifies, margin_t2, opp}. `g/cd/ed` = parts exprimées
     (somme ~100), `ab` = abstention % inscrits."""
     turnout = max(0.05, 1 - ab / 100.0)
@@ -70,22 +82,31 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
     top2 = sorted(cands, reverse=True)[:2]
     leader, second = top2[0], top2[1]
     left_base, qualifies = _left_t2(left, second, thr)
+    q_cd = cd >= second - 1e-9 or cd >= thr
+    q_ed = ed >= second - 1e-9 or ed >= thr
     cd2l, cd2e = _cd_transfer(right_union)
 
     if not qualifies:
         return {"score": 5, "l_best": round(l_best, 1), "qualifies": False,
                 "margin_t2": None, "opp": "ED" if ed >= cd else "CD"}
 
-    # 2nd tour : gauche réunie (réunification imparfaite si divisée) face à l'adversaire le
-    # plus fort ; reports selon que cet adversaire est le RN (barrage) ou le centre-droit.
+    # 2nd tour : gauche réunie (réunification imparfaite si divisée) face à l'adversaire le plus
+    # fort ; reports selon que cet adversaire est le RN ou le centre-droit.
     if ed >= cd:
-        left_t2 = left_base + cd2l * cd
-        opp_t2 = ed + cd2e * cd
         opp = "ED"
+        if q_cd and q_ed and not right_union:
+            # Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front
+            # républicain). Renfort plus fort qu'un simple report de barrage.
+            left_t2 = left_base + desist * cd
+            opp_t2 = ed + DESIST_TO_ED * cd
+        else:
+            # Duel (CD éliminé) ou droites unies (pas de désistement) : barrage classique.
+            left_t2 = left_base + cd2l * cd
+            opp_t2 = ed + cd2e * cd
     else:
+        opp = "CD"
         left_t2 = left_base + BARRAGE_ED_TO_LEFT * ed
         opp_t2 = cd + BARRAGE_ED_TO_CD * ed
-        opp = "CD"
     margin_t2 = left_t2 - opp_t2
     leads_first = l_best >= leader - 1e-9
 
@@ -102,7 +123,7 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
 
 
 def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
-                right_union: bool = False) -> str:
+                right_union: bool = False, desist: float = DESIST_TO_STRONG) -> str:
     """Bloc vainqueur du siège (G/CD/ED), même modèle de 2nd tour que `score_circo`."""
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout
@@ -131,6 +152,19 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
             sL += BARRAGE_ED_TO_LEFT * ed
         if qC:
             sC += BARRAGE_ED_TO_CD * ed
+    # Désistement (front républicain) en triangulaire face au RN : le pôle anti-RN le plus
+    # faible se retire au profit du plus fort. C'est le mécanisme qui recale les sièges RN sur
+    # le réel 2024 (cf. en-tête). Sous « droites unies », le centre-droit refuse de se retirer.
+    if qL and qC and qE:
+        if sL >= sC:  # gauche = pôle anti-RN le plus fort → le centre-droit se désiste
+            if not right_union:
+                sL += desist * sC
+                sE += DESIST_TO_ED * sC
+                qC = False
+        else:  # centre-droit le plus fort → la gauche se désiste (elle fait toujours barrage)
+            sC += desist * sL
+            sE += DESIST_TO_ED * sL
+            qL = False
     opts = [("G", sL, qL), ("CD", sC, qC), ("ED", sE, qE)]
     opts = [o for o in opts if o[2]]
     opts.sort(key=lambda x: -x[1])

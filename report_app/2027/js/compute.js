@@ -43,10 +43,19 @@ function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
   const leader = cands[0], second = cands[1];
   const [lbase, qL] = leftT2(left, second, thr);
   const [cd2l, cd2e] = cdTransfer(ru);
+  const qC = qual(cd, second, thr), qE = qual(ed, second, thr);
   if (!qL) return { sc: 5, lbest, ql: false, mt2: null, opp: ed >= cd ? "ED" : "CD" };
   let l2, oppT2, opp;
-  if (ed >= cd) { l2 = lbase + cd2l * cd; oppT2 = ed + cd2e * cd; opp = "ED"; }
-  else { l2 = lbase + APP.coef.ed2left * ed; oppT2 = cd + BARR.ed2cd * ed; opp = "CD"; }
+  if (ed >= cd) {
+    opp = "ED";
+    if (qC && qE && !ru) {
+      // Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front républicain).
+      l2 = lbase + APP.coef.desist * cd; oppT2 = ed + APP.DESIST_ED * cd;
+    } else {
+      // Duel (CD éliminé) ou droites unies (pas de désistement) : barrage classique.
+      l2 = lbase + cd2l * cd; oppT2 = ed + cd2e * cd;
+    }
+  } else { l2 = lbase + APP.coef.ed2left * ed; oppT2 = cd + BARR.ed2cd * ed; opp = "CD"; }
   const mt2 = l2 - oppT2, leadsFirst = lbest >= leader - 1e-9;
   let sc;
   if (leadsFirst && mt2 > 8) sc = 1; else if (mt2 > 0) sc = 2;
@@ -67,7 +76,15 @@ function seatWinner(g, cd, ed, ab, cfg, rad, ru) {
   if (!qL) { if (qC) sC += BARR.elimL2cd * g; if (qE) sE += BARR.elimL2ed * g; }
   if (!qC) { if (qL) sL += cd2l * cd; if (qE) sE += cd2e * cd; }
   if (!qE) { if (qL) sL += APP.coef.ed2left * ed; if (qC) sC += BARR.ed2cd * ed; }
-  const arr = [["G", sL, qL], ["CD", sC, qC], ["ED", sE, qE]].filter((x) => x[2]);
+  // Désistement (front républicain) en triangulaire face au RN : le pôle anti-RN le plus faible
+  // se retire au profit du plus fort (mécanisme calibré sur 2024). Droites unies : le CD refuse.
+  let qLd = qL, qCd = qC;
+  if (qL && qC && qE) {
+    if (sL >= sC) {
+      if (!ru) { sL += APP.coef.desist * sC; sE += APP.DESIST_ED * sC; qCd = false; }
+    } else { sC += APP.coef.desist * sL; sE += APP.DESIST_ED * sL; qLd = false; }
+  }
+  const arr = [["G", sL, qLd], ["CD", sC, qCd], ["ED", sE, qE]].filter((x) => x[2]);
   arr.sort((a, b) => b[1] - a[1]);
   const win = arr.length ? arr[0][0] : (g >= cd && g >= ed ? "G" : cd >= ed ? "CD" : "ED");
   // Pôle de gauche qui emporte le siège = le plus fort pôle qualifié.

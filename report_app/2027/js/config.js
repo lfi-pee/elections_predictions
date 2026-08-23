@@ -25,11 +25,13 @@ const APP = {
   // deçà, les revenants aux urnes se répartissent selon la courbe γ (les abstentionnistes
   // mobilisables penchent à gauche — le résultat clé de 2024), ce qui relève la gauche.
   AB_REF: 48,
-  // Coefficients de report au 2nd tour — désormais RÉGLABLES au curseur (défauts = hypothèses
-  // barrage de src/winnability_2027.py). cd2left : part du centre-droit qui fait barrage vers
-  // la gauche face au RN ; ed2left : report RN→gauche (duel gauche vs centre-droit) ;
-  // reunif : réunification imparfaite d'une gauche divisée au 2nd tour.
-  coef: { cd2left: 0.45, ed2left: 0.15, reunif: 0.72 },
+  // Coefficients de report au 2nd tour — RÉGLABLES au curseur (défauts = winnability_2027.py).
+  // cd2left : barrage centre-droit→gauche (duel face au RN) ; ed2left : report RN→gauche (duel
+  // face au centre-droit) ; reunif : réunification imparfaite d'une gauche divisée ;
+  // desist : désistement « front républicain » en triangulaire face au RN — mécanisme DOMINANT,
+  // calibré sur 2024. DESIST_ED : fuite vers le RN du pôle qui se désiste (constante).
+  coef: { cd2left: 0.45, ed2left: 0.15, reunif: 0.72, desist: 0.50 },
+  DESIST_ED: 0.15,
   // Part du pôle radical (LFI) dans le bloc de gauche. null ⇒ on prend la valeur du scénario
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,

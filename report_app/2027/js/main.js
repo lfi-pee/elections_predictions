@@ -53,7 +53,7 @@ function initSplitter() {
 
 // Documente les entrées du modèle POUR CETTE élection (transparence, en bas de page).
 function renderInputs() {
-  const s = APP.data.summary, cv = s.cv_halfwidth_90 || {}, p = s.proof_2024 || {};
+  const s = APP.data.summary, cv = s.cv_halfwidth_90 || {};
   const li = (t) => `<li>${t}</li>`;
   $("inputs-body").innerHTML = `<ul>
     ${li(`<b>Cible</b> : Législatives 2027, 1<sup>er</sup> tour, <b>${s.n_circo}</b> circonscriptions,
@@ -79,11 +79,6 @@ function renderInputs() {
         reports <b>réglables au curseur</b> (défauts : barrage centre-droit→gauche 45 % contre le
         RN, report RN→gauche 15 %, <b>réunification imparfaite</b> d'une gauche divisée 72 %) ;
         « union des droites » = report LR→RN.`)}
-    ${li(`<b>Contours</b> : circonscriptions reconstituées depuis les législatives 2022 (stables
-        2012–2024) ; outre-mer et étranger ramenés en encarts.`)}
-    ${li(`<b>Validité</b> : rejoué sur 2024, le modèle désigne le bon bloc en tête dans
-        <b>${p.lead_accuracy ?? "—"} %</b> des bureaux. Il <b>ne voit pas</b> les réalignements
-        brutaux, les dynamiques de campagne, ni les désistements/candidatures locales précises.`)}
   </ul>`;
 }
 

@@ -7,9 +7,9 @@
 function openCirco(pr) {
   APP.selected = pr.id;
   if (APP.map.getLayer("circo-sel")) APP.map.setFilter("circo-sel", ["==", "id", pr.id]);
-  $("panel-body").innerHTML = renderCirco(pr);
-  $("panel").classList.remove("hidden");
-  document.body.classList.add("panel-open");
+  $("explain-body").innerHTML = renderCirco(pr);
+  $("explain").classList.remove("hidden");
+  $("explain").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function sharesBar(g, cd, ed) {
@@ -83,12 +83,10 @@ function renderCirco(prIn) {
 
 function initPanel() {
   const close = () => {
-    $("panel").classList.add("hidden");
-    document.body.classList.remove("panel-open");
+    $("explain").classList.add("hidden");
     APP.selected = null;
     if (APP.map.getLayer("circo-sel")) APP.map.setFilter("circo-sel", ["==", "id", "___none___"]);
   };
-  $("panel-close").onclick = close;
+  if ($("explain-close")) $("explain-close").onclick = close;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  $("panel-scrim").onclick = close;
 }

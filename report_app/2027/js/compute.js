@@ -30,16 +30,20 @@ function leftT2(left, second, thr) {
   return [ql.reduce((a, b) => a + b, 0) + REUNIF * elim, true];
 }
 
+// Reports du centre-droit au 2nd tour (union des droites → LR se reporte sur le RN).
+function cdTransfer(ru) { return ru ? [0.20, 0.55] : [BARR.cd2left, BARR.cd2ed]; }
+
 // Score 1→5 de la GAUCHE (miroir de src/winnability_2027.py).
-function scoreCirco(g, cd, ed, ab, cfg, rad) {
+function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad), lbest = Math.max(...left);
   const cands = left.concat([cd, ed]).sort((a, b) => b - a);
   const leader = cands[0], second = cands[1];
   const [lbase, qL] = leftT2(left, second, thr);
+  const [cd2l, cd2e] = cdTransfer(ru);
   if (!qL) return { sc: 5, lbest, ql: false, mt2: null, opp: ed >= cd ? "ED" : "CD" };
   let l2, oppT2, opp;
-  if (ed >= cd) { l2 = lbase + BARR.cd2left * cd; oppT2 = ed + BARR.cd2ed * cd; opp = "ED"; }
+  if (ed >= cd) { l2 = lbase + cd2l * cd; oppT2 = ed + cd2e * cd; opp = "ED"; }
   else { l2 = lbase + BARR.ed2left * ed; oppT2 = cd + BARR.ed2cd * ed; opp = "CD"; }
   const mt2 = l2 - oppT2, leadsFirst = lbest >= leader - 1e-9;
   let sc;
@@ -50,15 +54,16 @@ function scoreCirco(g, cd, ed, ab, cfg, rad) {
 
 // Bloc vainqueur du SIÈGE (G/CD/ED). La division de la gauche l'affaiblit au 2nd tour
 // (réunification imparfaite) et peut l'éliminer dès le 1er (aucun pôle qualifié).
-function seatWinner(g, cd, ed, ab, cfg, rad) {
+function seatWinner(g, cd, ed, ab, cfg, rad, ru) {
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad);
   const cands = left.concat([cd, ed]).sort((a, b) => b - a), second = cands[1];
   const [lbase, qL] = leftT2(left, second, thr);
   const qC = qual(cd, second, thr), qE = qual(ed, second, thr);
+  const [cd2l, cd2e] = cdTransfer(ru);
   let sL = qL ? lbase : 0, sC = qC ? cd : 0, sE = qE ? ed : 0;
   if (!qL) { if (qC) sC += BARR.elimL2cd * g; if (qE) sE += BARR.elimL2ed * g; }
-  if (!qC) { if (qL) sL += BARR.cd2left * cd; if (qE) sE += BARR.cd2ed * cd; }
+  if (!qC) { if (qL) sL += cd2l * cd; if (qE) sE += cd2e * cd; }
   if (!qE) { if (qL) sL += BARR.ed2left * ed; if (qC) sC += BARR.ed2cd * ed; }
   const arr = [["G", sL, qL], ["CD", sC, qC], ["ED", sE, qE]].filter((x) => x[2]);
   arr.sort((a, b) => b[1] - a[1]);
@@ -88,8 +93,9 @@ function circoEval(pr) {
   const g0 = clamp(n.G + pr.dG, 0, 100), cd0 = clamp(n.CD + pr.dCD, 0, 100),
     ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
-  const r = scoreCirco(g, cd, ed, ab, s.left_config, s.radical_share);
-  const win = seatWinner(g, cd, ed, ab, s.left_config, s.radical_share);
+  const ru = s.right_union;
+  const r = scoreCirco(g, cd, ed, ab, s.left_config, s.radical_share, ru);
+  const win = seatWinner(g, cd, ed, ab, s.left_config, s.radical_share, ru);
   return { g, cd, ed, ab, win, ...r };
 }
 

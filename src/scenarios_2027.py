@@ -73,12 +73,13 @@ SCENARIOS = [
     {
         "key": "droite_unie",
         "label": "Droites unies en face",
-        "desc": "Même soutien de gauche (ici unie), mais une partie de LR bascule au RN "
-        "(union des droites) : la barre à franchir au 2nd tour monte fortement.",
-        # ~6 pts du centre-droit passent au RN ; le total de gauche est inchangé.
-        "means": {**_renorm3(_L, _CD - 6.0, _ED + 6.0), "AB": DEFAULT_ABSTENTION},
+        "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte "
+        "sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre "
+        "à franchir monte. (Le niveau national reste celui des curseurs.)",
+        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "union",
         "radical_share": 1.0,
+        "right_union": True,
     },
 ]
 

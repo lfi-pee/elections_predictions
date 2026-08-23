@@ -83,13 +83,13 @@ def export() -> None:
         if d[0].isdigit() or d in ("2A", "2B"):
             out.append(f)
 
-    # Encarts outre-mer/étranger : grille 2 colonnes × 5 lignes de grandes boîtes, à gauche
-    # de la métropole (Atlantique). Des boîtes larges pour que les territoires soient lisibles
-    # et cliquables (et non « minuscules »).
-    reg_x0, reg_x1 = -20.0, -6.0
-    reg_y0, reg_y1 = 39.5, 52.0
+    # Encarts outre-mer/étranger : tous ramenés à GAUCHE de la métropole (Atlantique,
+    # lon < −6.5 → aucun chevauchement avec la métropole lon ≥ −5,1), en un bloc compact.
+    # 10 territoires en grille 2 colonnes × 5 lignes ; l'étranger en bandeau juste en dessous.
+    reg_x0, reg_x1 = -19.5, -6.5
+    reg_y0, reg_y1 = 43.2, 51.3
     n_cols, n_rows = 2, 5
-    gap = 0.4
+    gap = 0.3
     cw = (reg_x1 - reg_x0) / n_cols
     ch = (reg_y1 - reg_y0) / n_rows
     for k, dept in enumerate(LEFT_COL):
@@ -128,10 +128,11 @@ def export() -> None:
                 cy = by1 - tch * (j // tcols + 0.5)
                 out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
 
-    # Étranger : bandeau de 11 tuiles sous la métropole (2 rangées pour de grosses tuiles).
+    # Étranger : bandeau de 11 tuiles SOUS le bloc outre-mer (toujours à gauche de la
+    # métropole, pas en dessous d'elle) — 2 rangées de grosses tuiles.
     zz = ids_by_dept.get("ZZ", [])
     if zz:
-        bx0, bx1, by0, by1 = -6.0, 9.5, 34.5, 39.0
+        bx0, bx1, by0, by1 = -19.5, -6.5, 38.8, 42.7
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
         zcols, zrows = 6, 2
         zcw = (bx1 - bx0) / zcols

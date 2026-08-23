@@ -23,19 +23,12 @@ async function boot() {
   renderIntro();
 }
 
-// Bandeau d'accroche : chiffres de preuve (validation croisée 2024) + rappel de méthode.
 function renderIntro() {
-  const p = APP.data.summary.proof_2024 || {};
-  const cv = APP.data.summary.cv_halfwidth_90 || {};
   $("intro").innerHTML =
-    `Prévision des <b>577 circonscriptions</b> pour les législatives 2027, au bureau de vote
-     agrégé. Le modèle pose l'<b>écart local</b> de chaque circo à la moyenne nationale ;
-     vous posez le <b>niveau national</b> (curseurs) et l'<b>hypothèse d'union</b> de la gauche
-     (scénarios). Il en déduit, en direct, les parts par bloc, le <b>vainqueur probable</b> de
-     chaque siège et la <b>jouabilité</b> pour la gauche.
-     <span class="muted">Preuve : rejoué sur 2024 (désormais dans la validation croisée),
-     le modèle désigne le bon bloc en tête dans <b>${p.lead_accuracy ?? "—"} %</b> des bureaux.
-     Méthode complète : <a href="../" target="_blank">carte 2024 ↗</a>.</span>`;
+    `<b>577 circonscriptions</b>, législatives 2027. Choisissez un <b>scénario</b> d'union et
+     réglez le <b>niveau national</b> : la carte, les <b>sièges</b> et la <b>jouabilité</b>
+     pour la gauche se recalculent en direct.
+     <span class="muted"><a href="../" target="_blank">Méthode : carte 2024 ↗</a></span>`;
 }
 
 boot();

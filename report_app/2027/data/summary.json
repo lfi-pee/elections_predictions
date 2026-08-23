@@ -14,7 +14,8 @@
     "AB": 48.0
    },
    "left_config": "union",
-   "radical_share": 1.0
+   "radical_share": 1.0,
+   "right_union": false
   },
   {
    "key": "split2",
@@ -27,7 +28,8 @@
     "AB": 48.0
    },
    "left_config": "split2",
-   "radical_share": 0.354
+   "radical_share": 0.354,
+   "right_union": false
   },
   {
    "key": "frag",
@@ -40,20 +42,22 @@
     "AB": 48.0
    },
    "left_config": "split3",
-   "radical_share": 0.354
+   "radical_share": 0.354,
+   "right_union": false
   },
   {
    "key": "droite_unie",
    "label": "Droites unies en face",
-   "desc": "Même soutien de gauche (ici unie), mais une partie de LR bascule au RN (union des droites) : la barre à franchir au 2nd tour monte fortement.",
+   "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre à franchir monte. (Le niveau national reste celui des curseurs.)",
    "means": {
     "G": 32.2,
-    "CD": 23.5,
-    "ED": 44.3,
+    "CD": 30.6,
+    "ED": 37.3,
     "AB": 48.0
    },
    "left_config": "union",
-   "radical_share": 1.0
+   "radical_share": 1.0,
+   "right_union": true
   }
  ],
  "default_scenario": "split2",
@@ -144,25 +148,25 @@
   },
   "droite_unie": {
    "counts": {
-    "1": 105,
-    "2": 57,
-    "3": 70,
-    "4": 213,
-    "5": 132
+    "1": 82,
+    "2": 29,
+    "3": 50,
+    "4": 268,
+    "5": 148
    },
    "inscrits": {
-    "1": 7852550,
-    "2": 4726600,
-    "3": 6249827,
-    "4": 18856607,
-    "5": 10960156
+    "1": 6050790,
+    "2": 2189774,
+    "3": 4259575,
+    "4": 23814913,
+    "5": 12330688
    },
    "seats": {
-    "G": 151,
-    "CD": 57,
-    "ED": 369
+    "G": 160,
+    "CD": 151,
+    "ED": 266
    },
-   "playable": 232
+   "playable": 161
   }
  },
  "proof_2024": {

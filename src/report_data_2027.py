@@ -112,14 +112,15 @@ def winnability_distribution(cir: pd.DataFrame, scn: dict) -> dict:
     m = scenario_means(scn)
     counts = {s: 0 for s in range(1, 6)}
     ins = {s: 0 for s in range(1, 6)}
+    ru = scn.get("right_union", False)
     seats = {"G": 0, "CD": 0, "ED": 0}
     for r in cir.itertuples():
         G, CD, ED, AB = m["G"] + r.dG, m["CD"] + r.dCD, m["ED"] + r.dED, m["AB"] + r.dAB
         G, CD, ED, AB = (min(100, max(0, v)) for v in (G, CD, ED, AB))
-        res = winnability_2027.score_circo(G, CD, ED, AB, scn["left_config"], scn["radical_share"])
+        res = winnability_2027.score_circo(G, CD, ED, AB, scn["left_config"], scn["radical_share"], ru)
         counts[res["score"]] += 1
         ins[res["score"]] += int(r.ins)
-        seats[winnability_2027.seat_winner(G, CD, ED, AB, scn["left_config"], scn["radical_share"])] += 1
+        seats[winnability_2027.seat_winner(G, CD, ED, AB, scn["left_config"], scn["radical_share"], ru)] += 1
     return {"counts": counts, "inscrits": ins, "seats": seats,
             "playable": sum(counts[s] for s in (1, 2, 3))}
 
@@ -152,7 +153,8 @@ def build() -> None:
     # Preuve : chiffres hors-échantillon de 2024 (désormais un pli de la validation croisée).
     s24 = json.loads(SUMMARY24.read_text())
     scen_out = [
-        {k: s[k] for k in ("key", "label", "desc", "means", "left_config", "radical_share")}
+        {**{k: s[k] for k in ("key", "label", "desc", "means", "left_config", "radical_share")},
+         "right_union": s.get("right_union", False)}
         for s in scenarios_2027.SCENARIOS
     ]
     per_scn = {

@@ -49,7 +49,16 @@ def _left_t2(left: list[float], second: float, thr: float) -> tuple[float, bool]
     return sum(ql) + REUNIF * elim, True
 
 
-def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float) -> dict:
+def _cd_transfer(right_union: bool) -> tuple[float, float]:
+    """Reports du centre-droit au 2nd tour. Sous union des droites, l'électorat LR se reporte
+    sur le RN au lieu de faire barrage : le front républicain s'effondre."""
+    if right_union:
+        return 0.20, 0.55  # (vers gauche, vers RN)
+    return BARRAGE_CD_TO_LEFT, BARRAGE_CD_TO_ED
+
+
+def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
+                right_union: bool = False) -> dict:
     """Renvoie {score 1..5, l_best, qualifies, margin_t2, opp}. `g/cd/ed` = parts exprimées
     (somme ~100), `ab` = abstention % inscrits."""
     turnout = max(0.05, 1 - ab / 100.0)
@@ -61,6 +70,7 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float)
     top2 = sorted(cands, reverse=True)[:2]
     leader, second = top2[0], top2[1]
     left_base, qualifies = _left_t2(left, second, thr)
+    cd2l, cd2e = _cd_transfer(right_union)
 
     if not qualifies:
         return {"score": 5, "l_best": round(l_best, 1), "qualifies": False,
@@ -69,8 +79,8 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float)
     # 2nd tour : gauche réunie (réunification imparfaite si divisée) face à l'adversaire le
     # plus fort ; reports selon que cet adversaire est le RN (barrage) ou le centre-droit.
     if ed >= cd:
-        left_t2 = left_base + BARRAGE_CD_TO_LEFT * cd
-        opp_t2 = ed + BARRAGE_CD_TO_ED * cd
+        left_t2 = left_base + cd2l * cd
+        opp_t2 = ed + cd2e * cd
         opp = "ED"
     else:
         left_t2 = left_base + BARRAGE_ED_TO_LEFT * ed
@@ -91,7 +101,8 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float)
             "margin_t2": round(margin_t2, 1), "opp": opp}
 
 
-def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float) -> str:
+def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
+                right_union: bool = False) -> str:
     """Bloc vainqueur du siège (G/CD/ED), même modèle de 2nd tour que `score_circo`."""
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout
@@ -101,6 +112,7 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float)
     left_base, qL = _left_t2(left, second, thr)
     qC = cd >= second - 1e-9 or cd >= thr
     qE = ed >= second - 1e-9 or ed >= thr
+    cd2l, cd2e = _cd_transfer(right_union)
     sL = left_base if qL else 0.0
     sC = cd if qC else 0.0
     sE = ed if qE else 0.0
@@ -111,9 +123,9 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float)
             sE += 0.10 * g
     if not qC:
         if qL:
-            sL += BARRAGE_CD_TO_LEFT * cd
+            sL += cd2l * cd
         if qE:
-            sE += BARRAGE_CD_TO_ED * cd
+            sE += cd2e * cd
     if not qE:
         if qL:
             sL += BARRAGE_ED_TO_LEFT * ed

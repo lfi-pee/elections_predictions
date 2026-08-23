@@ -10,13 +10,14 @@ function currentScenario() {
   return APP.data.summary.scenarios.find((s) => s.key === APP.scenario);
 }
 
+// Un scénario ne change QUE la configuration (union/division à gauche, union des droites) :
+// il **préserve** le niveau national réglé aux curseurs. Le niveau, c'est « valeurs prédites »
+// ou vos réglages — jamais le scénario. (« Réinitialiser » ramène aux valeurs prédites.)
 function setScenario(key) {
   const s = APP.data.summary.scenarios.find((x) => x.key === key);
   if (!s) return;
   APP.scenario = key;
   APP.scnObj = s;
-  APP.nat = { G: s.means.G, CD: s.means.CD, ED: s.means.ED, AB: s.means.AB };
-  syncSliders();
   document.querySelectorAll(".scn-btn").forEach((b) =>
     b.classList.toggle("on", b.dataset.k === key));
   $("scn-desc").textContent = s.desc;
@@ -63,8 +64,7 @@ function initControls() {
   }).join("");
   for (const b of BLOCKS) {
     $("sl-" + b).addEventListener("input", (e) => {
-      APP.nat[b] = parseFloat(e.target.value);
-      $("slv-" + b).textContent = fmt1(APP.nat[b]) + " %";
+      setNat(b, parseFloat(e.target.value));
       recomputeAll();
     });
   }
@@ -74,6 +74,20 @@ function initControls() {
   $("mode-win").onclick = () => { setMode("win"); syncModeBtns(); };
   $("mode-seat").onclick = () => { setMode("seat"); syncModeBtns(); };
   syncModeBtns();
+}
+
+// Déplacer un curseur de bloc (G/CD/ED) redistribue le reste sur les deux autres au prorata,
+// pour que G+C+D+ED = 100 % des exprimés. L'abstention est un axe à part (% des inscrits).
+function setNat(b, v) {
+  if (b === "AB") {
+    APP.nat.AB = v;
+  } else {
+    const others = APP.VOTE.filter((x) => x !== b);
+    const rem = 100 - v, sum = others.reduce((a, x) => a + APP.nat[x], 0);
+    for (const x of others) APP.nat[x] = sum > 0 ? rem * APP.nat[x] / sum : rem / others.length;
+    APP.nat[b] = v;
+  }
+  syncSliders();
 }
 
 function syncModeBtns() {

@@ -92,6 +92,7 @@ function initControls() {
 
   renderLfiShare();
   renderTransfers();
+  renderSeatInfo();
 
   // Bascule de mode carte.
   $("mode-win").onclick = () => { setMode("win"); syncModeBtns(); };
@@ -207,9 +208,10 @@ function renderLfiShare() {
          de gauche entier ; cette part le répartit entre pôle radical (LFI) et pôle
          social-démocrate (PS·Place publique·EELV·PCF). Le motif par circonscription est le poids
          réel de LFI dans la gauche mesuré aux <b>européennes 2024</b> (le scrutin divisé le plus
-         récent), recentré sur la moyenne du curseur. La part de <b>SIÈGES</b> qui en résulte
-         diffère de la part de voix (~37 % des voix → ~27 % des sièges de gauche) : dans chaque
-         circo, le pôle le plus fort emporte le siège. Sans effet en gauche unie.</span></span>
+         récent), recentré sur la moyenne du curseur (actuellement <b>${pct} %</b>). La part de
+         <b>SIÈGES</b> qui en résulte est INFÉRIEURE à la part de voix quand LFI est minoritaire :
+         dans chaque circo, le pôle le plus fort emporte le siège (détail dans « détail pôles »).
+         Sans effet en gauche unie.</span></span>
        <button id="lfi-reset" class="reset-btn" title="Revenir à la part du scénario">↺</button></div>
      <div class="sl-row"><label style="color:${POLE_RAD}">LFI
        <span class="sl-v" id="lfiv">${pct} %</span></label>
@@ -224,6 +226,25 @@ function renderLfiShare() {
     recomputeAll();
   });
   $("lfi-reset").onclick = () => { exitReplay(); APP.radOverride = null; renderLfiShare(); recomputeAll(); };
+}
+
+// Infobulle « Projection en sièges » : chiffres de validation 2024 lus EN DIRECT depuis les
+// données servies (aucune valeur figée dans le HTML). Se met à jour tout seul à la reconstruction.
+function renderSeatInfo() {
+  const el = $("seat-info-tip");
+  if (!el) return;
+  const s = APP.data.summary, e = s.backtest_2024_e2e, a = s.backtest_2024_allseats;
+  if (!e || !a) { el.textContent = "Validation 2024 indisponible."; return; }
+  const r = (x) => Math.round(x);
+  el.innerHTML =
+    `Validée <b>à l'aveugle</b> : 2024 entièrement retiré de l'entraînement, la chaîne complète ` +
+    `(prévision de 1<sup>er</sup> tour → modèle de sièges) rejoue 2024 et appelle le bon vainqueur ` +
+    `dans <b>~${r(e.accuracy_seats)} %</b> des circonscriptions <b>disputées</b> (2nd tour). Les ` +
+    `sièges gagnés dès le 1<sup>er</sup> tour (les plus sûrs) sont appelés à <b>${r(a.first_round.accuracy)} %</b> ; ` +
+    `sur l'<b>ensemble des ${a.all.n}</b>, ~${r(a.all.accuracy)} % (backtest oracle sur les parts réelles). ` +
+    `<b>Réserve</b> : ce test à l'aveugle retire 2024 de l'entraînement, ce qui fait ` +
+    `<b>sous-estimer le RN</b> (~${e.model.ED} sièges rejoués vs ${e.actual.ED} réels) — la prévision ` +
+    `2027, elle, garde 2024 en mémoire. Le bouton « ↻ Rejouer 2024 » détaille.`;
 }
 
 // ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──

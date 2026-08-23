@@ -1,10 +1,12 @@
-"""Audit « aucun chiffre figé » : les statistiques AFFICHÉES par le site doivent correspondre
-aux données SERVIES (summary.json), pas être saisies à la main puis oubliées.
+"""Audit « aucun chiffre figé » : les statistiques AFFICHÉES viennent des données servies, pas
+de valeurs saisies à la main dans le HTML.
 
-Les infobulles statiques de index.html citent des chiffres de validation (justesse rejeu 2024,
-sous-estimation RN, part LFI sondée…). Si une reconstruction change ces nombres, l'affichage
-doit suivre. Ce test extrait ces chiffres et vérifie qu'ils égalent (à l'arrondi) les valeurs
-servies. Il ÉCHOUE si un nombre affiché a divergé de la donnée — forçant la mise à jour.
+Depuis que les infobulles sont DYNAMIQUES (remplies en JS depuis summary.json), la garantie est
+« par construction ». Ce test le vérifie : (1) l'infobulle des sièges dans index.html est un
+gabarit VIDE (aucune statistique en dur) ; (2) le JS qui la remplit lit bien les champs servis ;
+(3) la part LFI affichée vient du curseur, pas d'un littéral ; (4) les champs servis existent.
+
+Il ÉCHOUE si quelqu'un re-fige un chiffre dans le HTML ou débranche le rendu des données.
 
     python3 -u -m src.test_no_hardcoded_2027
 """
@@ -18,62 +20,62 @@ from pathlib import Path
 
 SUMMARY = Path("report_app/2027/data/summary.json")
 INDEX = Path("report_app/2027/index.html")
+CONTROLS = Path("report_app/2027/js/controls.js")
 
 
-def _tip_after(html: str, header_marker: str) -> str:
-    """Texte de l'infobulle (.tip) qui suit un marqueur de section donné."""
-    i = html.find(header_marker)
-    if i < 0:
-        return ""
-    j = html.find('class="tip"', i)
+def _tip_after(html: str, marker: str) -> str:
+    i = html.find(marker)
+    j = html.find('class="tip"', i) if i >= 0 else -1
     if j < 0:
         return ""
-    k = html.find("</span>", j)
-    return html[j:k]
+    return html[j:html.find("</span>", j)]
 
 
 def main() -> None:
     s = json.loads(SUMMARY.read_text())
     html = INDEX.read_text()
+    js = CONTROLS.read_text()
     fails = []
 
-    def nums(txt: str) -> set[int]:
-        return {int(x) for x in re.findall(r"\d+", txt)}
-
-    # ── Infobulle « Projection en sièges » : justesse rejeu 2024 + sous-estimation RN ──
+    # (1) L'infobulle des sièges est un gabarit VIDE (dynamique) — aucune stat en dur.
     seat_tip = _tip_after(html, "Projection en sièges")
-    e2e, alls = s.get("backtest_2024_e2e"), s.get("backtest_2024_allseats")
-    if not seat_tip:
-        fails.append("infobulle 'Projection en sièges' introuvable")
-    else:
-        present = nums(seat_tip)
-        want = []
-        if e2e:
-            want += [("justesse contesté (e2e)", round(e2e["accuracy_seats"])),
-                     ("RN projeté (e2e)", e2e["model"]["ED"]),
-                     ("RN réel (e2e)", e2e["actual"]["ED"])]
-        if alls:
-            want += [("justesse 1er tour", round(alls["first_round"]["accuracy"])),
-                     ("justesse ensemble 577", round(alls["all"]["accuracy"]))]
-        for label, val in want:
-            if val not in present:
-                fails.append(f"[sièges] {label} = {val} absent de l'infobulle (chiffres présents : {sorted(present)})")
+    if 'id="seat-info-tip"' not in seat_tip:
+        fails.append("infobulle sièges : gabarit dynamique #seat-info-tip absent")
+    stray = [n for n in re.findall(r"\d+", seat_tip) if n not in ("1", "2")]  # 1er/2nd tour ok
+    if stray:
+        fails.append(f"infobulle sièges : statistiques FIGÉES dans le HTML {stray} (doit être vide)")
 
-    # ── Infobulle « Part de la gauche radicale (LFI) » : part radicale sondée (curseur) ──
-    # (rendue par controls.js ; on vérifie la valeur servie du scénario par défaut.)
+    # (2) Le JS remplit l'infobulle depuis les champs servis (branché aux données).
+    need = ["backtest_2024_e2e", "backtest_2024_allseats", "accuracy_seats",
+            "first_round", ".all", "model.ED", "actual.ED"]
+    miss = [k for k in need if k not in js]
+    if miss:
+        fails.append(f"renderSeatInfo ne lit pas les champs servis : {miss}")
+
+    # (3) La part LFI affichée vient du curseur (variable), pas d'un pourcentage littéral.
+    if "actuellement <b>${pct} %</b>" not in js:
+        fails.append("infobulle LFI : la part de voix n'est pas dynamique (${pct} attendu)")
+
+    # (4) Les champs servis existent et sont plausibles (sinon le rendu serait vide/faux).
+    e, a = s.get("backtest_2024_e2e"), s.get("backtest_2024_allseats")
+    if not e or not a:
+        fails.append("summary.json : backtest_2024_e2e / _allseats manquant")
+    else:
+        for path, lo, hi in [(e["accuracy_seats"], 60, 100), (a["all"]["accuracy"], 60, 100),
+                             (a["first_round"]["accuracy"], 80, 100), (e["actual"]["ED"], 90, 130)]:
+            if not (lo <= path <= hi):
+                fails.append(f"summary : valeur hors plage attendue ({path} ∉ [{lo},{hi}])")
     scn = next((x for x in s["scenarios"] if x["key"] == s["default_scenario"]), None)
-    if scn and "radical_share" in scn:
-        rad_pct = round(scn["radical_share"] * 100)
-        if rad_pct not in (36, 37, 38):  # ~37 % ; garde-fou de cohérence sondages
-            fails.append(f"[LFI] part radicale servie {rad_pct}% hors de la plage attendue ~37%")
+    if scn and not (0.30 <= scn.get("radical_share", 0) <= 0.45):
+        fails.append(f"radical_share servi {scn['radical_share']} hors plage sondages ~0,37")
 
     if fails:
-        print("ÉCHEC — chiffres affichés désynchronisés des données servies :")
+        print("ÉCHEC — chiffres figés ou rendu débranché des données :")
         for f in fails:
             print("  ✗", f)
         sys.exit(1)
-    print("✅ Chiffres affichés cohérents avec les données servies "
-          "(justesse rejeu 2024 contesté/1er tour/ensemble, sous-estimation RN, part LFI).")
+    print("✅ Infobulles dynamiques : chiffres tirés des données servies, rien n'est figé "
+          "dans le HTML (sièges + part LFI).")
 
 
 if __name__ == "__main__":

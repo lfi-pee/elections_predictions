@@ -34,12 +34,20 @@ function resetSliders() {
   recomputeAll();
 }
 
+// Les curseurs G/CD/ED affichent les parts EFFECTIVES (après couplage participation γ) au
+// niveau d'abstention courant ; APP.nat garde la base posée à l'abstention de référence.
+function effShares() {
+  const n = APP.nat;
+  const [g, cd, ed] = natEffective(n.G, n.CD, n.ED, n.AB);
+  return { G: g, CD: cd, ED: ed, AB: n.AB };
+}
 function syncSliders() {
+  const eff = effShares();
   for (const b of BLOCKS) {
     const sl = $("sl-" + b);
-    if (sl) sl.value = APP.nat[b];
+    if (sl) sl.value = eff[b];
     const v = $("slv-" + b);
-    if (v) v.textContent = fmt1(APP.nat[b]) + " %";
+    if (v) v.textContent = fmt1(eff[b]) + " %";
   }
 }
 
@@ -93,13 +101,22 @@ function initControls() {
 // pour que G+C+D+ED = 100 % des exprimés. L'abstention est un axe à part (% des inscrits).
 function setNat(b, v) {
   if (b === "AB") {
+    // Bouger l'abstention ne touche pas la base : les curseurs de bloc se re-synchronisent sur
+    // les nouvelles parts EFFECTIVES (c'est là que l'abstention agit visiblement sur les blocs).
     APP.nat.AB = v;
-  } else {
-    const others = APP.VOTE.filter((x) => x !== b);
-    const rem = 100 - v, sum = others.reduce((a, x) => a + APP.nat[x], 0);
-    for (const x of others) APP.nat[x] = sum > 0 ? rem * APP.nat[x] / sum : rem / others.length;
-    APP.nat[b] = v;
+    syncSliders();
+    return;
   }
+  // v = part EFFECTIVE voulue pour le bloc b (ce que montre le curseur). On redistribue les deux
+  // autres au prorata de leur effectif courant, puis on inverse le couplage γ pour stocker la
+  // base (à l'abstention de référence) que le calcul par circo consomme.
+  const cur = effShares();
+  const others = APP.VOTE.filter((x) => x !== b);
+  const rem = 100 - v, sum = others.reduce((a, x) => a + cur[x], 0);
+  const tgt = { [b]: v };
+  for (const x of others) tgt[x] = sum > 0 ? rem * cur[x] / sum : rem / others.length;
+  const [bg, bc, be] = natBaseFromEffective(tgt.G, tgt.CD, tgt.ED, APP.nat.AB);
+  APP.nat.G = bg; APP.nat.CD = bc; APP.nat.ED = be;
   syncSliders();
 }
 
@@ -148,9 +165,9 @@ function renderLfiShare() {
 // ── Reports de 2nd tour réglables (miroir des défauts de winnability_2027.py) ──
 const COEF_DEFAULT = { cd2left: 0.45, ed2left: 0.15, reunif: 0.72 };
 const COEF_META = [
-  { k: "cd2left", lab: "Centre-droit → gauche (barrage anti-RN)" },
-  { k: "ed2left", lab: "RN → gauche (duel gauche vs centre-droit)" },
-  { k: "reunif", lab: "Réunification d'une gauche divisée" },
+  { k: "cd2left", lab: "Barrage : électeurs centre-droit → gauche (duel gauche vs RN)" },
+  { k: "ed2left", lab: "Report : électeurs RN → gauche (duel gauche vs centre-droit)" },
+  { k: "reunif", lab: "Gauche divisée : voix d'un pôle éliminé → pôle de gauche restant" },
 ];
 function renderTransfers() {
   const el = $("transfers");
@@ -207,21 +224,18 @@ function updateSeatBar() {
 }
 
 function updateNatBar() {
-  const n = APP.nat, s = (n.G + n.CD + n.ED);
-  // Parts « effectives » = parts posées aux curseurs APRÈS couplage participation (γ) : sous
-  // l'abstention de référence (48 %), les revenants penchent à gauche (résultat 2024). Les
-  // curseurs restent les parts d'exprimés que VOUS posez ; ce sont ces parts effectives qui
-  // colorent la carte. C'est là que l'abstention agit sur les blocs (dominante nationale).
-  const [eg, ec, ee] = turnoutAdjust(n.G, n.CD, n.ED, n.AB, 0);
+  const n = APP.nat;
+  // Les curseurs G/CD/ED montrent déjà les parts EFFECTIVES (couplage γ à l'abstention courante).
+  // Ici on rappelle l'abstention et, si elle s'écarte de la référence, l'ancrage « posé » sous-
+  // jacent (à la référence) — la base que vous avez fixée, avant redistribution des revenants.
   const moved = Math.abs(n.AB - APP.AB_REF) > 0.4;
-  const eff = moved
-    ? `<span class="eff">→ après participation (${fmt1(n.AB)} % abst.) : ` +
-      `<b>G ${fmt1(eg)}</b> · <b>C+D ${fmt1(ec)}</b> · <b>ED ${fmt1(ee)}</b> ` +
-      `<span class="muted">(la carte utilise ces parts)</span></span>`
-    : `<span class="eff muted">→ à l'abstention de référence (48 %), parts effectives = parts posées</span>`;
-  $("natsum").innerHTML =
-    `bloc posé : G ${fmt1(n.G)} · C+D ${fmt1(n.CD)} · ED ${fmt1(n.ED)} ` +
-    `<span class="muted">(somme ${fmt1(s)} %)</span> · abstention ${fmt1(n.AB)} %` + eff;
+  const note = moved
+    ? `<span class="eff">curseurs = parts <b>effectives</b> à ${fmt1(n.AB)} % d'abstention ` +
+      `<span class="muted">(les revenants penchent à gauche — γ 2024) · ancrage posé à ` +
+      `${fmt1(APP.AB_REF)} % : G ${fmt1(n.G)} · C+D ${fmt1(n.CD)} · ED ${fmt1(n.ED)}</span></span>`
+    : `<span class="eff muted">à l'abstention de référence (${fmt1(APP.AB_REF)} %). ` +
+      `La baisser fera monter la gauche (courbe γ 2024).</span>`;
+  $("natsum").innerHTML = `abstention ${fmt1(n.AB)} %` + note;
 }
 
 // ── Répartition de la jouabilité (1→5) ──

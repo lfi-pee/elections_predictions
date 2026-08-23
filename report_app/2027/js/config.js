@@ -18,8 +18,8 @@ const APP = {
   state: { mode: "win", seatDetail: false },
   // État national courant (parts de bloc %, abstention % inscrits) — piloté par les curseurs.
   // Repli seulement : au chargement, main.js écrase avec les moyennes du scénario (summary.json,
-  // ancrage sondages 2026 : G ~30,7 · C+D ~29,5 · ED ~39,8).
-  nat: { G: 30.7, CD: 29.5, ED: 39.8, AB: 48 },
+  // ancre calculée depuis les sondages : G ~30,4 · C+D ~29,6 · ED ~40,0).
+  nat: { G: 30.4, CD: 29.6, ED: 40.0, AB: 48 },
   scenario: "split2",
   // Abstention de référence à laquelle les curseurs de parts (G/CD/ED) sont calés : en
   // deçà, les revenants aux urnes se répartissent selon la courbe γ (les abstentionnistes

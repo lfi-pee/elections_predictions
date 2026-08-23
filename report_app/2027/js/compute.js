@@ -96,6 +96,22 @@ function turnoutAdjust(g, cd, ed, ab, dAB) {
   return [100 * Gv / tot, 100 * CDv / tot, 100 * EDv / tot];
 }
 
+// Parts nationales « effectives » = parts de base (posées à l'abstention de référence) APRÈS
+// couplage participation γ, au niveau national. Les curseurs de bloc AFFICHENT l'effectif ;
+// APP.nat garde la base (à la référence), que le calcul par circo consomme telle quelle.
+function natEffective(g, cd, ed, ab) { return turnoutAdjust(g, cd, ed, ab, 0); }
+// Inverse : parts de base telles que natEffective(base, ab) = cible (point fixe, ~identité à la
+// référence). Sert quand l'utilisateur bouge un curseur de bloc à abstention ≠ référence.
+function natBaseFromEffective(tg, tc, te, ab) {
+  let g = tg, cd = tc, ed = te;
+  for (let it = 0; it < 6; it++) {
+    const [fg, fc, fe] = natEffective(g, cd, ed, ab);
+    g = Math.max(0, g + tg - fg); cd = Math.max(0, cd + tc - fc); ed = Math.max(0, ed + te - fe);
+    const s = g + cd + ed || 1; g = 100 * g / s; cd = 100 * cd / s; ed = 100 * ed / s;
+  }
+  return [g, cd, ed];
+}
+
 // pred + score + vainqueur d'une circo depuis les déviations portées par sa feature.
 function circoEval(pr) {
   const n = APP.nat, s = APP.scnObj;

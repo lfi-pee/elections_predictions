@@ -8,9 +8,9 @@
    "label": "Union de la gauche large",
    "desc": "À soutien de gauche égal, une seule candidature par circonscription (type NFP/Front populaire) capte tout le bloc. C'est la configuration qui convertit le mieux le soutien en sièges.",
    "means": {
-    "G": 30.7,
-    "CD": 29.5,
-    "ED": 39.8,
+    "G": 30.4,
+    "CD": 29.6,
+    "ED": 40.0,
     "AB": 48.0
    },
    "left_config": "union",
@@ -22,13 +22,13 @@
    "label": "Gauche radicale vs néolibérale",
    "desc": "Scénario de référence : même soutien de gauche, mais scindé en un pôle radical (LFI) et un pôle social-démocrate (PS-Place publique-EELV-PCF) qui concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
    "means": {
-    "G": 30.7,
-    "CD": 29.5,
-    "ED": 39.8,
+    "G": 30.4,
+    "CD": 29.6,
+    "ED": 40.0,
     "AB": 48.0
    },
    "left_config": "split2",
-   "radical_share": 0.354,
+   "radical_share": 0.369,
    "right_union": false
   },
   {
@@ -36,13 +36,13 @@
    "label": "Fragmentation (statu quo)",
    "desc": "« Autre » : même soutien, mais éclaté en trois (LFI / PS-PP / éco-PCF) sans pôle fédérateur — dispersion maximale, presque aucune qualification.",
    "means": {
-    "G": 30.7,
-    "CD": 29.5,
-    "ED": 39.8,
+    "G": 30.4,
+    "CD": 29.6,
+    "ED": 40.0,
     "AB": 48.0
    },
    "left_config": "split3",
-   "radical_share": 0.354,
+   "radical_share": 0.369,
    "right_union": false
   },
   {
@@ -50,9 +50,9 @@
    "label": "Droites unies en face",
    "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre à franchir monte. (Le niveau national reste celui des curseurs.)",
    "means": {
-    "G": 30.7,
-    "CD": 29.5,
-    "ED": 39.8,
+    "G": 30.4,
+    "CD": 29.6,
+    "ED": 40.0,
     "AB": 48.0
    },
    "left_config": "union",
@@ -84,89 +84,89 @@
    "counts": {
     "1": 110,
     "2": 53,
-    "3": 65,
-    "4": 176,
-    "5": 173
+    "3": 63,
+    "4": 169,
+    "5": 182
    },
    "inscrits": {
     "1": 8207917,
     "2": 4509769,
-    "3": 5607815,
-    "4": 15701901,
-    "5": 14618338
+    "3": 5414780,
+    "4": 15191167,
+    "5": 15322107
    },
    "seats": {
-    "G": 144,
-    "CD": 132,
+    "G": 140,
+    "CD": 136,
     "ED": 301
    },
-   "playable": 228
+   "playable": 226
   },
   "split2": {
    "counts": {
-    "1": 43,
-    "2": 76,
-    "3": 22,
-    "4": 50,
-    "5": 386
+    "1": 41,
+    "2": 65,
+    "3": 23,
+    "4": 44,
+    "5": 404
    },
    "inscrits": {
-    "1": 3169254,
-    "2": 5879432,
-    "3": 1895234,
-    "4": 4453657,
-    "5": 33248163
+    "1": 3017096,
+    "2": 4939515,
+    "3": 2066328,
+    "4": 3959862,
+    "5": 34662939
    },
    "seats": {
-    "G": 111,
-    "CD": 221,
-    "ED": 245
+    "G": 106,
+    "CD": 230,
+    "ED": 241
    },
-   "playable": 141
+   "playable": 129
   },
   "frag": {
    "counts": {
-    "1": 38,
-    "2": 40,
-    "3": 4,
+    "1": 39,
+    "2": 39,
+    "3": 6,
     "4": 14,
-    "5": 481
+    "5": 479
    },
    "inscrits": {
-    "1": 2740879,
-    "2": 2937121,
-    "3": 358184,
+    "1": 2826645,
+    "2": 2857606,
+    "3": 493881,
     "4": 1183738,
-    "5": 41425818
+    "5": 41283870
    },
    "seats": {
-    "G": 79,
-    "CD": 272,
-    "ED": 226
+    "G": 78,
+    "CD": 270,
+    "ED": 229
    },
-   "playable": 82
+   "playable": 84
   },
   "droite_unie": {
    "counts": {
-    "1": 74,
-    "2": 23,
-    "3": 37,
-    "4": 270,
-    "5": 173
+    "1": 70,
+    "2": 27,
+    "3": 35,
+    "4": 263,
+    "5": 182
    },
    "inscrits": {
-    "1": 5403869,
-    "2": 1760733,
-    "3": 2925371,
-    "4": 23937429,
-    "5": 14618338
+    "1": 5112278,
+    "2": 2052324,
+    "3": 2767544,
+    "4": 23391487,
+    "5": 15322107
    },
    "seats": {
-    "G": 130,
-    "CD": 132,
+    "G": 126,
+    "CD": 136,
     "ED": 315
    },
-   "playable": 134
+   "playable": 132
   }
  },
  "proof_2024": {

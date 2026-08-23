@@ -27,6 +27,8 @@ INSETS = DIR / "circo_insets.json"
 # Silhouettes des COM absentes des contours bureau (Natural Earth), produites par
 # `report_geo_overseas_2027` : ZN/ZP/ZW/ZX obtiennent ainsi un vrai contour au lieu de tuiles.
 SILH = Path("data/geo/overseas_silhouettes.geojson")
+# Planisphère de l'étranger : union des pays de chacune des 11 circos (ZZ-01..ZZ-11).
+ETR = Path("data/geo/etranger_world.geojson")
 
 # Libellés des territoires d'outre-mer / étranger (à défaut : le code).
 TERR = {
@@ -50,6 +52,23 @@ def _fit_transform(src_bounds, dst):
     scx, scy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
     dcx, dcy = (dx0 + dx1) / 2, (dy0 + dy1) / 2
     return [s, 0, 0, s, dcx - s * scx, dcy - s * scy]
+
+
+def _inflate(geom, dst, target=0.10):
+    """Dilate une silhouette jusqu'à couvrir ~`target` de l'aire de l'encart `dst`, puis la
+    reclippe à l'encart. Les territoires minuscules ou épars (Wallis-et-Futuna, Polynésie —
+    quelques îlots noyés dans un vaste rectangle océanique) redeviennent visibles ; ceux qui
+    remplissent déjà l'encart (Nouvelle-Calédonie) ne bougent quasiment pas (arrêt précoce)."""
+    dx0, dy0, dx1, dy1 = dst
+    cell = (dx1 - dx0) * (dy1 - dy0)
+    if cell <= 0:
+        return geom
+    step, g = 0.02 * min(dx1 - dx0, dy1 - dy0), geom
+    for _ in range(24):
+        if g.area >= target * cell:
+            break
+        g = geom.buffer((_ + 1) * step)
+    return g.intersection(shp_box(dx0, dy0, dx1, dy1))
 
 
 def _split_vertical(geom, n):
@@ -146,6 +165,7 @@ def export() -> None:
             # Contour réel de la COM (Natural Earth) ajusté à l'encart, puis découpé en une
             # bande par circo → chaque circo reste cliquable et colorée par ses propres données.
             placed = affine_transform(silhouettes[dept], _fit_transform(silhouettes[dept].bounds, dst))
+            placed = _inflate(placed, dst)  # rend visibles les COM minuscules / éparses
             for (cid, i), part in zip(entries, _split_vertical(placed, len(entries))):
                 if part.is_empty:
                     continue
@@ -163,20 +183,36 @@ def export() -> None:
                 cy = by1 - tch * (j // tcols + 0.5)
                 out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
 
-    # Étranger : bandeau de 11 tuiles SOUS le bloc outre-mer (toujours à gauche de la
-    # métropole, pas en dessous d'elle) — 2 rangées de grosses tuiles.
+    # Étranger : planisphère miniature SOUS le bloc outre-mer — chaque circo = l'union de ses
+    # pays (report_geo_overseas_2027). Une SEULE transformation partagée → planisphère cohérent ;
+    # bande unique et compacte (les 11 circos ne prennent qu'une rangée, gain de place vertical).
     zz = ids_by_dept.get("ZZ", [])
-    if zz:
-        bx0, bx1, by0, by1 = -14.5, -7.0, 38.2, 41.4
+    if zz and ETR.exists():
+        bx0, bx1, by0, by1 = -14.5, -7.0, 39.2, 41.6
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
-        zcols, zrows = 6, 2
-        zcw = (bx1 - bx0) / zcols
-        zch = (by1 - by0) / zrows
-        r = min(zcw, zch) * 0.4
+        world = {f["properties"]["id"]: shape(f["geometry"])
+                 for f in json.loads(ETR.read_text())["features"]}
+        allg = list(world.values())
+        xs = [g.bounds[0] for g in allg] + [g.bounds[2] for g in allg]
+        ys = [g.bounds[1] for g in allg] + [g.bounds[3] for g in allg]
+        m = _fit_transform((min(xs), min(ys), max(xs), max(ys)),
+                           (bx0 + 0.05, by0 + 0.05, bx1 - 0.05, by1 - 0.05))
+        for cid, i in zz:
+            g = world.get(cid)
+            if g is not None:
+                out.append({"type": "Feature",
+                            "geometry": _round_geom(affine_transform(g, m)),
+                            "properties": props(i)})
+    elif zz:
+        # Repli (planisphère non généré) : bandeau de 11 tuiles carrées, une rangée.
+        bx0, bx1, by0, by1 = -14.5, -7.0, 39.2, 41.6
+        insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
+        zcw = (bx1 - bx0) / len(zz)
+        r = min(zcw, by1 - by0) * 0.4
         for j, (cid, i) in enumerate(zz):
-            cx = bx0 + zcw * (j % zcols + 0.5)
-            cy = by1 - zch * (j // zcols + 0.5)
-            out.append({"type": "Feature", "geometry": _square(cx, cy, r), "properties": props(i)})
+            out.append({"type": "Feature",
+                        "geometry": _square(bx0 + zcw * (j + 0.5), (by0 + by1) / 2, r),
+                        "properties": props(i)})
 
     OUT.write_text(json.dumps({"type": "FeatureCollection", "features": out},
                               ensure_ascii=False, separators=(",", ":")))

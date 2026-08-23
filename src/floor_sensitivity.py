@@ -95,10 +95,13 @@ def run() -> None:
         .d.min()
     )
 
+    pastg = past.groupby("location").Abstention
     estimators = {
         "poolé 3 types (régime mêlé)": pool.groupby("location").Abstention.min(),
         "legi, AVEC cible 2024 (fuite)": legi.groupby("location").Abstention.min(),
-        "B — legi PASSÉES (retenu)": past.groupby("location").Abstention.min(),
+        "B — legi PASSÉES, min (q0)": pastg.min(),
+        "B — legi PASSÉES, p10 (servi)": pastg.quantile(0.10),
+        "B — legi PASSÉES, p25": pastg.quantile(0.25),
         "C — renorm national+local": renorm,
     }
     print(
@@ -108,6 +111,21 @@ def run() -> None:
         mv, conj, fmin, cmax = _gisement(df, fl, curve, ml, ins)
         print(
             f"{name:>32} {mv / 1e6:>7.2f}M {conj / 1e6:>5.2f}M {fmin:>10.1f} {cmax:>10.1f}"
+        )
+
+    # Biais du minimum d'échantillon : le min sur-vide le plancher d'autant plus que le
+    # bureau a d'observations. On le chiffre en corrélant, sur les bureaux à historique
+    # riche, le nombre de scrutins passés au creusement min↔p10 (plancher plus bas = conj
+    # plus gros, pour un même bureau).
+    n_obs = pastg.size().rename("n")
+    gap = (pastg.quantile(0.10) - pastg.min()).rename("gap")
+    bias = pd.concat([n_obs, gap], axis=1).dropna()
+    bias = bias[bias.n >= 2]
+    if len(bias) > 5:
+        rho = float(np.corrcoef(bias.n, bias.gap)[0, 1])
+        print(
+            f"\nBiais du min : corr(n scrutins, p10−min) = {rho:+.2f} — "
+            "plus l'historique est long, plus le min décroche sous p10 (artefact de données)."
         )
 
     # Fuite chiffrée : part des bureaux dont le min legi == valeur observée 2024.

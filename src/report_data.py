@@ -44,6 +44,11 @@ TARGET_TYPE = "Legislatives_T1"
 # part « conjoncturelle » dégénère en résidu de prédiction) : on ne lit que les scrutins
 # strictement antérieurs à cette date (date_float du scrutin 2024 visé = 2024,5).
 TARGET_FLOOR_CUTOFF = 2024.0
+# Quantile bas servant de plancher d'abstention de fond (voir `attach_abst_floor`). `0`
+# redonne le minimum historique — biaisé vers le bas d'autant plus que le bureau a une
+# longue histoire. Un quantile bas dé-biaise sans quitter le régime « niveau approché,
+# donc atteignable ». `build()` publie la sensibilité min/p10/p25.
+ABST_FLOOR_Q = 0.10
 
 BLOCKS = {
     "Gauche": "G",
@@ -138,29 +143,70 @@ def _contourless() -> set[str]:
     return set(json.loads(path.read_text())) if path.exists() else set()
 
 
-def attach_abst_floor(df: pd.DataFrame) -> pd.DataFrame:
-    """Plancher d'abstention par bureau = **plus bas niveau d'abstention démontré** sur les
-    législatives **strictement passées** (hors élection cible). Deux exigences tenues :
-
-    - **Hors fuite.** La cible 2024 étant le législatif le plus mobilisé, l'inclure faisait
-      valoir le min à sa valeur 2024 pour 56 % des bureaux → la part « conjoncturelle »
-      dégénérait en **résidu de prédiction** (`pred − observé₂₀₂₄`). On exclut donc la cible.
-    - **Validité faciale.** On garde le min en **niveau observé** (∈ [0, prédiction]), un
-      plancher *réellement atteint* par le bureau, donc atteignable par construction. La
-      renormalisation national+local (écart prédit − meilleur écart passé) a été testée et
-      **écartée** : estimer l'écart local sur ~5 scrutins bruités produit des planchers
-      hors bornes (jusqu'à −17 %) et des poches « 70 % mobilisable » sur des bureaux isolés —
-      indéfendable sur un produit où chaque bureau se clique. Le climat national de l'année
-      du min n'est pas retiré, et c'est assumé : un niveau que le bureau *a atteint* reste
-      atteignable, quel que soit le climat de cette année-là. C'est le choix conservateur."""
+def _past_abstention() -> pd.DataFrame:
+    """Abstention des seuls législatifs **strictement passés** (hors cible), par bureau —
+    la base sur laquelle se lit le plancher d'abstention de fond."""
     c = pd.read_parquet(
         TURNOUT_CACHE, columns=["location", "election_type", "date_float", "Abstention"]
     )
-    c = c[(c.election_type == TARGET_TYPE) & (c.date_float < TARGET_FLOOR_CUTOFF)]
-    floor = c.groupby("location").Abstention.min().rename("abst_floor")
-    df = df.merge(floor, left_on="location", right_index=True, how="left")
-    df["abst_floor"] = df.abst_floor.fillna(df.pred_AB).clip(upper=df.pred_AB)
+    return c[(c.election_type == TARGET_TYPE) & (c.date_float < TARGET_FLOOR_CUTOFF)]
+
+
+def _abst_floor(df: pd.DataFrame, past: pd.DataFrame, q: float) -> pd.Series:
+    """Plancher par bureau = quantile bas `q` de l'abstention passée, borné à la prédiction
+    (sans historique → la prédiction, part conjoncturelle nulle). `q=0` redonne le min."""
+    floor = past.groupby("location").Abstention.quantile(q)
+    return df.location.map(floor).fillna(df.pred_AB).clip(upper=df.pred_AB)
+
+
+def attach_abst_floor(df: pd.DataFrame, q: float = ABST_FLOOR_Q) -> pd.DataFrame:
+    """Plancher d'abstention par bureau = **quantile bas** de l'abstention sur les
+    législatives **strictement passées** (hors élection cible). Trois exigences tenues :
+
+    - **Hors fuite.** La cible 2024 étant le législatif le plus mobilisé, l'inclure faisait
+      valoir le plancher à sa valeur 2024 pour 56 % des bureaux → la part « conjoncturelle »
+      dégénérait en **résidu de prédiction** (`pred − observé₂₀₂₄`). On exclut donc la cible.
+    - **Robuste au minimum d'échantillon.** Le plancher n'est plus le *minimum* observé mais
+      un quantile bas (`ABST_FLOOR_Q`). Le min d'une série bruitée est biaisé vers le bas, et
+      le biais s'aggrave avec le nombre de scrutins observés : à bureau égal, une histoire
+      plus longue décrochait mécaniquement un plancher plus profond — donc un gisement
+      « conjoncturel » plus gros. Artefact de disponibilité de données, pas signal politique.
+      Le quantile bas égalise ce biais (avec ~3 scrutins il reste collé au min ; il ne s'en
+      écarte que là où l'historique est riche, là où le min sur-vide). `build()` publie la
+      sensibilité min/p10/p25 du gisement à ce choix.
+    - **Validité faciale.** Le plancher reste **borné à la prédiction** (∈ [0, pred]) et
+      encadré par des niveaux *réellement approchés* par le bureau, donc atteignable. La
+      renormalisation national+local (écart prédit − meilleur écart passé) a été testée et
+      **écartée** : estimer l'écart local sur ~5 scrutins bruités produit des planchers hors
+      bornes (jusqu'à −17 %) et des poches « 70 % mobilisable » sur des bureaux isolés —
+      indéfendable sur un produit où chaque bureau se clique. Le climat national de l'année
+      du plancher n'est pas retiré, et c'est assumé : un niveau que le bureau *a approché*
+      reste atteignable, quel que soit le climat de cette année-là. Choix conservateur."""
+    df["abst_floor"] = _abst_floor(df, _past_abstention(), q)
     return df
+
+
+def floor_q_sensitivity(
+    df: pd.DataFrame,
+    curve: tuple[np.ndarray, np.ndarray],
+    qs: tuple[float, ...] = (0.0, 0.10, 0.25),
+) -> dict[str, dict[str, int]]:
+    """Gisement mobilisable (mainland) sous plusieurs planchers, pour rendre visible la
+    dépendance du chiffre d'accroche au choix du quantile. `q0` = ancien plancher (min)."""
+    past = _past_abstention()
+    ml = report_targets.mainland(df)
+    ins = df.inscrits.to_numpy().astype(float)
+    gamma = movability_turnout.apply_gamma(curve, df.pred_G.to_numpy()) / 100.0
+    out: dict[str, dict[str, int]] = {}
+    for q in qs:
+        floor = _abst_floor(df, past, q).to_numpy()
+        conj = ins * np.clip(df.pred_AB.to_numpy() - floor, 0.0, None) / 100.0
+        mob = conj * gamma
+        out[f"q{int(round(q * 100)):02d}"] = {
+            "conjunctural_abstainers": int(conj[ml].sum()),
+            "mobilization_voters": int(mob[ml].sum()),
+        }
+    return out
 
 
 def swing_weights(df: pd.DataFrame) -> np.ndarray:
@@ -366,6 +412,7 @@ def build() -> None:
     df = derive(df, w)
     curve = movability_turnout.fit_gamma(election_type=TARGET_TYPE)
     left, mob = report_targets.left_gain(df, curve)
+    left["floor_sensitivity"] = floor_q_sensitivity(df, curve)
     df["mob"] = np.round(mob).astype(int)
     df.to_parquet(CACHE / "bv_master.parquet", index=False)
     (SERVED / "gamma_curve.json").write_text(
@@ -424,11 +471,19 @@ def build() -> None:
         "mv": [int(round(v)) for v in mob],
     }
     (SERVED / "national.json").write_text(json.dumps(national, separators=(",", ":")))
+    fs = left["floor_sensitivity"]
     print(
         f"BV {len(df)} | acc {summary['lead_accuracy']}% | "
         f"jouables<5 {battlefield['5']['bv']} | communes {len(com)} | "
         f"circo {circo_stats['n']} (base ED {circo_stats['base']['ED']}, "
         f"+3 ED → {circo_stats['flip_default']} bascules)"
+    )
+    print(
+        "mobilisables gauche (plancher min/p10/p25) : "
+        f"{fs['q00']['mobilization_voters']:,} / "
+        f"{fs['q10']['mobilization_voters']:,} / "
+        f"{fs['q25']['mobilization_voters']:,} "
+        f"(servi : p{int(round(ABST_FLOOR_Q * 100)):02d})"
     )
 
 

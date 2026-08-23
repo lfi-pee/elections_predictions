@@ -32,97 +32,111 @@
  },
  "left_gain": {
   "method": "abstentionnistes conjoncturels × part de gauche du votant marginal (γ législatif)",
-  "mobilization_voters": 693553,
+  "mobilization_voters": 478625,
   "total_abstainers": 17137367,
-  "conjunctural_abstainers": 1643777,
-  "structural_abstainers": 15493590,
-  "gamma_mean": 42.2,
+  "conjunctural_abstainers": 1136987,
+  "structural_abstainers": 16000379,
+  "gamma_mean": 42.1,
   "deployment": [
    {
     "nom": "Marseille",
     "dept": "13",
-    "mob": 17438,
+    "mob": 12828,
     "bv": 497,
     "gamma": 45.5
    },
    {
     "nom": "Paris",
     "dept": "75",
-    "mob": 12339,
+    "mob": 5257,
     "bv": 902,
-    "gamma": 51.0
+    "gamma": 52.5
    },
    {
     "nom": "Montpellier",
     "dept": "34",
-    "mob": 4680,
+    "mob": 2711,
     "bv": 139,
-    "gamma": 52.0
-   },
-   {
-    "nom": "Toulouse",
-    "dept": "31",
-    "mob": 3515,
-    "bv": 277,
-    "gamma": 53.7
+    "gamma": 52.1
    },
    {
     "nom": "Le Havre",
     "dept": "76",
-    "mob": 3340,
+    "mob": 2623,
     "bv": 110,
     "gamma": 49.9
    },
    {
     "nom": "Nîmes",
     "dept": "30",
-    "mob": 3105,
+    "mob": 2574,
     "bv": 86,
-    "gamma": 48.9
+    "gamma": 49.1
+   },
+   {
+    "nom": "Toulouse",
+    "dept": "31",
+    "mob": 2325,
+    "bv": 277,
+    "gamma": 54.6
    },
    {
     "nom": "Limoges",
     "dept": "87",
-    "mob": 2724,
+    "mob": 2173,
     "bv": 86,
-    "gamma": 49.3
-   },
-   {
-    "nom": "Le Mans",
-    "dept": "72",
-    "mob": 2545,
-    "bv": 98,
-    "gamma": 50.0
+    "gamma": 49.4
    },
    {
     "nom": "Avignon",
     "dept": "84",
-    "mob": 2522,
+    "mob": 2039,
     "bv": 71,
-    "gamma": 50.2
+    "gamma": 50.4
    },
    {
-    "nom": "Toulon",
-    "dept": "83",
-    "mob": 2060,
-    "bv": 128,
-    "gamma": 39.7
+    "nom": "Le Mans",
+    "dept": "72",
+    "mob": 1839,
+    "bv": 98,
+    "gamma": 50.0
    },
    {
     "nom": "Angers",
     "dept": "49",
-    "mob": 2029,
+    "mob": 1690,
     "bv": 85,
     "gamma": 50.4
    },
    {
-    "nom": "Nice",
-    "dept": "06",
-    "mob": 1944,
-    "bv": 256,
-    "gamma": 44.4
+    "nom": "Toulon",
+    "dept": "83",
+    "mob": 1640,
+    "bv": 128,
+    "gamma": 40.1
+   },
+   {
+    "nom": "Martigues",
+    "dept": "13",
+    "mob": 1592,
+    "bv": 34,
+    "gamma": 49.1
    }
-  ]
+  ],
+  "floor_sensitivity": {
+   "q00": {
+    "conjunctural_abstainers": 1643777,
+    "mobilization_voters": 693553
+   },
+   "q10": {
+    "conjunctural_abstainers": 1136987,
+    "mobilization_voters": 478625
+   },
+   "q25": {
+    "conjunctural_abstainers": 612905,
+    "mobilization_voters": 256491
+   }
+  }
  },
  "flat_poll": {
   "bloc": "ED",

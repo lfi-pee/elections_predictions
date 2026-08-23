@@ -26,6 +26,7 @@ import pandas as pd
 
 from src import (
     backtest_2024_endtoend,
+    backtest_2024_firstround,
     backtest_2024_seats,
     radical_spatial,
     scenarios_2027,
@@ -231,6 +232,13 @@ def build() -> None:
     except Exception as e:
         print(f"  (backtest bout-en-bout 2024 indisponible : {e})")
         bt2024_e2e = None
+    try:
+        # Couverture des 577 : ajoute les 76 circos gagnées au 1er tour (que le backtest de 2nd
+        # tour exclut faute de 2nd tour) → justesse « contesté / 1er tour / ensemble ».
+        bt2024_all = backtest_2024_firstround.summary()
+    except Exception as e:
+        print(f"  (backtest 1er tour 2024 indisponible : {e})")
+        bt2024_all = None
     summary = {
         "n_bv": int(len(df)),
         "n_circo": int(len(cir)),
@@ -252,6 +260,7 @@ def build() -> None:
         "circo_halfwidth_90": circo_halfwidth(cv90),
         "backtest_2024": bt2024,  # validation du modèle de sièges (bouton « Rejouer 2024 »)
         "backtest_2024_e2e": bt2024_e2e,  # validation de la chaîne complète (prévision à l'aveugle)
+        "backtest_2024_allseats": bt2024_all,  # couverture 577 (contesté + 1er tour)
         "lag_fallback_bv": int(df.lag_fallback.sum()),
     }
     (SERVED / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1))

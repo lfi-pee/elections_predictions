@@ -237,5 +237,36 @@
    "AB": 33.3
   }
  },
- "lag_fallback_bv": 818
+ "lag_fallback_bv": 818,
+ "backtest_2024_allseats": {
+  "contested": {
+   "n": 501,
+   "correct": 412,
+   "accuracy": 82.2
+  },
+  "first_round": {
+   "n": 76,
+   "correct": 75,
+   "accuracy": 98.7,
+   "by_bloc": {
+    "G": [
+     31,
+     31
+    ],
+    "CD": [
+     5,
+     6
+    ],
+    "ED": [
+     39,
+     39
+    ]
+   }
+  },
+  "all": {
+   "n": 577,
+   "correct": 487,
+   "accuracy": 84.4
+  }
+ }
 }

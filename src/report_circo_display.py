@@ -186,9 +186,13 @@ def export() -> None:
     # Étranger : planisphère miniature SOUS le bloc outre-mer — chaque circo = l'union de ses
     # pays (report_geo_overseas_2027). Une SEULE transformation partagée → planisphère cohérent ;
     # bande unique et compacte (les 11 circos ne prennent qu'une rangée, gain de place vertical).
+    # Placé dans les cellules libres à DROITE de St-Martin (dernière rangée de la grille :
+    # ZX seul en col 0 → cols 1–2 vides) → pas de bandeau séparé en dessous, plus compact.
+    ez_x0, ez_x1 = reg_x0 + cw + gap, reg_x1 - gap
+    ez_y1, ez_y0 = reg_y1 - 3 * ch - gap, reg_y1 - 4 * ch + gap
     zz = ids_by_dept.get("ZZ", [])
     if zz and ETR.exists():
-        bx0, bx1, by0, by1 = -14.5, -7.0, 39.2, 41.6
+        bx0, bx1, by0, by1 = ez_x0, ez_x1, ez_y0, ez_y1
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
         world = {f["properties"]["id"]: shape(f["geometry"])
                  for f in json.loads(ETR.read_text())["features"]}
@@ -205,7 +209,7 @@ def export() -> None:
                             "properties": props(i)})
     elif zz:
         # Repli (planisphère non généré) : bandeau de 11 tuiles carrées, une rangée.
-        bx0, bx1, by0, by1 = -14.5, -7.0, 39.2, 41.6
+        bx0, bx1, by0, by1 = ez_x0, ez_x1, ez_y0, ez_y1
         insets.append({"dept": "ZZ", "label": TERR["ZZ"], "box": [bx0, by0, bx1, by1]})
         zcw = (bx1 - bx0) / len(zz)
         r = min(zcw, by1 - by0) * 0.4

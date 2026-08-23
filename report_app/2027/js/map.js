@@ -36,7 +36,7 @@ function initMap() {
     addLayers();
     // Cadre initial : métropole + encarts outre-mer/étranger (bloc compact à gauche) visibles.
     // Cadre serré sur le bloc d'encarts réduit (x≥−14,5) → la métropole occupe plus de place.
-    map.fitBounds([[-15.2, 38.7], [10, 51.5]], { padding: 14, animate: false });
+    map.fitBounds([[-15.2, 40.9], [10, 51.5]], { padding: 14, animate: false });
     res(map);
   }));
 }

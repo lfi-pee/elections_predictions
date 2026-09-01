@@ -18,7 +18,12 @@ from pathlib import Path
 import ijson
 import pandas as pd
 
-from src.report_geo import CONTOURS, _round_geom
+from src.report_geo import (
+    CONTOURS,
+    _annoncer_desync,
+    _round_geom,
+    communes_desynchronisees,
+)
 
 MASTER = Path("data/report/bv_master_2027.parquet")
 OUT = Path("report_app/2027/data/bv")
@@ -27,12 +32,17 @@ OUT = Path("report_app/2027/data/bv")
 def export() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     m = pd.read_parquet(MASTER).set_index("location")
+    # Même refus que report_geo.export : une commune renumérotée depuis le millésime des
+    # contours n'a plus les mêmes clés des deux côtés, et les rares codes qui coïncident
+    # encore rattacheraient les déviations d'un bureau à la géométrie d'un autre.
+    desync = communes_desynchronisees(m["inscrits"])
+    _annoncer_desync(desync, m["inscrits"])
     by_dept: dict[str, list[dict]] = defaultdict(list)
     kept = 0
     with CONTOURS.open("rb") as f:
         for feat in ijson.items(f, "features.item"):
             loc = feat["properties"]["codeBureauVote"]
-            if loc not in m.index:
+            if loc not in m.index or loc[:5] in desync:
                 continue
             row = m.loc[loc]
             props = {

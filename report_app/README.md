@@ -30,9 +30,10 @@ Produit dans `report_app/data/` :
 cd report_app && python -m http.server 8000   # http://localhost:8000
 ```
 
-Carte de fond CARTO + bibliothèque MapLibre via CDN (accès réseau requis à
-l'affichage). La recherche de commune et la recomposition de scénario s'exécutent
-intégralement côté client.
+Fond de carte vectoriel OpenFreeMap (données OpenStreetMap) + bibliothèque MapLibre
+via CDN (accès réseau requis à l'affichage) : ni clé ni quota, contrairement aux
+tuiles raster CARTO qui exigent désormais une clé d'API. La recherche de commune
+et la recomposition de scénario s'exécutent intégralement côté client.
 
 ## Comment ça marche
 

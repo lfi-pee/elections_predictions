@@ -570,7 +570,7 @@ niveau de gauche du bureau (`gdrivers`), donc γ, donc le gisement.
 > circonscriptions, la pastille de couverture ni la carte qui se docke. Les passages
 > ci-dessous qui les décrivent sont **historiques**.
 
-Site statique (aucun backend) : **MapLibre GL JS** + fond raster CARTO, via CDN.
+Site statique (aucun backend) : **MapLibre GL JS** + fond vectoriel OpenFreeMap, via CDN.
 L'environnement n'avait ni tippecanoe ni node : plutôt que de risquer une chaîne
 de tuiles C++, on tient *l'intention* de PMTiles (jamais 69 000 polygones en
 mémoire) avec un schéma de fichiers statiques. Vue nationale = couche

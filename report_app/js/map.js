@@ -1,53 +1,104 @@
 "use strict";
 
-// Which CARTO basemap flavour matches the current page theme (dark by default).
+// Basemap: OpenFreeMap VECTOR tiles (OpenStreetMap data) rendered by MapLibre — the same
+// provider as the atlas. Three reasons it replaced the CARTO raster fond:
+//   1. it is FREE, with neither key nor quota. CARTO now requires an API key and stamps
+//      "API KEY REQUIRED" across anonymous tiles — that is what broke this map;
+//   2. the LABELS. A vector style is a JSON we can retouch, so every name is forced onto
+//      `name:fr` (see NAME_FR). Raster tiles arrive with their names baked in, and
+//      anglicised ("New Aquitania" from zoom 8) — hence the old _nolabels fond plus a
+//      separate labels raster stacked on top, a workaround this makes pointless;
+//   3. the ZOOM. Tiles stop at level 14 and MapLibre keeps redrawing past it: going down
+//      to the street or the bureau costs NO request.
+// The flavour follows the page theme (see setBasemapTheme, called from theme.js).
+const OFM = (t) => `https://tiles.openfreemap.org/styles/${t === "light" ? "positron" : "dark"}`;
+
 function mapTheme() {
   return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
 }
-const cartoTiles = (t) =>
-  ["a", "b"].map((s) => `https://${s}.basemaps.cartocdn.com/${t}_nolabels/{z}/{x}/{y}.png`);
-const cartoLabels = (t) => [`https://a.basemaps.cartocdn.com/${t}_only_labels/{z}/{x}/{y}.png`];
 
-function baseStyle() {
-  const t = mapTheme();
-  return {
-    version: 8,
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-    sources: {
-      carto: {
-        type: "raster", tiles: cartoTiles(t),
-        tileSize: 256, attribution: "© OpenStreetMap · CARTO",
-      },
-      labels: { type: "raster", tiles: cartoLabels(t), tileSize: 256 },
-    },
-    layers: [
-      { id: "bg", type: "raster", source: "carto" },
-    ],
-  };
+// OFM tiles carry ~a hundred `name:xx` fields and the styles settle for `name:latin` —
+// the LOCAL name, i.e. "España" and "Bay of Biscay" along the border.
+const NAME_FR = ["coalesce", ["get", "name:fr"], ["get", "name:latin"], ["get", "name"]];
+
+// The colour parser is the BROWSER: `fillStyle` takes everything CSS and MapLibre take
+// (#rgb, rgb(), hsl()) and hands it back normalised, where a hand-rolled regex would
+// cover one notation in three. The sentinel catches what is NOT a colour — `fillStyle`
+// then keeps its previous value, and a MapLibre expression is full of strings that are
+// no colour at all ("interpolate", "zoom"…).
+const SENTINEL = "#fedcba";
+const _c2d = document.createElement("canvas").getContext("2d");
+function rgbaOf(color) {
+  _c2d.fillStyle = SENTINEL; _c2d.fillStyle = color;
+  const s = _c2d.fillStyle;
+  if (s === SENTINEL && color !== SENTINEL) return null;
+  if (s[0] === "#") {
+    return [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16), 1];
+  }
+  const m = (s.match(/[\d.]+/g) || []).map(Number);
+  return m.length >= 3 ? [m[0], m[1], m[2], m[3] != null ? m[3] : 1] : null;
 }
 
-// Swap the raster basemap in place when the theme toggles — no full setStyle, which
-// would drop the commune/bureau layers and force a reload of the loaded departments.
+// LIFTING THE DARK STYLE. Where positron really steps the light theme apart (land 242,
+// water 194), OpenFreeMap's `dark` is crushed onto black: land rgb(12,12,12), water
+// rgb(27,27,29). Fifteen levels separate the river from the ground, and on that part of
+// the curve the eye reads almost nothing — under a 0.78 fill the basemap simply
+// DISAPPEARED (no Rhône, no urban fabric, no coastline to get one's bearings). The
+// hierarchy IS there, only packed against zero: a gamma redeploys it. One rule over every
+// colour of the style, not a layer-by-layer table that would rot on the next upstream
+// edit — the dark style has no authored hue anyway, it is grey throughout.
+const LIFT = 0.62; // c' = 255·(c/255)^LIFT : 12 → 39, 27 → 65, 60 → 106
+function lift(color) {
+  const v = rgbaOf(color);
+  if (!v) return color; // "interpolate", "zoom"… : left as is
+  const f = (x) => Math.round(255 * Math.pow(x / 255, LIFT));
+  return `rgba(${f(v[0])},${f(v[1])},${f(v[2])},${v[3]})`;
+}
+// A colour property can be an expression: walk into it, colours are the leaves
+// (["interpolate",["linear"],["zoom"],5.8,"hsla(0,0%,85%,.53)",6,"#000"]).
+const liftVal = (v) => (Array.isArray(v) ? v.map(liftVal) : typeof v === "string" ? lift(v) : v);
+
+// MapLibre cannot filter a style at load time, so the retouch happens after the fact, on
+// every `style.load` — hence also on every theme swap, which re-issues setStyle.
+function patchBasemap() {
+  const map = APP.map, dark = mapTheme() !== "light";
+  for (const l of map.getStyle().layers) {
+    if (dark) {
+      for (const k in l.paint || {}) {
+        if (k.includes("color")) map.setPaintProperty(l.id, k, liftVal(l.paint[k]));
+      }
+    }
+    // Only layers whose label already reads a NAME are retouched. Motorway shields show a
+    // NUMBER (`["to-string",["get","ref"]]`): handing them NAME_FR left EMPTY cartouches
+    // on the map. The test is on the expression, not on the layer id, which changes from
+    // one style to the other.
+    const tf = l.layout && l.layout["text-field"];
+    if (tf && JSON.stringify(tf).includes('"name')) map.setLayoutProperty(l.id, "text-field", NAME_FR);
+  }
+}
+
+// A theme swap is a whole new vector style. Left to itself MapLibre computes a DIFF
+// against the current style and then never emits `style.load` — the retouch above would
+// not replay and our own layers would be reordered under a duplicated basemap. A clean
+// reload costs a few dozen kB of JSON here, the tiles themselves being already cached;
+// `style.load` re-adds sources and layers on the other side.
 function setBasemapTheme(theme) {
-  const map = APP.map;
-  if (!map) return;
-  const t = theme === "light" ? "light" : "dark";
-  const carto = map.getSource("carto"), labels = map.getSource("labels");
-  if (carto && carto.setTiles) carto.setTiles(cartoTiles(t));
-  if (labels && labels.setTiles) labels.setTiles(cartoLabels(t));
-  if (map.getLayer("bv-line")) map.setPaintProperty("bv-line", "line-color", OUTLINE[t]);
-  if (map.getLayer("com-circ")) map.setPaintProperty("com-circ", "circle-stroke-color", OUTLINE[t]);
+  if (APP.map) APP.map.setStyle(OFM(theme === "light" ? "light" : "dark"), { diff: false });
 }
 
 function initMap() {
   const map = new maplibregl.Map({
-    container: "map", style: baseStyle(),
+    container: "map", style: OFM(mapTheme()),
     center: APP.LYON.center, zoom: APP.LYON.zoom, maxZoom: 17, minZoom: 5,
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   APP.map = map;
-  return new Promise((res) => map.on("load", () => { addLayers(); res(map); }));
+  // `style.load` and not `load`: it replays on every setStyle, where `load` fires once —
+  // and a setStyle wipes our sources and layers along with the basemap's.
+  map.on("style.load", () => { patchBasemap(); addLayers(); });
+  wireMapEvents(map);
+  return new Promise((res) => map.on("load", () => res(map)));
 }
 
 function communeFC() {
@@ -67,11 +118,21 @@ function communeFC() {
 // bureaux would blend into an unreadable blob. Pick a dark hairline for the light theme.
 const OUTLINE = { dark: "#ffffff", light: "#3a3a44" };
 
+// Runs on every `style.load`, i.e. once at boot and again after each theme swap: sources
+// and layers belong to the style that setStyle threw away, so they are rebuilt here from
+// the state kept in APP (loaded departments, current colouring mode).
 function addLayers() {
   const map = APP.map;
   const outline = OUTLINE[mapTheme()];
+  const bvFeats = [].concat(...APP.bvByDept.values());
   map.addSource("communes", { type: "geojson", data: communeFC() });
-  map.addSource("bv", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addSource("bv", { type: "geojson", data: { type: "FeatureCollection", features: bvFeats } });
+
+  // Labels now live in the SAME style as the choropleth, so rather than stacking a raster
+  // labels tile over everything, our layers slip UNDER the basemap's first symbol layer:
+  // street and commune names keep printing over the fill, which is what lets the fill stay
+  // opaque without losing the ground underneath.
+  const firstSymbol = (map.getStyle().layers.find((l) => l.type === "symbol") || {}).id;
 
   map.addLayer({
     id: "com-circ", type: "circle", source: "communes", maxzoom: 10,
@@ -82,17 +143,24 @@ function addLayers() {
       "circle-color": voterColorExpr("cmv", 1000, 15000, 60000),
       "circle-opacity": 0.82, "circle-stroke-width": 0.3, "circle-stroke-color": outline,
     },
-  });
+  }, firstSymbol);
   map.addLayer({
     id: "bv-fill", type: "fill", source: "bv", minzoom: 9,
     paint: { "fill-color": voterColorExpr("mv", 40, 150, 400), "fill-opacity": 0.78 },
-  });
+  }, firstSymbol);
   map.addLayer({
     id: "bv-line", type: "line", source: "bv", minzoom: 11,
     paint: { "line-color": outline, "line-width": 0.4, "line-opacity": 0.5 },
-  });
-  map.addLayer({ id: "labels", type: "raster", source: "labels" });
+  }, firstSymbol);
+  // The paint above is the mobilisation default; re-assert whatever mode is actually on,
+  // since a theme swap rebuilds these layers while the user may sit on the lead layer.
+  if (typeof applyColor === "function") applyColor();
+}
 
+// Map interactions are wired ONCE, on the map and not on the style: unlike sources and
+// layers, handlers survive a setStyle, and re-registering them per style.load would fire
+// the popup twice after a theme swap.
+function wireMapEvents(map) {
   // One map-level tap handler instead of two layer-scoped ones: a layer-scoped click
   // only fires on an exact pixel hit, which a finger almost never lands (see pickNear),
   // and it gives no way to react to a tap that hits nothing.

@@ -36,7 +36,7 @@ b{font-weight:700}
 }
 :root[data-theme="light"] #top{background:rgba(244,245,247,.9)}
 :root[data-theme="light"] .hero-overlay{background:rgba(255,255,255,.9)}
-/* Default CARTO control/attribution glyphs are dark — they read on the light basemap,
+/* Default MapLibre control/attribution glyphs are dark — they read on the light basemap,
    so undo the invert that made them white for the dark one. */
 :root[data-theme="light"] .maplibregl-ctrl button .maplibregl-ctrl-icon,
 :root[data-theme="light"] .maplibregl-ctrl-attrib-button{filter:none}

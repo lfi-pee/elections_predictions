@@ -35,8 +35,8 @@ def export() -> None:
     # Même refus que report_geo.export : une commune renumérotée depuis le millésime des
     # contours n'a plus les mêmes clés des deux côtés, et les rares codes qui coïncident
     # encore rattacheraient les déviations d'un bureau à la géométrie d'un autre.
-    desync = communes_desynchronisees(m["inscrits"])
-    _annoncer_desync(desync, m["inscrits"])
+    desync = communes_desynchronisees()
+    _annoncer_desync(desync)
     by_dept: dict[str, list[dict]] = defaultdict(list)
     kept = 0
     with CONTOURS.open("rb") as f:

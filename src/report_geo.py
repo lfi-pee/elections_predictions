@@ -47,29 +47,54 @@ PRECISION = 5
 #      géométrie celle d'un AUTRE. Le contour 33063_1101 comptait 686 inscrit·es en 2022 ;
 #      la carte y affichait les 1 349 du bureau numéroté 1101 en 2024.
 #
-# On ne devine pas la correspondance ici : elle demande un témoin indépendant des codes
-# (l'écart d'inscrits entre un scrutin d'avant et un scrutin d'après), et l'export n'a pas
-# à porter cette inférence. On refuse en revanche de servir un appariement massivement
-# faux : sous COUV_MIN_COMMUNE d'électorat retrouvé, la commune entière sort de la carte
-# des bureaux — elle reste servie à l'échelle communale, où aucun code n'intervient.
+# Le TÉMOIN n'est pas la couverture, c'est l'écart d'INSCRITS. Deux raisons :
 #
-# Le seuil est DÉLIBÉRÉMENT BAS. Une couverture partielle est le cas NORMAL d'une commune
-# qui a simplement créé ou fermé des bureaux : ses codes appariés désignent alors bien le
-# même bureau des deux côtés, et les écarter détruirait des données justes. Mesuré sur le
-# corpus : à 90 % le filtre retirerait 1 127 features dont la plupart sont correctes, à
-# 50 % il en retire 38, toutes vérifiées fausses (Bordeaux, Saint-Victoret, Le Creusot).
+#   · la couverture est AVEUGLE au redécoupage. Une commune qui refond ses bureaux sans
+#     changer d'espace de codes — 17 bureaux fusionnés en 11 — garde 100 % de couverture
+#     tout en n'ayant plus aucun appariement valide : son 0001 de 2024 ne décrit plus le
+#     territoire du 0001 de 2022. C'est le cas le plus RÉPANDU : 79 communes, 829 features ;
+#   · la couverture ACCUSE À TORT. Une couverture partielle est le cas NORMAL d'une commune
+#     qui a seulement créé des bureaux : ses codes appariés désignent bien le même bureau
+#     des deux côtés. Saint-Victoret n'a que 42 % de couverture et un appariement juste.
 #
-# LIMITE CONNUE, à ne pas confondre avec ce que ce filtre attrape : une commune qui a
-# REDÉCOUPÉ ses bureaux sans changer l'espace de codes (17 bureaux fusionnés en 11, par
-# exemple) garde 100 % de couverture tout en n'ayant plus AUCUN appariement valide — son
-# code 0001 de 2024 ne décrit plus le territoire du 0001 de 2022. La couverture est aveugle
-# à ce cas ; seul l'écart d'inscrits entre deux millésimes le révèle (75 communes du corpus,
-# cf. la méthode de prep_elections.construire_crosswalk_renumerotation dans devoirs_maison).
-# Le détecter ici demanderait les inscrits d'un scrutin d'avant le millésime des contours.
-COUV_MIN_COMMUNE = 0.50
-# Sous ce nombre de bureaux, l'écart relève de la création ou fermeture d'un bureau, pas
-# d'une renumérotation : on ne prive pas une petite commune de sa carte pour un bureau.
-BV_MIN_COMMUNE = 5
+# On compare donc, sur les codes que la jointure APPARIE, les inscrits d'un scrutin d'avant
+# le millésime des contours et d'un scrutin d'après (`general_results.parquet`, qui porte les
+# 56 scrutins par bureau sous le même `id_brut_miom` que les contours). Il faut DEUX
+# statistiques, parce qu'elles ne voient pas la même chose.
+#
+# 1. L'ÉCART MÉDIAN dit « la plupart des appariements sont faux ». Sur les 1 826 communes
+#    dont l'ensemble des codes est identique d'un millésime à l'autre — donc présumées
+#    intactes — il vaut 1,9 % en médiane, 5,7 % au 95e centile, 10,5 % au 99e.
+#
+# 2. La PART DES BUREAUX FRANCHEMENT FAUX dit « une partie des appariements est fausse », ce
+#    que la médiane, justement robuste, cache. Bordeaux le montre : ses 18 codes coïncidant
+#    par accident ont des écarts de 0, 2, 3, 3, 5, 5, 5, 8, 11, 14, puis 18, 24, 27, 29, 30,
+#    51, 97 et 108 % — médiane 12,4 %, SOUS le seuil, alors que huit bureaux sur dix-huit
+#    sont grossièrement faux. La moitié basse n'est pas un signe de justesse : ses bureaux
+#    faisant tous entre 600 et 1 400 inscrit·es, un appariement au hasard tombe juste une
+#    fois sur deux. Sur les communes intactes, cette part vaut 0,0 % jusqu'au 90e centile et
+#    0,9 % au 95e : FRAC_FAUX_MAX est vingt-cinq fois ce 95e centile.
+#
+# Au-delà de l'un ou l'autre seuil, l'appariement est déclaré faux et la commune sort de la
+# carte des bureaux — elle reste servie à l'échelle communale, où aucun code de bureau
+# n'intervient. Mieux vaut aucun contour qu'un contour faux : les propriétés d'un bureau
+# posées sur le polygone d'un autre font un chiffre FAUX, pas un chiffre absent.
+#
+# Mêmes témoins et mêmes seuils que prep_elections.construire_crosswalk_renumerotation dans
+# devoirs_maison, qui s'en sert pour DÉCLENCHER un alignement ordonné et répare ainsi
+# 30 communes sur 131 au lieu de les écarter. Cet export-ci n'a pas de quoi remapper : il ne
+# peut que refuser.
+ECART_MAX = 0.15  # 99e centile de l'écart médian des communes intactes
+ECART_BUREAU_MAX = 0.20  # au-delà, l'écart d'UN bureau n'est plus une dérive de listes
+FRAC_FAUX_MAX = 0.25  # 25 × le 95e centile de cette part sur les communes intactes
+CODES_APPARIES_MIN = 5  # sous 5 codes appariés, ces témoins ne sont pas fiables
+# Troisième témoin : un alignement ordonné qui contredit l'identité (cf. plus bas).
+COUV_EXAMEN = 0.90  # on ne réaligne que les communes au rattachement lacunaire
+ECART_ALIGNEMENT_MAX = 0.06  # 95e centile de l'écart des communes intactes
+COUT_TROU = 0.35  # coût d'un bureau laissé non apparié par l'alignement
+GENERAL = Path("data/elections/agregees/general_results.parquet")
+SCRUTIN_AVANT = ("2022_legi_t1", "2022_pres_t1")  # d'avant le millésime des contours
+SCRUTIN_APRES = "2024_euro_t1"
 
 
 def codes_contours() -> set[str]:
@@ -81,31 +106,136 @@ def codes_contours() -> set[str]:
         return set(ijson.items(f, "features.item.properties.codeBureauVote"))
 
 
-def communes_desynchronisees(inscrits: pd.Series) -> dict[str, float]:
-    """{code commune → part d'électorat retrouvée} pour les communes dont la numérotation
-    ne correspond plus à celle des contours (cf. le commentaire ci-dessus).
+def communes_desynchronisees() -> dict[str, float]:
+    """{code commune → part de bureaux franchement faux} pour les communes dont un code ne
+    désigne plus le contour qu'il nomme (cf. le commentaire ci-dessus).
 
-    `inscrits` est indexé par code de bureau (`location` de la table maître)."""
+    Renvoie un dict vide si `general_results.parquet` manque : sans témoin on ne devine pas —
+    mais on le DIT, plutôt que de servir un appariement non vérifié en silence."""
+    if not GENERAL.exists():
+        print(
+            f"  ⚠ {GENERAL} absent : l'appariement bureau ↔ contour n'est PAS vérifié "
+            "(un code renuméroté depuis 2022 serait servi sur le contour d'un autre bureau)"
+        )
+        return {}
+    g = pd.read_parquet(GENERAL, columns=["id_election", "id_brut_miom", "inscrits"])
+    apres = g[g["id_election"] == SCRUTIN_APRES].set_index("id_brut_miom")["inscrits"]
+    avant = pd.Series(dtype="float64")
+    for cle in SCRUTIN_AVANT:
+        s = g[g["id_election"] == cle].set_index("id_brut_miom")["inscrits"]
+        avant = pd.concat([avant, s[~s.index.isin(avant.index)]])
+    if apres.empty or avant.empty:
+        print(f"  ⚠ {GENERAL} : scrutins de référence absents — appariement non vérifié")
+        return {}
     avec = codes_contours()
-    com = inscrits.index.to_series().str.slice(0, 5)
-    tot = inscrits.groupby(com).sum()
-    trouve = inscrits[inscrits.index.isin(avec)].groupby(com).sum().reindex(tot.index).fillna(0)
-    nbv = inscrits.groupby(com).size()
-    part = (trouve / tot.where(tot > 0)).fillna(0.0)
-    vise = part[(part < COUV_MIN_COMMUNE) & (nbv >= BV_MIN_COMMUNE)]
-    return vise.to_dict()
+    # Codes que la jointure apparie ET que les deux millésimes mesurent : les seuls sur
+    # lesquels l'écart d'inscrits dit quelque chose.
+    communs = apres.index.intersection(avant.index)
+    communs = communs[communs.isin(avec)]
+    a = avant[communs].astype(float)
+    ecart = (a - apres[communs].astype(float)).abs() / a.clip(lower=1)
+    par_com = ecart.groupby(communs.str.slice(0, 5)).agg(
+        median="median", size="size", frac_faux=lambda s: (s > ECART_BUREAU_MAX).mean()
+    )
+    assez = par_com["size"] >= CODES_APPARIES_MIN
+    vise = par_com[
+        assez
+        & ((par_com["median"] > ECART_MAX) | (par_com["frac_faux"] > FRAC_FAUX_MAX))
+    ]
+    faux = vise["frac_faux"].to_dict()
+    # Troisième témoin, pour les communes que les deux premiers laissent passer : l'identité
+    # est aussi démentie quand un ALIGNEMENT ORDONNÉ des deux listes de codes, à effectifs
+    # concordants, place les bureaux AUTREMENT qu'elle. Quatre communes du corpus ne se
+    # voient que comme ça (27375, 38553, 77296, 85222) — c'est ce qui permet à devoirs_maison
+    # de les réparer. On ne le tente que là où le rattachement par code est déjà lacunaire :
+    # l'alignement est quadratique, et une commune entièrement retrouvée n'a rien à y gagner.
+    faux.update(
+        _alignement_contredit_identite(
+            apres, avant, avec, set(faux), par_com["median"].to_dict()
+        )
+    )
+    return faux
 
 
-def _annoncer_desync(desync: dict[str, float], inscrits: pd.Series) -> None:
+def _aligner(anciens: list[str], nouveaux: list[str], ia, ib) -> list[tuple[str, str, float]]:
+    """Alignement ordonné : apparie les deux listes dans l'ordre, en tolérant qu'un bureau
+    soit créé ou supprimé d'un côté. Coût d'un couple = écart relatif d'inscrits."""
+    n, m = len(anciens), len(nouveaux)
+    cout = [
+        [abs(ia[a] - ib[b]) / max(ia[a], 1) for b in nouveaux] for a in anciens
+    ]
+    d = [[0.0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        d[i][0] = i * COUT_TROU
+    for j in range(1, m + 1):
+        d[0][j] = j * COUT_TROU
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            d[i][j] = min(
+                d[i - 1][j - 1] + cout[i - 1][j - 1],
+                d[i - 1][j] + COUT_TROU,
+                d[i][j - 1] + COUT_TROU,
+            )
+    i, j, couples = n, m, []
+    while i > 0 and j > 0:
+        if d[i][j] == d[i - 1][j - 1] + cout[i - 1][j - 1]:
+            couples.append((anciens[i - 1], nouveaux[j - 1], cout[i - 1][j - 1]))
+            i, j = i - 1, j - 1
+        elif d[i][j] == d[i - 1][j] + COUT_TROU:
+            i -= 1
+        else:
+            j -= 1
+    return couples[::-1]
+
+
+def _alignement_contredit_identite(
+    apres, avant, avec, deja: set[str], ecart_identite: dict[str, float]
+) -> dict[str, float]:
+    """Communes où un alignement ordonné cohérent place les bureaux autrement que l'identité.
+
+    « Autrement » ne suffit pas : il faut que l'alignement soit MEILLEUR. Deux bureaux
+    d'effectifs voisins se permutent sans que rien ne le trahisse, et une commune dont
+    l'identité concorde déjà (Oullins-Pierre-Bénite : 1,5 % d'écart médian) n'a rien à
+    réparer — la déplacer sur la foi d'une permutation gratuite lui ferait perdre sa carte
+    pour rien. On exige donc que l'identité, elle, SORTE du seuil des communes intactes."""
+    import statistics
+
+    par_com: dict[str, list[str]] = {}
+    for c in apres.index:
+        par_com.setdefault(c[:5], []).append(c)
+    trouve: dict[str, float] = {}
+    for com, nouveaux in par_com.items():
+        if com in deja or len(nouveaux) < CODES_APPARIES_MIN:
+            continue
+        tot = float(apres[nouveaux].sum())
+        if tot <= 0:
+            continue
+        if sum(float(apres[c]) for c in nouveaux if c in avec) / tot >= COUV_EXAMEN:
+            continue  # rattachement par code complet : rien à gagner à réaligner
+        anciens = sorted(c for c in avec if c[:5] == com and c in avant.index)
+        if len(anciens) < CODES_APPARIES_MIN:
+            continue
+        if ecart_identite.get(com, 0.0) <= ECART_ALIGNEMENT_MAX:
+            continue  # l'identité concorde : rien à contredire
+        couples = _aligner(anciens, sorted(nouveaux), avant, apres)
+        if not couples:
+            continue
+        ecart = statistics.median(e for _, _, e in couples)
+        deplaces = sum(1 for a, b, _ in couples if a != b)
+        if ecart <= ECART_ALIGNEMENT_MAX and deplaces:
+            trouve[com] = ecart
+    return trouve
+
+
+def _annoncer_desync(desync: dict[str, float]) -> None:
     if not desync:
         return
-    com = inscrits.index.to_series().str.slice(0, 5)
-    nbv = inscrits.groupby(com).size()
-    pires = sorted(desync.items(), key=lambda kv: kv[1])[:5]
-    detail = ", ".join(f"{c} ({nbv.get(c, 0)} BV, {p:.0%})" for c, p in pires)
+    pires = sorted(desync.items(), key=lambda kv: -kv[1])[:5]
+    detail = ", ".join(f"{c} ({f:.0%} de bureaux faux)" for c, f in pires)
     print(
-        f"  ⚠ {len(desync)} commune(s) renumérotée(s) depuis le millésime des contours : "
-        f"leurs bureaux ne sont PAS servis (appariement par code faux) — {detail}"
+        f"  ✂ {len(desync)} commune(s) dont l'appariement bureau ↔ contour est démenti par "
+        f"les inscrits (renumérotation ou redécoupage depuis 2022) : leurs bureaux ne sont "
+        f"PAS servis. Pires écarts : {detail}"
     )
 
 
@@ -163,8 +293,8 @@ def export() -> None:
             "lag_fallback",
         ]
     ]
-    desync = communes_desynchronisees(m["inscrits"])
-    _annoncer_desync(desync, m["inscrits"])
+    desync = communes_desynchronisees()
+    _annoncer_desync(desync)
     by_dept: dict[str, list[dict]] = defaultdict(list)
     kept = 0
     with CONTOURS.open("rb") as f:

@@ -51,7 +51,7 @@ def _node() -> str:
 def main() -> None:
     arr, summary = C.load()
     thr = C.threshold(summary)
-    vals, srcs = C.coverage(arr)
+    vals, srcs = C.coverage(arr, summary)
     flags = [C.flag(v, thr) for v in vals]
     py_low = [cid for cid, f in zip(arr["id"], flags) if f != C.OK]
     idx = {cid: i for i, cid in enumerate(arr["id"])}

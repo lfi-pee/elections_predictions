@@ -1,4 +1,5 @@
 {
+ "attribution_applied": true,
  "n_bv": 70083,
  "n_circo": 577,
  "total_inscrits": 49321259,
@@ -191,18 +192,18 @@
   "ED": 6.0
  },
  "backtest_2024": {
-  "n_circo": 501,
+  "n_circo": 503,
   "actual": {
-   "G": 162,
-   "CD": 230,
-   "ED": 109
+   "G": 167,
+   "CD": 228,
+   "ED": 108
   },
   "model": {
-   "G": 169,
+   "G": 171,
    "CD": 223,
    "ED": 109
   },
-  "accuracy": 82.1,
+  "accuracy": 81.9,
   "levels": {
    "G": 31.2,
    "CD": 33.7,
@@ -239,22 +240,22 @@
  },
  "backtest_2024_allseats": {
   "contested": {
-   "n": 501,
-   "correct": 410,
-   "accuracy": 81.8
+   "n": 503,
+   "correct": 411,
+   "accuracy": 81.7
   },
   "first_round": {
-   "n": 76,
-   "correct": 75,
-   "accuracy": 98.7,
+   "n": 74,
+   "correct": 74,
+   "accuracy": 100.0,
    "by_bloc": {
     "G": [
-     31,
-     31
+     30,
+     30
     ],
     "CD": [
      5,
-     6
+     5
     ],
     "ED": [
      39,

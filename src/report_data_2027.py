@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from src import (
+    attribution_2027,
     backtest_2024_endtoend,
     backtest_2024_firstround,
     backtest_2024_seats,
@@ -240,6 +241,11 @@ def build() -> None:
         print(f"  (backtest 1er tour 2024 indisponible : {e})")
         bt2024_all = None
     summary = {
+        # La table d'attribution des voix régionalistes est-elle passée dans CETTE
+        # reconstruction ? Tant que l'estampille manque, `coverage_2027` maintient le marquage
+        # au niveau d'AVANT attribution : la donnée 2024 peut être réparée alors que les
+        # déviations 2027 servies descendent encore de l'ancienne nomenclature.
+        "attribution_applied": attribution_2027.TABLE.exists(),
         "n_bv": int(len(df)),
         "n_circo": int(len(cir)),
         "total_inscrits": int(df.inscrits.sum()),

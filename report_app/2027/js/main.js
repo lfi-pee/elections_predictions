@@ -1,15 +1,21 @@
 "use strict";
 
 async function boot() {
-  const [summary, circoArr, circoGeo, insets, gamma] = await Promise.all([
+  const [summary, circoArr, circoGeo, insets, gamma, coverage] = await Promise.all([
     loadJSON("data/summary.json"),
     loadJSON("data/circo.json"),
     loadJSON("data/circo_display.geojson"),
     loadJSON("data/circo_insets.json"),
     loadJSON("data/gamma_curve.json"),
+    // Couverture de la nomenclature de blocs par circo (src/attribution_2027.py) : décide
+    // quelles circonscriptions la carte refuse de noter. Sans elle, tout serait publié.
+    loadJSON("data/coverage.json"),
   ]);
-  APP.data = { summary, circoArr, circoGeo, insets, gamma };
+  APP.data = { summary, circoArr, circoGeo, insets, gamma, coverage };
   APP.idIdx = new Map(circoArr.id.map((id, i) => [id, i]));
+  // Fiabilité par circo (couverture de la nomenclature de blocs) : doit être prête AVANT le
+  // premier rendu, la carte et le panneau s'en servent pour ne pas publier l'impubliable.
+  initCoverage();
   APP.scenario = summary.default_scenario;
   APP.scnObj = summary.scenarios.find((s) => s.key === APP.scenario);
   APP.nat = { ...APP.scnObj.means };

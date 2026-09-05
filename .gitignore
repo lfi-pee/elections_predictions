@@ -17,6 +17,10 @@ screenshots/
 !report_app/2027/data/**
 # Ancrage documenté des scénarios 2027 (malgré la règle `data`).
 !data/polls/legislatives/legislatives_2027_hypotheses.csv
+# Attribution des voix régionalistes : décision documentée, pas une donnée dérivée.
+# (comme le CSV de sondages ci-dessus : la règle `data` de la 1re ligne empêche une
+#  ré-inclusion par motif — le fichier est suivi explicitement, `git add -f`.)
+!data/nuance/attribution_regionalistes_2024.csv
 
 # Image d'aperçu du site embarquée dans le README (malgré `*.png`).
 !docs/apercu-site.png

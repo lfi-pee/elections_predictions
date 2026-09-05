@@ -377,12 +377,20 @@ function updateUncertainty() {
 
 function updateLegend() {
   const el = $("legend");
+  // Les circos grisées ne sont pas un score de plus : ce sont celles que le modèle ne
+  // couvre pas (forces régionalistes hors des trois blocs). La légende le dit.
+  const n = (APP.cov && APP.cov.nLow) || 0;
+  const nopub = n ? `<span class="legend-nopub" title="La nomenclature de blocs du modèle`
+    + ` (Gauche / Centre+Droite / Extrême Droite) ne couvre pas les forces régionalistes et`
+    + ` autonomistes qui dominent ces circonscriptions : leur prévision n'est pas`
+    + ` défendable."><i style="background:${APP.COV_GREY}"></i>${APP.COV_LAB} (${n})</span>` : "";
   if (APP.state.mode === "seat") {
     el.innerHTML = `<span class="legend-lab">vainqueur probable du siège</span>` +
-      ["G", "CD", "ED"].map((b) => `<i style="background:${APP.COL[b]}"></i>${APP.NAME[b]}`).join(" ");
+      ["G", "CD", "ED"].map((b) => `<i style="background:${APP.COL[b]}"></i>${APP.NAME[b]}`).join(" ")
+      + nopub;
   } else {
     el.innerHTML = `<span class="legend-lab">jouabilité pour la gauche</span>` +
       [1, 2, 3, 4, 5].map((s) => `<i style="background:${APP.WIN[s]}"></i>${s}`).join("") +
-      `<span class="legend-ends">facile → impossible</span>`;
+      `<span class="legend-ends">facile → impossible</span>` + nopub;
   }
 }

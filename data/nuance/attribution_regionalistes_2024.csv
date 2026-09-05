@@ -1,0 +1,50 @@
+# ATTRIBUTION DES VOIX RÉGIONALISTES / DIVERSES — Législatives 2024, 1er tour.
+#
+# Le modèle ne connaît que trois blocs (Gauche, Centre+Droite, Extrême Droite). Les nuances
+# REG / DIV / DSV du ministère n'y appartiennent pas : leurs voix tombent dans « Autre ». Sur
+# 1,77 % du vote national, c'est sans conséquence — mais dans une vingtaine de circonscriptions
+# d'outre-mer et de Corse, la force DOMINANTE porte une de ces étiquettes, et le modèle n'y voit
+# plus qu'une fraction de l'électorat (Cayenne : 25,6 % du vote rattaché, la gauche à 1,2 % alors
+# qu'elle détient le siège).
+#
+# La réparation automatique du projet (cross_type_ridge._apply_candidate_lineage : reprendre le
+# bloc où le MÊME candidat était codé à un scrutin antérieur) traite déjà 34 circos — Nadeau,
+# Molac, Dupont-Aignan, Gokel, Beaudet, Sempastous. Elle échoue sur les élus codés REG depuis
+# toujours : il n'existe aucun codage antérieur à retrouver. Ce fichier tranche ces cas-là.
+#
+# RÈGLE D'ATTRIBUTION, par ordre de priorité — un fait vérifiable, pas une appréciation :
+#   1. le GROUPE PARLEMENTAIRE que le candidat élu a rejoint (GDR / LFI / Socialistes /
+#      Écologistes → G ; EPR / DR / LIOT-non → CD ; RN / UDR → ED) ;
+#   2. à défaut, l'INVESTITURE de coalition portée à cette élection (Nouveau Front populaire) ;
+#   3. à défaut, le groupe où le candidat siégeait lors d'un mandat PRÉCÉDENT ;
+#   4. à défaut, l'alignement déclaré du PARTI qui l'investit.
+# Aucun de ces quatre points ne s'applique ⇒ bloc = NA : la voix reste dans « Autre », exclue
+# et renormalisée comme le modèle le fait déjà des divers au niveau national. NE PAS deviner :
+# une non-attribution assumée vaut mieux qu'une attribution fausse, et laisse la circonscription
+# marquée « non publiable » (src/coverage_2027.py).
+#
+# LE CAS CORSE est tranché en NA délibérément, pas par omission : Colombani (PNC) et Castellani
+# (Femu a Corsica) siègent au groupe LIOT — « Libertés, Indépendants, Outre-mer et Territoires »,
+# groupe territorial non aligné, ni gauche ni centre-droit. Les ranger dans un bloc déformerait
+# quatre circonscriptions où ils font 17 à 32 % ; les laisser dehors laisse la Corse honnêtement
+# marquée comme hors de l'axe du modèle. C'est un choix révisable ici en une ligne.
+#
+# Colonnes : circo (id interne) ; nom (« Prénom NOM », graphie du fichier ministère) ;
+# nuance (code officiel 2024) ; parti ; bloc (G / CD / ED / NA) ; preuve ; source.
+circo,nom,nuance,parti,bloc,preuve,source
+ZC-01,Jean-Victor CASTOR,REG,MDES (Guyane insoumise),G,groupe GDR 17e législature ; investiture Nouveau Front populaire 2024,la1ere.franceinfo.fr
+ZC-02,Davy RIMANE,REG,divers guyanais,G,groupe GDR 17e législature ; investiture NFP 2024 ; déjà codé DVG en 2022,la1ere.franceinfo.fr
+ZB-01,Jiovanny WILLIAM,REG,divers martiniquais,G,apparenté groupe Socialistes 17e législature ; déjà codé DVG en 2022,outremers360.com
+ZB-04,Jean-Philippe NILOR,REG,Péyi-A,G,groupe La France insoumise 17e législature ; investiture NFP 2024,outremers360.com
+ZB-03,Francis CAROLE,REG,PALIMA,G,fondateur et président du Parti pour la libération de la Martinique (indépendantiste de gauche),fr.wikipedia.org
+ZN-02,Emmanuel TJIBAOU,REG,UC-FLNKS,G,groupe GDR 17e législature,outremers360.com
+ZN-01,Omayra Lisa Meun NAISSELINE,REG,UC-FLNKS,G,Union calédonienne — composante du FLNKS indépendantiste (non élue : règle 4),rnz.co.nz
+ZP-01,Tematai LE GAYIC,REG,Tavini Huiraatira,G,député GDR/NUPES 2022-2024 (non réélu : règle 3),assemblee-nationale.fr
+ZP-02,Steve CHAILLOUX,REG,Tavini Huiraatira,G,député siégeant avec la NUPES 2022-2024 (non réélu : règle 3),en.wikipedia.org
+ZP-03,Mereana REID ABERLOT,REG,Tavini Huiraatira,G,groupe GDR 17e législature,outremers360.com
+2A-01,Romain COLONNA,REG,PNC / Femu a Corsica,NA,mouvance autonomiste corse — hors axe G/CD/ED (cf. en-tête),france3-regions.franceinfo.fr
+2A-02,Paul-André COLOMBANI,REG,PNC,NA,siège au groupe LIOT — groupe territorial non aligné,france3-regions.franceinfo.fr
+2B-01,Michel CASTELLANI,REG,Femu a Corsica,NA,siège au groupe LIOT — groupe territorial non aligné,france3-regions.franceinfo.fr
+2B-02,Jean-Félix ACQUAVIVA,REG,Femu a Corsica,NA,mouvance autonomiste corse (LIOT jusqu'en 2024) — hors axe,france3-regions.franceinfo.fr
+ZC-01,Yvane GOUA,REG,sans étiquette,NA,candidate sans étiquette ; aucune consigne de vote au second tour,la1ere.franceinfo.fr
+ZB-01,Philippe EDMOND-MARIETTE,REG,Bâtir le Pays Martinique,NA,alignement de bloc non établi — non attribué faute de preuve,

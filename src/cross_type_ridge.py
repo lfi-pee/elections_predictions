@@ -566,6 +566,12 @@ def _vectorized_block_mapping(party: pd.Series, candidate: pd.Series) -> pd.Seri
 #     Paul-Petit (Seine-et-Marne, "RÀD (RN)" union des droites).
 #   → Centre+Droite: Beaudet (Essonne, ex-LR presidential-adjacent) coded DIV→Other.
 #   → Gauche: Gokel (Nord, Parti Socialiste) coded DIV→Other.
+#   → Voix RÉGIONALISTES d'outre-mer : dix élus/candidats codés REG que ni la nuance ni la
+#     lignée ne rattachent (ils sont codés REG à tous leurs scrutins), alors qu'ils siègent au
+#     groupe GDR, LFI ou Socialistes. Sans eux, Cayenne créditait la gauche de 1,2 % là où elle
+#     détient le siège. Ces décisions vivent dans un fichier séparé, avec leur preuve
+#     (groupe parlementaire, investiture NFP, mandat antérieur, parti) :
+#     `data/nuance/attribution_regionalistes_2024.csv`, chargé ci-dessous.
 CANDIDATE_BLOCK_OVERRIDES: dict[tuple[str, str], str] = {
     ("51", "adrien mexis"): "Extreme_Droite",
     ("91", "nicolas dupont aignan"): "Extreme_Droite",
@@ -573,6 +579,17 @@ CANDIDATE_BLOCK_OVERRIDES: dict[tuple[str, str], str] = {
     ("91", "stephane beaudet"): "Centre+Droite",
     ("59", "julien gokel"): "Gauche",
 }
+
+try:  # Table externe : décisions documentées, sourcées, révisables sans toucher au code.
+    from src.attribution_2027 import normalize_name, pipeline_overrides
+
+    CANDIDATE_BLOCK_OVERRIDES |= pipeline_overrides()
+except Exception as _e:  # noqa: BLE001 — l'absence du fichier ne doit pas casser la chaîne.
+    print(f"⚠ table d'attribution régionaliste non chargée ({_e}) : "
+          f"les voix REG d'outre-mer resteront hors blocs.")
+
+    def normalize_name(name: str) -> str:  # repli : ancien comportement (casse seule)
+        return str(name).strip().lower()
 
 
 def _dept_of(location: pd.Series) -> pd.Series:
@@ -653,14 +670,24 @@ def _mapped_result_blocks(elections: pd.DataFrame) -> pd.DataFrame:
         results["date_float"].round(1) == 2024.5
     )
     if m.any():
+        # Département sur 3 caractères outre-mer (`_dept_of`) : `location.str[:2]` confondait
+        # Guadeloupe, Martinique, Guyane et Réunion sous « 97 ». Sans effet sur les entrées
+        # métropolitaines existantes, dont la clé fait déjà 2 caractères.
         keyed = (
-            results.loc[m, "location"].str[:2]
+            _dept_of(results.loc[m, "location"])
             + "|"
-            + results.loc[m, "candidate"].str.strip().str.lower()
+            + results.loc[m, "candidate"].map(normalize_name)
         )
         lookup = {f"{d}|{n}": b for (d, n), b in CANDIDATE_BLOCK_OVERRIDES.items()}
         overridden = keyed.map(lookup)
         results.loc[m, "block"] = overridden.fillna(results.loc[m, "block"])
+        # Un override qui ne correspond à RIEN est un échec SILENCIEUX : la graphie a changé et
+        # la voix retombe dans « Autre » sans que personne ne s'en aperçoive. On le dit.
+        hit = set(keyed[overridden.notna()])
+        missed = sorted(k for k in lookup if k not in hit)
+        if missed:
+            print(f"⚠ {len(missed)} attribution(s) de candidat sans correspondance dans les "
+                  f"résultats 2024 T1 — graphie à vérifier : {', '.join(missed)}")
     return results
 
 

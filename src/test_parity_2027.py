@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from src import radical_spatial, winnability_2027 as W
+from src import coverage_2027, radical_spatial, winnability_2027 as W
 
 JS_DIR = Path("report_app/2027/js")
 HARNESS = Path("src/parity_harness.js")
@@ -82,8 +82,11 @@ def _eq(a, b) -> bool:
 def main() -> None:
     cases = _grid()
     gamma = json.loads(GAMMA.read_text())
+    circo_arr, summary = coverage_2027.load()
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-        json.dump({"cases": cases, "gamma": gamma}, f)
+        json.dump({"cases": cases, "gamma": gamma, "circoArr": circo_arr,
+                   "summary": summary,
+                   "coverage": json.loads(coverage_2027.COVERAGE.read_text())}, f)
         vec_path = f.name
     try:
         raw = subprocess.run([_node(), str(HARNESS), str(JS_DIR), vec_path],
@@ -130,6 +133,28 @@ def main() -> None:
                                 f"g/cd/ed/ab={c['g']}/{c['cd']}/{c['ed']}/{c['ab']}] "
                                 f"{key}: py={p[key]} js={j[key]}")
 
+    # ── 3. Couverture de la nomenclature de blocs (garde-fou de publication) ──
+    # Le marquage « non publiable » décide ce que la carte grise et ce que l'export refuse de
+    # présenter comme un chiffre : s'il diverge entre Python et JS, l'export et le site ne
+    # censurent pas les mêmes circos. On compare sur les 577 circos RÉELLEMENT servies.
+    cov_fail, n_low = [], -1
+    js_cov = res.get("cov")
+    py_thr = coverage_2027.threshold(summary)
+    py_val, py_src = coverage_2027.coverage(circo_arr, summary)
+    py_flag = [coverage_2027.flag(v, py_thr) for v in py_val]
+    n_low = sum(1 for f in py_flag if f != coverage_2027.OK)
+    if not js_cov:
+        cov_fail.append("coverage.js n'a rien renvoyé (harnais ou données servies absents)")
+    else:
+        if not _eq(py_thr, js_cov["thr"]):
+            cov_fail.append(f"seuil : py={py_thr} js={js_cov['thr']}")
+        for i, cid in enumerate(circo_arr["id"]):
+            for name, pv, jv in (("couverture", py_val[i], js_cov["val"][i]),
+                                 ("origine", py_src[i], js_cov["src"][i]),
+                                 ("fiabilite", py_flag[i], js_cov["flag"][i])):
+                if not _eq(pv, jv):
+                    cov_fail.append(f"{cid} {name}: py={pv} js={jv}")
+
     n_model = sum(1 for c in cases if not c.get("_gamma_invariant"))
     n_gamma = sum(1 for c in cases if c.get("_gamma_invariant"))
     print(f"Parité constantes  : {'OK' if not const_fail else 'ÉCHEC'} "
@@ -137,11 +162,15 @@ def main() -> None:
     print(f"Parité modèle      : {'OK' if not out_fail else 'ÉCHEC'} "
           f"({n_model} cas × 5 champs)")
     print(f"Invariant γ@AB_REF : {'OK' if not gamma_fail else 'ÉCHEC'} ({n_gamma} cas)")
-    for f in (const_fail + out_fail[:20] + gamma_fail):
+    print(f"Parité couverture  : {'OK' if not cov_fail else 'ÉCHEC'} "
+          f"({len(circo_arr['id'])} circos"
+          f", {n_low} marquées non publiables)")
+    for f in (const_fail + out_fail[:20] + gamma_fail + cov_fail[:20]):
         print("  ✗", f)
-    if const_fail or out_fail or gamma_fail:
+    if const_fail or out_fail or gamma_fail or cov_fail:
         sys.exit(1)
-    print("\n✅ Python et JavaScript calculent le MÊME modèle de sièges (constantes + sorties + γ).")
+    print("\n✅ Python et JavaScript calculent le MÊME modèle de sièges (constantes + sorties + γ) "
+          "et marquent les MÊMES circos non publiables.")
 
 
 if __name__ == "__main__":

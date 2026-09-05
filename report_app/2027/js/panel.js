@@ -46,14 +46,28 @@ function renderCirco(prIn) {
   const turnout = Math.max(0.05, 1 - r.ab / 100), thr = 12.5 / turnout;
   const sc = r.sc, win = r.win;
 
-  const dispTag = `<span class="tag" style="background:${APP.WIN[sc]}22;border-color:${APP.WIN[sc]}">${sc} · ${APP.WIN_LAB[sc]}</span>`;
-  const winLine = `<div class="pv-lead" style="background:${APP.COL[win]}22;border-left:3px solid ${APP.COL[win]}">
+  // Circos où la nomenclature de blocs ne couvre pas l'électorat (forces régionalistes hors
+  // des trois blocs) : on N'AFFICHE PAS de score ni de siège probable — ils ne veulent rien
+  // dire — et on explique pourquoi à la place. Cf. js/coverage.js.
+  const pub = covIsPublishable(prIn.id);
+  const dispTag = pub
+    ? `<span class="tag" style="background:${APP.WIN[sc]}22;border-color:${APP.WIN[sc]}">${sc} · ${APP.WIN_LAB[sc]}</span>`
+    : `<span class="tag" style="background:${APP.COV_GREY}44;border-color:${APP.COV_GREY}">${APP.COV_LAB}</span>`;
+  const covBox = pub ? "" :
+    `<div class="pv-nopub"><b>Prévision non fiable ici.</b> ${covWarning(prIn.id)}</div>`;
+  const winLine = !pub ? "" :
+    `<div class="pv-lead" style="background:${APP.COL[win]}22;border-left:3px solid ${APP.COL[win]}">
     Siège probable : <b>${APP.NAME[win]}</b> ${win === "G"
       ? "" : "— la gauche part " + (sc >= 4 ? "avec un net retard" : "au coude-à-coude")}.</div>`;
 
   // Raisonnement de la qualification / 2nd tour.
   let reason;
-  if (!r.ql) {
+  if (!pub) {
+    reason = `Le raisonnement habituel (qualification au second tour, reports, marge) n'est pas
+      reproduit ici : il s'appuierait sur des parts de bloc qui ne représentent qu'une partie
+      du corps électoral. Les chiffres ci-dessous sont donnés pour mémoire, <b>ils ne sont pas
+      exploitables</b>.`;
+  } else if (!r.ql) {
     reason = `Avec cette configuration, ${leftBreakdown(r.g, s)} La meilleure candidature de
       gauche (<b>${fmt1(r.lbest)} %</b> des exprimés) reste sous le seuil de qualification
       (~<b>${fmt1(thr)} %</b> des exprimés = 12,5 % des inscrits, participation ${fmt1(100 - r.ab)} %)
@@ -74,15 +88,16 @@ function renderCirco(prIn) {
 
   return `<div class="pv-head"><h3>${prIn.id} · ${prIn.nm}</h3>
       <div class="sub">${prIn.dept} · ${fmt(prIn.ins)} inscrits · ${prIn.nbv} bureaux ${dispTag}</div></div>
+    ${covBox}
     ${winLine}
-    <div class="cs-h">Parts de bloc prédites (1er tour, exprimés)</div>
+    <div class="cs-h">Parts de bloc prédites (1er tour, exprimés)${pub ? "" : " — pour mémoire"}</div>
     ${sharesBar(r.g, r.cd, r.ed)}
     <div class="cs-leg">
       <span><i style="background:${APP.COL.G}"></i>Gauche ${fmt1(r.g)}</span>
       <span><i style="background:${APP.COL.CD}"></i>Centre+Droite ${fmt1(r.cd)}</span>
       <span><i style="background:${APP.COL.ED}"></i>Extrême Droite ${fmt1(r.ed)}</span>
       <span><i style="background:${APP.COL.AB}"></i>abstention ${fmt1(r.ab)} %</span></div>
-    <div class="pv-why"><span class="pv-why-h">Pourquoi ce score</span>
+    <div class="pv-why"><span class="pv-why-h">${pub ? "Pourquoi ce score" : "Pourquoi pas de score"}</span>
       <p class="cs-reason">${reason}</p></div>
     <p class="cap">${devLine}</p>
     <p class="cap muted">Bougez les curseurs nationaux ou changez de scénario : ce diagnostic

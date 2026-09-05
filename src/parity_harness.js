@@ -19,11 +19,12 @@ const vectorsFile = process.argv[3];
 const src =
   fs.readFileSync(path.join(jsDir, "config.js"), "utf8") + "\n" +
   fs.readFileSync(path.join(jsDir, "compute.js"), "utf8") + "\n" +
+  fs.readFileSync(path.join(jsDir, "coverage.js"), "utf8") + "\n" +
   "globalThis.__API = { leftCandidates, qual, leftT2, cdTransfer, scoreCirco, seatWinner," +
-  " turnoutAdjust, gammaAt, APP };";
+  " turnoutAdjust, gammaAt, covThreshold, covCompute, covFlag, APP };";
 
 const sandbox = {
-  console, Math, JSON, Array, Object, Number, isNaN, parseFloat, parseInt,
+  console, Math, JSON, Array, Object, Number, Map, isNaN, parseFloat, parseInt,
   document: { getElementById: () => null },
   window: {},
 };
@@ -47,6 +48,16 @@ const out = vectors.cases.map((c) => {
   };
 });
 
+// Couverture de la nomenclature de blocs (coverage.js) sur les VRAIES données servies :
+// seuil, couverture et étiquette des 577 circos, à comparer trait pour trait à Python.
+let cov = null;
+if (vectors.circoArr && vectors.summary) {
+  API.APP.data.coverage = vectors.coverage;
+  const thr = API.covThreshold(vectors.summary);
+  const { val, src } = API.covCompute(vectors.circoArr, vectors.coverage, vectors.summary);
+  cov = { thr, val, src, flag: val.map((v) => API.covFlag(v, thr)) };
+}
+
 // Constantes lues dans le JS exécuté (pour vérifier l'égalité des défauts côté Python).
 const consts = {
   desist: API.APP.coef.desist, cdLR: API.APP.coef.cdLR, ed2left: API.APP.coef.ed2left,
@@ -54,4 +65,4 @@ const consts = {
   AB_REF: API.APP.AB_REF, CDT: API.APP.CDT,
 };
 
-process.stdout.write(JSON.stringify({ out, consts }));
+process.stdout.write(JSON.stringify({ out, consts, cov }));

@@ -69,6 +69,13 @@ function addLayers() {
     id: "circo-line", type: "line", source: "circo",
     paint: { "line-color": "#0d0f14", "line-width": 0.4, "line-opacity": 0.55 },
   }, premierSymbole);
+  // Liseré tireté sur les circos non publiables : le gris seul se confondrait avec une
+  // circo dont l'état n'est pas encore posé. La liste vient des données (coverage.js).
+  map.addLayer({
+    id: "circo-nopub", type: "line", source: "circo",
+    paint: { "line-color": "#6b7079", "line-width": 1.2, "line-dasharray": [2, 1.5] },
+    filter: ["in", ["get", "id"], ["literal", covUnpublishableIds()]],
+  }, premierSymbole);
   map.addLayer({
     id: "circo-sel", type: "line", source: "circo",
     paint: { "line-color": "#fff", "line-width": 2 },
@@ -131,9 +138,13 @@ function showPopup(p, lngLat) {
   if (!popup) popup = new maplibregl.Popup({ closeButton: COARSE, closeOnClick: false, className: "mini" });
   // Recalcul léger (une circo) au scénario/curseur courant — les props ne portent que les dev.
   const r = circoEval(p);
-  const body = APP.state.mode === "seat"
-    ? `<br>Siège probable : <b style="color:${APP.COL[r.win]}">${APP.NAME[r.win]}</b>`
-    : `<br>Gauche : <b style="color:${APP.WIN[r.sc]}">${APP.WIN_LAB[r.sc]}</b>`;
+  // Circo hors nomenclature (cf. coverage.js) : l'infobulle dit « non mesurée » plutôt que
+  // d'annoncer un score que le panneau refuse ensuite d'afficher.
+  const body = !covIsPublishable(p.id)
+    ? `<br><b style="color:#7a7f88">${APP.COV_LAB}</b> — nomenclature de blocs incomplète`
+    : APP.state.mode === "seat"
+      ? `<br>Siège probable : <b style="color:${APP.COL[r.win]}">${APP.NAME[r.win]}</b>`
+      : `<br>Gauche : <b style="color:${APP.WIN[r.sc]}">${APP.WIN_LAB[r.sc]}</b>`;
   popup.setLngLat(lngLat).setHTML(`<b>${p.id} · ${p.nm}</b>${body}`).addTo(APP.map);
 }
 function hover(e) { showPopup(e.features[0].properties, e.lngLat); }

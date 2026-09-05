@@ -177,7 +177,11 @@ function updateCircoStates() {
     // En rejeu, la carte lit les parts RÉELLES 2024 par id (les circos sans données 2024 —
     // hors des 501 — repassent au gris neutre : état sc/win vidé).
     const r = APP.replayMode ? replayEval(APP.idIdx.get(id)) : circoEval(f.properties);
-    map.setFeatureState({ source: "circo", id }, r ? { sc: r.sc, win: r.win } : { sc: 0, win: "" });
+    // `pub` sort de la choroplèthe les circos où la nomenclature de blocs ne couvre pas
+    // l'électorat : leur score n'a pas de sens, on ne le colore pas (cf. coverage.js).
+    const pub = covIsPublishable(id);
+    map.setFeatureState({ source: "circo", id },
+      r ? { sc: r.sc, win: r.win, pub } : { sc: 0, win: "", pub });
   }
 }
 

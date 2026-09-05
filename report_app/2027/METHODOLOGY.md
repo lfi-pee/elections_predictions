@@ -41,6 +41,45 @@ réelles** (réglables au curseur) :
 - **Fourchette de sièges** : Monte-Carlo (bruit gaussien indépendant par circo/bloc). Ne borne
   que l'erreur locale — pas l'incertitude nationale (posée) ni structurelle (hypothèses de report).
 
+## 3 bis. Voix régionalistes : attribution et portée résiduelle
+- **Le trou** : le modèle range chaque candidat dans l'un de **trois blocs**. Les nuances
+  ministérielles `REG` (régionaliste), `DIV` et `DSV` n'y entrent pas — 1,77 % du vote national,
+  mais la force **dominante** dans une vingtaine de circonscriptions. Cas extrême, Cayenne :
+  **25,6 %** du vote rattaché, la gauche à **1,2 %** alors qu'elle détient le siège.
+- **Réparation automatique** (`cross_type_ridge._apply_candidate_lineage`) : un candidat codé
+  « Autre » reprend le bloc où le **même** candidat était codé à un scrutin antérieur. Elle
+  rattrape 34 circos (Nadeau, Molac, Dupont-Aignan, Gokel, Beaudet, Sempastous) et échoue sur les
+  élus codés `REG` **à tous** leurs scrutins : il n'y a aucun codage antérieur à retrouver.
+- **Attribution explicite** (`data/nuance/attribution_regionalistes_2024.csv`) : pour ceux-là,
+  une décision par candidat, adossée à un fait vérifiable et par ordre de priorité — le **groupe
+  parlementaire rejoint**, l'**investiture de coalition** (NFP 2024), le groupe d'un **mandat
+  antérieur**, l'alignement du **parti**. Dix candidats rattachés à la Gauche : Castor et Rimane
+  (GDR, Guyane), Nilor (LFI) et William (apparenté Socialistes) et Carole (PALIMA, Martinique),
+  Tjibaou et Naisseline (UC-FLNKS, Nouvelle-Calédonie), Le Gayic, Chailloux et Reid Arbelot
+  (Tavini, Polynésie). Cayenne passe de **1,3 % à 64,1 %** de gauche.
+- **Non-attributions assumées**, inscrites dans la même table avec leur motif : la mouvance
+  **autonomiste corse** (Colombani, Castellani, Acquaviva, Colonna) siège au groupe **LIOT**,
+  territorial et non aligné — la ranger dans un bloc déformerait quatre circonscriptions ; une
+  candidate **sans étiquette** n'ayant donné aucune consigne de second tour ; les « divers »
+  locaux sans alignement établi. Leurs voix restent exclues et renormalisées, comme le modèle
+  traite déjà les divers au niveau national.
+- **Couverture résiduelle** : mesurée circo par circo sur le fichier officiel du ministère
+  (`coverage.json`, produit par `src/attribution_2027.py`), pour les **577** circonscriptions.
+  Seuil de marquage = 100 − la plus large demi-largeur à 90 % servie (±9,7 pts) → **90,3 %** :
+  en deçà, l'erreur de nomenclature dépasse à elle seule l'incertitude annoncée.
+- **Le marquage suit la CHAÎNE, pas la mesure.** Réparer la donnée 2024 ne répare pas la
+  prévision : les déviations 2027 servies descendent du modèle entraîné avec l'ancienne
+  nomenclature. Tant que `summary.attribution_applied` n'est pas posé par une reconstruction,
+  le marquage reste au niveau d'avant — **19 circos**. Après `./rebuild_2027.sh`, il tombe à
+  **11** : les quatre corses et sept où subsistent des « divers » sans alignement établi.
+- **Ce qui reste marqué** est grisé sur la carte (liseré tireté), sans score ni siège dans le
+  panneau, et porte une colonne `fiabilite` dans l'export CSV. Ces circos restent comptées dans
+  les totaux de sièges — les en retirer fausserait l'Assemblée.
+- **Effet sur la validation** : le vrai vainqueur 2024 était lui aussi lu à travers la
+  nomenclature (`backtest_2024_seats`), si bien que les circonscriptions gagnées par un élu codé
+  `REG` sortaient **silencieusement** du backtest — la justesse était calculée sur 501 circos.
+  La table y est désormais branchée ; le chiffre se met à jour à la prochaine reconstruction.
+
 ## 4. Validation sur 2024
 - **À l'aveugle (chaîne complète)** : 2024 **retiré de l'entraînement**, prévision du 1er tour →
   modèle de sièges → vrais sièges → **~78 %** des circos disputées (`backtest_2024_endtoend.py`).
@@ -57,10 +96,14 @@ réelles** (réglables au curseur) :
   vérifie qu'il calcule exactement le même modèle de sièges que Python (constantes + 720 cas).
 - **Aucun chiffre figé** : `test_no_hardcoded_2027.py` vérifie que les statistiques affichées
   égalent les données servies.
+- **Garde-fou de publication** : `test_coverage_2027.py` exécute le vrai JS du site et vérifie
+  que les circos hors nomenclature sont bien grisées, sans score ni siège annoncés ; la parité
+  du marquage Python ↔ JS est couverte par `test_parity_2027.py`.
 - **Sources sondages** : liens en pied de page du site. Baromètre législatif gelé depuis
   oct. 2025 (suivi reporté sur la présidentielle) — présélections = tendance agrégée
   PolitPro / Toute l'Europe (2026).
 
-*Limites* : géométrie outre-mer/étranger (encarts) moins validée ; part LFI en sièges bornée par
-l'arithmétique d'une compétition divisée (≠ répartition d'union négociée) ; sondages non
-rafraîchis depuis fin 2025.
+*Limites* : **19 circonscriptions hors nomenclature de blocs** (§3 bis — 11 après reconstruction) — aucune prévision par
+circo n'y est publiable ; géométrie outre-mer/étranger (encarts) moins validée ; part LFI en
+sièges bornée par l'arithmétique d'une compétition divisée (≠ répartition d'union négociée) ;
+sondages non rafraîchis depuis fin 2025.

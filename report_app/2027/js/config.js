@@ -9,6 +9,11 @@ const APP = {
   // Échelle de couleur des scores de jouabilité (1 = victoire facile → 5 = impossible, rouge plein).
   WIN: { 1: "#1a9850", 2: "#91cf60", 3: "#fee08b", 4: "#fc8d59", 5: "#d7191c" },
   WIN_LAB: { 1: "victoire facile", 2: "jouable", 3: "disputé", 4: "difficile", 5: "quasi impossible" },
+  // Circos dont la nomenclature de blocs ne couvre pas l'électorat (forces régionalistes hors
+  // des trois blocs) : ni score ni vainqueur ne sont défendables, on les sort de la choroplèthe
+  // au lieu de les colorer comme les autres. Cf. js/coverage.js et src/coverage_2027.py.
+  COV_GREY: "#c2c6cd",
+  COV_LAB: "non mesurée",
   MARGIN_FULL: 12,
   NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
   VOTE: ["G", "CD", "ED"],
@@ -119,11 +124,13 @@ function poleMeta(cfg) {
 // Couleur « jouabilité » : score 1→5 lu dans l'ÉTAT d'entité (feature-state), mis à jour
 // au curseur sans retoucher la géométrie. Défaut (état non posé) = gris neutre.
 function winColorExpr() {
-  return ["match", ["feature-state", "sc"],
-    1, APP.WIN[1], 2, APP.WIN[2], 3, APP.WIN[3], 4, APP.WIN[4], 5, APP.WIN[5], "#c8ccd2"];
+  return ["case", ["==", ["feature-state", "pub"], false], APP.COV_GREY,
+    ["match", ["feature-state", "sc"],
+      1, APP.WIN[1], 2, APP.WIN[2], 3, APP.WIN[3], 4, APP.WIN[4], 5, APP.WIN[5], "#c8ccd2"]];
 }
 // Couleur « vainqueur du siège » depuis l'état d'entité.
 function seatColorExpr() {
-  return ["match", ["feature-state", "win"],
-    "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "#c8ccd2"];
+  return ["case", ["==", ["feature-state", "pub"], false], APP.COV_GREY,
+    ["match", ["feature-state", "win"],
+      "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "#c8ccd2"]];
 }

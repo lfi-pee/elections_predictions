@@ -18,13 +18,17 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
-from src import winnability_2027 as W
+from src import attribution_2027, winnability_2027 as W
 
 MASTER24 = Path("data/report/bv_master.parquet")
 CAND = Path("data/elections/agregees/candidats_results.parquet")
 VOTE = ["G", "CD", "ED"]
 
-# Nuances 2024 → bloc à 3 (les régionalistes/divers non mappés sont ignorés).
+# Nuances 2024 → bloc à 3. Les régionalistes/divers restent non mappés PAR DÉFAUT, mais la
+# table d'attribution (`data/nuance/attribution_regionalistes_2024.csv`) les rattache nommément
+# quand la preuve existe. Sans elle, les circos gagnées par un élu codé REG — Guyane, Martinique,
+# Nouvelle-Calédonie, Polynésie — n'avaient PAS de vainqueur réel connu et sortaient
+# silencieusement du backtest : la justesse affichée était calculée sur 501 circos, pas 577.
 _ED = {"RN", "UDR", "UXD", "REC", "EXD"}
 _G = {"UG", "DVG", "PS", "ECO", "SOC", "FI", "COM", "RDG", "LFI", "ECOLO"}
 _CD = {"ENS", "RE", "LR", "DVD", "HOR", "DVC", "UDI", "MODEM", "NC", "LC"}
@@ -32,6 +36,20 @@ _CD = {"ENS", "RE", "LR", "DVD", "HOR", "DVC", "UDI", "MODEM", "NC", "LC"}
 
 def _bloc(n: str) -> str | None:
     return "ED" if n in _ED else "G" if n in _G else "CD" if n in _CD else None
+
+
+def _attributed_block(c2: pd.DataFrame) -> pd.Series:
+    """Bloc des candidats que la nuance seule ne classe pas, via la table d'attribution
+    (clé : circonscription + nom canonique). Renvoie NaN partout ailleurs."""
+    try:
+        table = attribution_2027.table_by_key()
+    except Exception as e:  # noqa: BLE001
+        print(f"  (table d'attribution indisponible : {e})")
+        return pd.Series(np.nan, index=c2.index)
+    names = (c2["prenom"].fillna("") + " " + c2["nom"].fillna("")).map(
+        attribution_2027.normalize_name)
+    blocs = [(table.get(k) or {}).get("bloc") for k in zip(c2.circo, names)]
+    return pd.Series([b if b in VOTE else None for b in blocs], index=c2.index, dtype="object")
 
 
 def _first_round_and_winner() -> tuple[dict, pd.Series, list[str]]:
@@ -56,11 +74,12 @@ def _first_round_and_winner() -> tuple[dict, pd.Series, list[str]]:
     }
 
     c2 = pq.read_table(
-        CAND, columns=["id_election", "id_brut_miom", "nuance", "voix"]
+        CAND, columns=["id_election", "id_brut_miom", "nuance", "voix", "nom", "prenom"]
     ).to_pandas()
     c2 = c2[c2.id_election == "2024_legi_t2"].copy()
     c2["circo"] = c2.id_brut_miom.map(loc2circo)
     c2["bloc"] = c2.nuance.map(_bloc)
+    c2["bloc"] = c2["bloc"].fillna(_attributed_block(c2))
     c2 = c2.dropna(subset=["circo", "bloc"])
     gt = c2.groupby(["circo", "bloc"]).voix.sum().reset_index()
     winner = gt.loc[gt.groupby("circo").voix.idxmax()].set_index("circo").bloc

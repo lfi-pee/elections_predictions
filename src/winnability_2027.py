@@ -100,15 +100,16 @@ def _cd_transfer(right_union: bool, cd_lr: float = CD_LR_DEFAULT) -> tuple[float
 
 def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
                 right_union: bool = False, desist: float = DESIST_TO_STRONG,
-                cd_lr: float = CD_LR_DEFAULT) -> dict:
+                cd_lr: float = CD_LR_DEFAULT, au: float = 0.0) -> dict:
     """Renvoie {score 1..5, l_best, qualifies, margin_t2, opp}. `g/cd/ed` = parts exprimées
-    (somme ~100), `ab` = abstention % inscrits."""
+    (somme ~100), `ab` = abstention % inscrits. `au` = bloc « Autre » (régionaliste), pris en
+    compte comme adversaire là où il domine (bastions)."""
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout  # seuil de qualification en part d'exprimés (= 12,5 % des inscrits)
 
     left = _left_candidates(g, cfg, rad)
     l_best = max(left) if left else 0.0
-    cands = left + [cd, ed]
+    cands = left + [cd, ed] + ([au] if au > 0.0 else [])
     top2 = sorted(cands, reverse=True)[:2]
     leader, second = top2[0], top2[1]
     left_base, qualifies = _left_t2(left, second, thr)
@@ -117,12 +118,19 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
     cd2l, cd2e = _cd_transfer(right_union, cd_lr)
 
     if not qualifies:
+        opp = "AU" if (au > 0.0 and au >= cd and au >= ed) else ("ED" if ed >= cd else "CD")
         return {"score": 5, "l_best": round(l_best, 1), "qualifies": False,
-                "margin_t2": None, "opp": "ED" if ed >= cd else "CD"}
+                "margin_t2": None, "opp": opp}
 
     # 2nd tour : gauche réunie (réunification imparfaite si divisée) face à l'adversaire le plus
-    # fort ; reports selon que cet adversaire est le RN ou le centre-droit.
-    if ed >= cd:
+    # fort ; reports selon que cet adversaire est le RN, le centre-droit, ou le bloc « Autre ».
+    if au > 0.0 and au >= cd and au >= ed:
+        # Adversaire = pôle régionaliste dominant (bastion) : hors axe, pas de front
+        # républicain ni de report de barrage — duel direct gauche vs Autre.
+        opp = "AU"
+        left_t2 = left_base
+        opp_t2 = au
+    elif ed >= cd:
         opp = "ED"
         if q_cd and q_ed and not right_union:
             # Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front
@@ -154,11 +162,18 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
 
 def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
                 right_union: bool = False, desist: float = DESIST_TO_STRONG,
-                cd_lr: float = CD_LR_DEFAULT) -> str:
-    """Bloc vainqueur du siège (G/CD/ED), même modèle de 2nd tour que `score_circo`."""
+                cd_lr: float = CD_LR_DEFAULT, au: float = 0.0) -> str:
+    """Bloc vainqueur du siège (G/CD/ED/AU), même modèle de 2nd tour que `score_circo`."""
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout
     left = _left_candidates(g, cfg, rad)
+    # Bloc « Autre » (régionaliste/autonomiste) = pôle sortant « collant » : là où il arrive en
+    # tête au 1er tour (bastions corses/ultramarins), il conserve le siège. Hors de l'axe
+    # G/CD/ED, il ne participe pas au front républicain ; là où il n'est PAS en tête, la logique à
+    # trois pôles ci-dessous reprend inchangée — aucun effet sur les circos où l'Autre est
+    # négligeable (pattern spatial ≈ 0 hors bastions). Miroir exact de winnability.js.
+    if au > 0.0 and au >= max(left + [cd, ed]) - 1e-9:
+        return "AU"
     cands = sorted(left + [cd, ed], reverse=True)
     second = cands[1]
     left_base, qL = _left_t2(left, second, thr)

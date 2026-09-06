@@ -41,8 +41,11 @@ GAMMA24 = Path("report_app/data/gamma_curve.json")
 CACHE = Path("data/report")
 SERVED = Path("report_app/2027/data")
 
-BLOCKS = {"Gauche": "G", "Centre+Droite": "CD", "Extreme_Droite": "ED", "Abstention": "AB"}
+BLOCKS = {"Gauche": "G", "Centre+Droite": "CD", "Extreme_Droite": "ED",
+          "Other": "AU", "Abstention": "AB"}
 VOTE = ["G", "CD", "ED"]
+# Blocs de vote dont on sert et agrège la déviation (dont le bloc « Autre » régionaliste).
+VOTE_DEV = ["G", "CD", "ED", "AU"]
 CTX = [
     "inscrits", "code_departement", "code_commune", "libelle_commune",
     "circo", "abst_floor", "lat", "lon", "has_contour",
@@ -75,7 +78,7 @@ def aggregate(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
     for kv, g in df.groupby(keys):
         w = g.inscrits
         rec = dict(zip(keys, kv if isinstance(kv, tuple) else (kv,)))
-        rec |= {f"d{b}": round(_wmean(g[f"dev_{b}"], w), 3) for b in ("G", "CD", "ED", "AB")}
+        rec |= {f"d{b}": round(_wmean(g[f"dev_{b}"], w), 3) for b in ("G", "CD", "ED", "AU", "AB")}
         rec["ins"] = int(g.inscrits.sum())
         rec["af"] = round(_wmean(g.abst_floor, w), 2)
         rec["nbv"] = int(len(g))
@@ -121,6 +124,7 @@ def circo_halfwidth(cv90: dict[str, float]) -> dict[str, float]:
     m = pd.read_parquet(MASTER24, columns=cols)
     m = m[m.circo.notna()].copy()
     out = {}
+    ratios = []
     for b in VOTE:
         resid_bv = (m[f"pred_{b}"] - m[f"act_{b}"]).to_numpy()
         circo_resid = m.groupby("circo").apply(
@@ -128,7 +132,14 @@ def circo_halfwidth(cv90: dict[str, float]) -> dict[str, float]:
                                        weights=g.inscrits.to_numpy(float)))
         )
         ratio = float(circo_resid.std() / (resid_bv.std() or 1.0))
+        ratios.append(ratio)
         out[b] = round(cv90[b] * ratio, 1)
+    # Bloc « Autre » : la table 2024 (MASTER24) ne porte pas de colonne régionaliste, donc pas de
+    # résidu 2024 pour mesurer son rapport σ_circo/σ_bv. On applique le rapport MOYEN des trois
+    # blocs d'axe (~0,7) à sa demi-largeur conforme par bureau — même hypothèse de corrélation
+    # intra-circo que les autres blocs, faute de mesure propre.
+    if "AU" in cv90:
+        out["AU"] = round(cv90["AU"] * (sum(ratios) / len(ratios)), 1)
     return out
 
 
@@ -144,19 +155,20 @@ def winnability_distribution(cir: pd.DataFrame, scn: dict) -> dict:
     ins = {s: 0 for s in range(1, 6)}
     ru = scn.get("right_union", False)
     cfg = scn["left_config"]
-    seats = {"G": 0, "CD": 0, "ED": 0}
+    seats = {"G": 0, "CD": 0, "ED": 0, "AU": 0}
     for r in cir.itertuples():
-        G, CD, ED, AB = m["G"] + r.dG, m["CD"] + r.dCD, m["ED"] + r.dED, m["AB"] + r.dAB
-        G, CD, ED, AB = (min(100, max(0, v)) for v in (G, CD, ED, AB))
+        G, CD, ED, AU, AB = (m["G"] + r.dG, m["CD"] + r.dCD, m["ED"] + r.dED,
+                             m["AU"] + r.dAU, m["AB"] + r.dAB)
+        G, CD, ED, AU, AB = (min(100, max(0, v)) for v in (G, CD, ED, AU, AB))
         # Part radicale (LFI) DANS la gauche : moyenne = curseur (sondages), motif SPATIAL = 2017
         # amplifié (radical_spatial), borné [0,05 ; 0,95]. Miroir exact de compute.js.
         rdev = getattr(r, "rdev", 0.0)
         rad = 1.0 if cfg == "union" else min(
             0.95, max(0.05, scn["radical_share"] + radical_spatial.RAD_GAIN * rdev))
-        res = winnability_2027.score_circo(G, CD, ED, AB, cfg, rad, ru)
+        res = winnability_2027.score_circo(G, CD, ED, AB, cfg, rad, ru, au=AU)
         counts[res["score"]] += 1
         ins[res["score"]] += int(r.ins)
-        seats[winnability_2027.seat_winner(G, CD, ED, AB, cfg, rad, ru)] += 1
+        seats[winnability_2027.seat_winner(G, CD, ED, AB, cfg, rad, ru, au=AU)] += 1
     return {"counts": counts, "inscrits": ins, "seats": seats,
             "playable": sum(counts[s] for s in (1, 2, 3))}
 
@@ -171,7 +183,7 @@ def build() -> None:
 
     com = build_communes(df)
     com_out = com[["code_commune", "nom", "dept", "ins", "nbv", "lat", "lon",
-                   "dG", "dCD", "dED", "dAB", "af"]]
+                   "dG", "dCD", "dED", "dAU", "dAB", "af"]]
     (SERVED / "communes.json").write_text(com_out.to_json(orient="records"))
     code2idx = {c: i for i, c in enumerate(com.code_commune)}
 
@@ -191,7 +203,7 @@ def build() -> None:
         "dept": cir.dept.fillna("").tolist(),
         "ins": [int(v) for v in cir.ins],
         "nbv": [int(v) for v in cir.nbv],
-        **{k: [round(float(v), 3) for v in cir[k]] for k in ("dG", "dCD", "dED", "dAB", "af")},
+        **{k: [round(float(v), 3) for v in cir[k]] for k in ("dG", "dCD", "dED", "dAU", "dAB", "af")},
         "rdev": [round(float(v), 4) for v in cir["rdev"]],
     }
     # Parts de 1er tour RÉELLES 2024 par circo (null hors des 501 circos du backtest) : le bouton
@@ -206,6 +218,13 @@ def build() -> None:
         circo_arrays["r24" + b] = [
             (r24[c][b] if c in r24 else None) for c in circo_arrays["id"]
         ]
+    # Bloc « Autre » 2024 réel = résidu hors-axe des exprimés (G/CD/ED sont des parts
+    # d'exprimés ; leur complément à 100 est le vote régionaliste/divers non rattaché).
+    circo_arrays["r24AU"] = [
+        (round(max(0.0, 100.0 - r24[c]["G"] - r24[c]["CD"] - r24[c]["ED"]), 3)
+         if c in r24 else None)
+        for c in circo_arrays["id"]
+    ]
     print(f"  rejeu 2024 : parts réelles servies pour {len(r24)} circos")
     (SERVED / "circo.json").write_text(json.dumps(circo_arrays, separators=(",", ":")))
 
@@ -219,7 +238,7 @@ def build() -> None:
     per_scn = {
         s["key"]: winnability_distribution(cir, s) for s in scenarios_2027.SCENARIOS
     }
-    cv90 = {b: round(float(df[f"hw90_{b}"].median()), 1) for b in ("G", "CD", "ED", "AB")}
+    cv90 = {b: round(float(df[f"hw90_{b}"].median()), 1) for b in ("G", "CD", "ED", "AU", "AB")}
     try:
         bt2024 = backtest_2024_seats.backtest()
     except Exception as e:  # candidats_results absent (certains environnements)

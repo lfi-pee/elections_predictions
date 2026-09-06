@@ -9,9 +9,10 @@
    "label": "Union de la gauche large",
    "desc": "À soutien de gauche égal, une seule candidature par circonscription (type NFP/Front populaire) capte tout le bloc. C'est la configuration qui convertit le mieux le soutien en sièges.",
    "means": {
-    "G": 30.4,
-    "CD": 29.6,
-    "ED": 40.0,
+    "G": 29.9,
+    "CD": 29.1,
+    "ED": 39.2,
+    "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "union",
@@ -23,9 +24,10 @@
    "label": "Gauche radicale vs néolibérale",
    "desc": "Scénario de référence : même soutien de gauche, mais scindé en un pôle radical (LFI) et un pôle social-démocrate (PS-Place publique-EELV-PCF) qui concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
    "means": {
-    "G": 30.4,
-    "CD": 29.6,
-    "ED": 40.0,
+    "G": 29.9,
+    "CD": 29.1,
+    "ED": 39.2,
+    "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "split2",
@@ -37,9 +39,10 @@
    "label": "Fragmentation (statu quo)",
    "desc": "« Autre » : même soutien, mais éclaté en trois (LFI / PS-PP / éco-PCF) sans pôle fédérateur — dispersion maximale, presque aucune qualification.",
    "means": {
-    "G": 30.4,
-    "CD": 29.6,
-    "ED": 40.0,
+    "G": 29.9,
+    "CD": 29.1,
+    "ED": 39.2,
+    "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "split3",
@@ -51,9 +54,10 @@
    "label": "Droites unies en face",
    "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre à franchir monte. (Le niveau national reste celui des curseurs.)",
    "means": {
-    "G": 30.4,
-    "CD": 29.6,
-    "ED": 40.0,
+    "G": 29.9,
+    "CD": 29.1,
+    "ED": 39.2,
+    "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "union",
@@ -83,91 +87,95 @@
  "winnability": {
   "union": {
    "counts": {
-    "1": 116,
-    "2": 65,
-    "3": 73,
-    "4": 141,
-    "5": 182
+    "1": 111,
+    "2": 70,
+    "3": 67,
+    "4": 136,
+    "5": 193
    },
    "inscrits": {
-    "1": 8752627,
-    "2": 5571235,
-    "3": 6258731,
-    "4": 12741040,
-    "5": 15322107
+    "1": 8322363,
+    "2": 5979441,
+    "3": 5769660,
+    "4": 12341380,
+    "5": 16232896
    },
    "seats": {
-    "G": 177,
-    "CD": 169,
-    "ED": 231
+    "G": 176,
+    "CD": 172,
+    "ED": 228,
+    "AU": 1
    },
-   "playable": 254
+   "playable": 248
   },
   "split2": {
    "counts": {
-    "1": 60,
-    "2": 80,
-    "3": 21,
-    "4": 56,
-    "5": 360
+    "1": 61,
+    "2": 75,
+    "3": 19,
+    "4": 55,
+    "5": 367
    },
    "inscrits": {
-    "1": 4495747,
-    "2": 6340890,
-    "3": 1799023,
-    "4": 4941456,
-    "5": 31068624
+    "1": 4558802,
+    "2": 5884670,
+    "3": 1610451,
+    "4": 5117166,
+    "5": 31474651
    },
    "seats": {
-    "G": 142,
-    "CD": 212,
-    "ED": 223
+    "G": 138,
+    "CD": 213,
+    "ED": 224,
+    "AU": 2
    },
-   "playable": 161
+   "playable": 155
   },
   "frag": {
    "counts": {
-    "1": 36,
-    "2": 36,
-    "3": 5,
+    "1": 38,
+    "2": 32,
+    "3": 6,
     "4": 17,
-    "5": 483
+    "5": 484
    },
    "inscrits": {
-    "1": 2668539,
-    "2": 2520520,
-    "3": 421009,
+    "1": 2812702,
+    "2": 2244777,
+    "3": 478425,
     "4": 1481943,
-    "5": 41553729
+    "5": 41627893
    },
    "seats": {
-    "G": 72,
+    "G": 69,
     "CD": 275,
-    "ED": 230
+    "ED": 231,
+    "AU": 2
    },
-   "playable": 77
+   "playable": 76
   },
   "droite_unie": {
    "counts": {
-    "1": 92,
+    "1": 91,
     "2": 37,
-    "3": 55,
-    "4": 211,
-    "5": 182
+    "3": 57,
+    "4": 199,
+    "5": 193
    },
    "inscrits": {
-    "1": 6818094,
-    "2": 2961265,
-    "3": 4667980,
-    "4": 18876294,
-    "5": 15322107
+    "1": 6717115,
+    "2": 2946743,
+    "3": 4850062,
+    "4": 17898924,
+    "5": 16232896
    },
    "seats": {
     "G": 139,
-    "CD": 169,
-    "ED": 269
+    "CD": 172,
+    "ED": 265,
+    "AU": 1
    },
-   "playable": 184
+   "playable": 185
   }
  },
  "proof_2024": {
@@ -181,15 +189,17 @@
   "n_bv": 70083
  },
  "cv_halfwidth_90": {
-  "G": 10.1,
+  "G": 10.2,
   "CD": 12.7,
   "ED": 8.0,
+  "AU": 4.4,
   "AB": 7.0
  },
  "circo_halfwidth_90": {
-  "G": 7.5,
+  "G": 7.6,
   "CD": 9.7,
-  "ED": 6.0
+  "ED": 6.0,
+  "AU": 3.3
  },
  "backtest_2024": {
   "n_circo": 503,
@@ -219,17 +229,17 @@
    "ED": 109
   },
   "model": {
-   "G": 189,
-   "CD": 242,
+   "G": 188,
+   "CD": 243,
    "ED": 70
   },
-  "accuracy": 78.7,
+  "accuracy": 78.8,
   "accuracy_seats": 77.8,
   "n_correct": 390,
   "mae_t1": {
-   "G": 3.21,
-   "CD": 3.73,
-   "ED": 3.52
+   "G": 3.24,
+   "CD": 3.71,
+   "ED": 3.38
   },
   "national_2024": {
    "G": 32.2,

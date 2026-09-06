@@ -56,7 +56,15 @@ def _grid() -> list[dict]:
                         if cfg == "union" and rad != 0.369:
                             continue  # rad sans effet en union
                         cases.append(dict(g=float(g), cd=float(cd), ed=float(ed),
-                                          ab=float(ab), cfg=cfg, ru=ru, rad=rad, dAB=0.0))
+                                          ab=float(ab), cfg=cfg, ru=ru, rad=rad, dAB=0.0, au=0.0))
+    # Cas dédiés au bloc « Autre » (bastions régionalistes) : Autre en tête, second, ou marginal,
+    # en union comme en division — exerce le pôle « collant » et l'adversaire Autre de scoreCirco.
+    for (g, cd, ed, au) in [(20, 20, 18, 40), (18, 24, 32, 26), (10, 37, 23, 34),
+                            (26, 44, 12, 18), (30, 25, 25, 15), (12, 12, 12, 55)]:
+        for ab in (40, 48):
+            for cfg in ("union", "split2"):
+                cases.append(dict(g=float(g), cd=float(cd), ed=float(ed), ab=float(ab),
+                                  cfg=cfg, ru=False, rad=0.369, dAB=0.0, au=float(au)))
     # Cas dédiés à l'invariant γ : abstention = AB_REF + dAB → turnoutAdjust doit être identité.
     for dAB in (-8.0, -3.0, 0.0, 4.0, 9.0):
         cases.append(dict(g=32.0, cd=30.0, ed=38.0, ab=48.0 + dAB, cfg="union",
@@ -65,8 +73,9 @@ def _grid() -> list[dict]:
 
 
 def _py(c: dict) -> dict:
-    sc = W.score_circo(c["g"], c["cd"], c["ed"], c["ab"], c["cfg"], c["rad"], c["ru"])
-    win = W.seat_winner(c["g"], c["cd"], c["ed"], c["ab"], c["cfg"], c["rad"], c["ru"])
+    au = c.get("au", 0.0)
+    sc = W.score_circo(c["g"], c["cd"], c["ed"], c["ab"], c["cfg"], c["rad"], c["ru"], au=au)
+    win = W.seat_winner(c["g"], c["cd"], c["ed"], c["ab"], c["cfg"], c["rad"], c["ru"], au=au)
     return dict(win=win, score=sc["score"], qualifies=sc["qualifies"],
                 margin_t2=sc["margin_t2"], opp=sc["opp"])
 

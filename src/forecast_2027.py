@@ -63,6 +63,7 @@ PCA_K = {
     "Gauche": 5,
     "Centre+Droite": 7,
     "Extreme_Droite": 5,
+    "Other": 5,          # bloc « Autre » : même config PCA que les autres (démo → 5 axes)
     "Abstention": 5,
 }
 
@@ -155,7 +156,8 @@ def main() -> None:
     frames = []
     ref = scenarios_2027.SCENARIOS
     ref_means = next(s for s in ref if s["key"] == scenarios_2027.DEFAULT_SCENARIO)["means"]
-    ref_map = {"Gauche": "G", "Centre+Droite": "CD", "Extreme_Droite": "ED", "Abstention": "AB"}
+    ref_map = {"Gauche": "G", "Centre+Droite": "CD", "Extreme_Droite": "ED",
+               "Other": "AU", "Abstention": "AB"}
 
     ins27 = f27["inscrits"].to_numpy(np.float64)
     ins27 = np.where(np.isfinite(ins27) & (ins27 > 0), ins27, 1.0)

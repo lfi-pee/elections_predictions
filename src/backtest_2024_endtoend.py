@@ -88,7 +88,10 @@ def backtest() -> dict:
     ins = np.where(np.isfinite(ins) & (ins > 0), ins, 1.0)
 
     pred = {"location": target["location"].to_numpy()}
-    for tc in TARGET_COLS:
+    # Le bloc « Autre » n'a pas de colonne réelle 2024 dans MASTER24 : le backtest de bout en
+    # bout valide la chaîne G/CD/ED/Ab (les blocs d'axe). On l'exclut donc ici.
+    e2e_cols = [c for c in TARGET_COLS if c != "Other"]
+    for tc in e2e_cols:
         k = PCA_K[tc]
         scaler, pca, ridge = fit_block(tc, train, feat_all, demo_cols, k)
         dev = ridge.predict(_transform(scaler, pca, len(demo_cols), target, feat_all))
@@ -104,10 +107,10 @@ def backtest() -> dict:
         on="location", how="inner",
     )
     w = m.inscrits.to_numpy(float)
-    nat = {tc: float(np.average(m[f"act_{ABBR[tc]}"], weights=w)) for tc in TARGET_COLS}
+    nat = {tc: float(np.average(m[f"act_{ABBR[tc]}"], weights=w)) for tc in e2e_cols}
 
     # pred_b = national_b + déviation prédite (motif spatial), borné.
-    for tc in TARGET_COLS:
+    for tc in e2e_cols:
         m[f"p_{ABBR[tc]}"] = np.clip(nat[tc] + m[f"dev_{tc}"], 0.0, 100.0)
 
     # ── Agrégation circo (pondérée inscrits) ──
@@ -150,7 +153,7 @@ def backtest() -> dict:
         "accuracy_seats": round(100 * ok_n / len(idx), 1),
         "n_correct": int(ok_n),
         "mae_t1": {k: round(v, 2) for k, v in mae.items()},
-        "national_2024": {ABBR[tc]: round(nat[tc], 1) for tc in TARGET_COLS},
+        "national_2024": {ABBR[tc]: round(nat[tc], 1) for tc in e2e_cols},
     }
 
 

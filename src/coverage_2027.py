@@ -85,10 +85,20 @@ def coverage(arr: dict, summary: dict | None = None) -> tuple[list[float | None]
     raw = json.loads(COVERAGE.read_text()) if COVERAGE.exists() else {}
     after = applied(summary or {})
     cov = raw.get("cov_apres" if after else "cov_avant", {})
+    # Le bloc « Autre » est-il désormais MODÉLISÉ (4e bloc servi) ? Si oui, le vote hors-axe
+    # n'est plus « non couvert » : il est prédit comme les autres (avec sa propre incertitude
+    # conforme). La couverture d'une circo redevient alors complète — le garde-fou de grisage,
+    # simple palliatif de l'absence de modèle sur ces territoires, se retire de lui-même.
+    autre_modeled = "dAU" in arr
     vals: list[float | None] = []
     srcs: list[str | None] = []
-    for cid in arr["id"]:
+    for i, cid in enumerate(arr["id"]):
         v = cov.get(cid)
+        if v is not None and autre_modeled:
+            # Le vote hors-axe est désormais un bloc prédit : la circo est couverte à 100 %
+            # (l'incertitude propre à l'Autre est portée par sa fourchette conforme, pas par un
+            # grisage). Les circos sans AUCUNE référence (v=None, ex. Wallis) restent « inconnues ».
+            v = 100.0
         vals.append(round(float(v), 3) if v is not None else None)
         srcs.append(("mesure" if after else "mesure (avant reconstruction)")
                     if v is not None else None)

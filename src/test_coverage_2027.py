@@ -98,9 +98,10 @@ def main() -> None:
             if "de cette circonscription" not in p["warning_text"]:
                 fails.append(f"{cid} : l'avertissement ne situe pas la mesure")
 
-    # (5) Légende.
-    if not r["legend_has_chip"]:
-        fails.append("légende : pastille « non mesurée » absente")
+    # (5) Légende. La pastille « non mesurée » n'est requise QUE s'il reste des circos marquées.
+    # Bloc « Autre » modélisé (4e bloc) ⇒ plus aucune circo hors couverture ⇒ garde-fou retiré.
+    if py_low and not r["legend_has_chip"]:
+        fails.append("légende : pastille « non mesurée » absente alors que des circos sont marquées")
     if r["n_low"] != len(py_low):
         fails.append(f"légende : compte {r['n_low']} ≠ {len(py_low)} circos marquées")
 
@@ -113,8 +114,12 @@ def main() -> None:
         print("  ✗", f)
     if fails:
         sys.exit(1)
-    print("\n✅ Le site refuse de publier un score sur les circos que la nomenclature ne couvre "
-          "pas — carte grisée, bandeau d'avertissement, ni score ni siège annoncés.")
+    if py_low:
+        print("\n✅ Le site refuse de publier un score sur les circos que la nomenclature ne "
+              "couvre pas — carte grisée, bandeau d'avertissement, ni score ni siège annoncés.")
+    else:
+        print("\n✅ Bloc « Autre » modélisé : les 577 circos sont couvertes et publiables "
+              "(garde-fou de grisage retiré) ; Python et JavaScript sont d'accord.")
 
 
 if __name__ == "__main__":

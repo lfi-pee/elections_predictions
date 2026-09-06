@@ -12,11 +12,12 @@ function openCirco(pr) {
   $("explain").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function sharesBar(g, cd, ed) {
-  const tot = g + cd + ed || 1;
+function sharesBar(g, cd, ed, au) {
+  au = au || 0;
+  const tot = g + cd + ed + au || 1;
   const seg = (b, v) => `<div style="width:${(v / tot) * 100}%;background:${APP.COL[b]}"
       title="${APP.NAME[b]} ${fmt1(v)} %">${(v / tot) * 100 >= 12 ? fmt1(v) + " %" : ""}</div>`;
-  return `<div class="cs-bar">${seg("G", g)}${seg("CD", cd)}${seg("ED", ed)}</div>`;
+  return `<div class="cs-bar">${seg("G", g)}${seg("CD", cd)}${seg("ED", ed)}${au > 0 ? seg("AU", au) : ""}</div>`;
 }
 
 function leftBreakdown(g, s) {
@@ -91,7 +92,7 @@ function renderCirco(prIn) {
     ${covBox}
     ${winLine}
     <div class="cs-h">Parts de bloc prédites (1er tour, exprimés)${pub ? "" : " — pour mémoire"}</div>
-    ${sharesBar(r.g, r.cd, r.ed)}
+    ${sharesBar(r.g, r.cd, r.ed, r.au)}
     <div class="cs-leg">
       <span><i style="background:${APP.COL.G}"></i>Gauche ${fmt1(r.g)}</span>
       <span><i style="background:${APP.COL.CD}"></i>Centre+Droite ${fmt1(r.cd)}</span>

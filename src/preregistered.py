@@ -106,6 +106,9 @@ def run_loo_and_val(
     )
     n_folds = len(train_td)
 
+    # Cibles réellement disponibles dans CE jeu (le bloc « Autre » n'est pas dans le jeu étendu).
+    avail_tc = [tc for tc in TARGET_COLS if f"dev_{tc}" in df.columns]
+
     # Fold masks + national means
     fold_masks, fold_nats = [], []
     for etype, ddate in train_td:
@@ -116,13 +119,13 @@ def run_loo_and_val(
             & np.isclose(national_means["date_float"], ddate, atol=1e-3)
         ]
         fold_nats.append(
-            {tc: float(nm_row[tc].iloc[0]) for tc in TARGET_COLS}
+            {tc: float(nm_row[tc].iloc[0]) for tc in avail_tc}
             if len(nm_row) > 0
-            else {tc: 0.0 for tc in TARGET_COLS}
+            else {tc: 0.0 for tc in avail_tc}
         )
 
     results = {}
-    for tc in TARGET_COLS:
+    for tc in avail_tc:
         dev_y = train[f"dev_{tc}"].values.astype(np.float64)
 
         # ── Full-train → val prediction (RidgeCV) ──
@@ -233,10 +236,13 @@ def main():
     df_legi_v1 = df_legi.dropna(subset=demo_indicators)
     df_legi_v1_2 = df_legi_v1.dropna(subset=raw_lag1 + raw_lag2 + dev_lag1 + dev_lag2)
 
-    ext_raw_lag1 = [f"{b}_lag1" for b in BLOCKS_ABS]
-    ext_raw_lag2 = [f"{b}_lag2" for b in BLOCKS_ABS]
-    ext_dev_lag1 = [f"dev_{b}_lag1" for b in BLOCKS_ABS]
-    ext_dev_lag2 = [f"dev_{b}_lag2" for b in BLOCKS_ABS]
+    # Le bloc « Autre » n'existe que dans le jeu croisé légi+prés ; le jeu étendu à 6 types ne le
+    # porte pas. Ses lags en sont donc exclus (sinon dropna/feature KeyError).
+    ext_blocks = [b for b in BLOCKS_ABS if b != "Other"]
+    ext_raw_lag1 = [f"{b}_lag1" for b in ext_blocks]
+    ext_raw_lag2 = [f"{b}_lag2" for b in ext_blocks]
+    ext_dev_lag1 = [f"dev_{b}_lag1" for b in ext_blocks]
+    ext_dev_lag2 = [f"dev_{b}_lag2" for b in ext_blocks]
     ext_v1 = df_ext.dropna(subset=ext_indicators)
     ext_v1_2 = ext_v1.dropna(
         subset=ext_raw_lag1 + ext_raw_lag2 + ext_dev_lag1 + ext_dev_lag2
@@ -373,7 +379,7 @@ def main():
         res = run_loo_and_val(name, data, feats, nat_est, nat_means, cfg)
         all_results[name] = res
         elapsed = time.time() - t1
-        oof_str = " ".join(f"{ABBR[tc]}={res[tc]['oof_r2']:.3f}" for tc in TARGET_COLS)
+        oof_str = " ".join(f"{ABBR[tc]}={res[tc]['oof_r2']:.3f}" for tc in TARGET_COLS if tc in res)
         print(f" ({elapsed:.0f}s) OOF: {oof_str}")
 
     # ── Phase 1: Select per-block best on LOO OOF R² ──
@@ -391,16 +397,18 @@ def main():
         res = all_results[name]
         print(f"{name:25s} ", end="")
         for tc in TARGET_COLS:
-            print(f" {res[tc]['oof_r2']:7.4f}", end="")
+            print(f" {res[tc]['oof_r2']:7.4f}" if tc in res else f" {'—':>7s}", end="")
         print()
 
-    # Select best per block
+    # Select best per block (parmi les configs qui portent réellement ce bloc)
     selected = {}
     print(f"\n{'─' * 60}")
     print("SELECTED (best LOO OOF R² per block):")
     for tc in TARGET_COLS:
         best_name, best_oof = "", -999
         for name in [c[0] for c in configs]:
+            if tc not in all_results[name]:
+                continue
             oof = all_results[name][tc]["oof_r2"]
             if oof > best_oof:
                 best_oof, best_name = oof, name

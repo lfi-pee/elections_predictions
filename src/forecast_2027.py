@@ -63,7 +63,9 @@ PCA_K = {
     "Gauche": 5,
     "Centre+Droite": 7,
     "Extreme_Droite": 5,
-    "Other": 5,          # bloc « Autre » : même config PCA que les autres (démo → 5 axes)
+    # Bloc « Autre » : PCA_k LOO-SÉLECTIONNÉ comme les autres (src/preregistered.py, régime
+    # légi-only). OOF R² : PCA5=0,187 · PCA7=0,191 · PCA10=0,192 → 10 retenu (argmax OOF).
+    "Other": 10,
     "Abstention": 5,
 }
 

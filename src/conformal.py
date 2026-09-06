@@ -78,6 +78,8 @@ BEST_RIDGE = {
     "Gauche": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
     "Centre+Droite": ("Legi-PCA7-devlag", "legi_v1_2", "legi", {"pca_k": 7}),
     "Extreme_Droite": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
+    # Bloc « Autre » : LOO-sélectionné (src/preregistered.py) — OOF R² PCA5/7/10 = 0,187/0,191/0,192.
+    "Other": ("Legi-PCA10-devlag", "legi_v1_2", "legi", {"pca_k": 10}),
     "Abstention": ("Legi-PCA5-devlag", "legi_v1_2", "legi", {"pca_k": 5}),
 }
 

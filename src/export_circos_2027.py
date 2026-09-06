@@ -37,6 +37,7 @@ COLS = [
     "scenario", "circo", "dept", "commune_ancre", "inscrits", "bureaux",
     "pred_G", "pred_CD", "pred_ED", "pred_AB",
     "ic90_G", "ic90_CD", "ic90_ED",
+    "pred_AU", "ic90_AU",
     "part_radicale", "gauche_meilleur_pole", "gauche_qualifiee",
     "marge_t2", "adversaire", "score", "score_label", "vainqueur",
     "couverture_2024", "couverture_source", "fiabilite",
@@ -56,23 +57,25 @@ def rows(scn: dict, arr: dict, hw: dict[str, float], cov: tuple, thr: float) -> 
         g = _clamp(m["G"] + arr["dG"][i])
         cd = _clamp(m["CD"] + arr["dCD"][i])
         ed = _clamp(m["ED"] + arr["dED"][i])
+        au = _clamp(m.get("AU", 0.0) + arr.get("dAU", [0.0] * len(arr["id"]))[i])
         ab = _clamp(m["AB"] + arr["dAB"][i])
         # Part radicale (LFI) DANS la gauche : moyenne = scénario, motif spatial = 2017 amplifié.
         rad = 1.0 if cfg == "union" else min(
             0.95, max(0.05, scn["radical_share"] + radical_spatial.RAD_GAIN * arr["rdev"][i]))
-        r = W.score_circo(g, cd, ed, ab, cfg, rad, ru)
+        r = W.score_circo(g, cd, ed, ab, cfg, rad, ru, au=au)
         out.append({
             "scenario": scn["key"], "circo": cid, "dept": arr["dept"][i],
             "commune_ancre": arr["nm"][i], "inscrits": arr["ins"][i], "bureaux": arr["nbv"][i],
             "pred_G": round(g, 1), "pred_CD": round(cd, 1), "pred_ED": round(ed, 1),
-            "pred_AB": round(ab, 1),
+            "pred_AU": round(au, 1), "pred_AB": round(ab, 1),
             **{f"ic90_{b}": hw[b] for b in ("G", "CD", "ED")},
+            "ic90_AU": hw.get("AU", 0.0),
             "part_radicale": round(rad, 3),
             "gauche_meilleur_pole": r["l_best"],
             "gauche_qualifiee": int(r["qualifies"]),
             "marge_t2": r["margin_t2"], "adversaire": r["opp"],
             "score": r["score"], "score_label": W.SCORE_LABELS[r["score"]],
-            "vainqueur": W.seat_winner(g, cd, ed, ab, cfg, rad, ru),
+            "vainqueur": W.seat_winner(g, cd, ed, ab, cfg, rad, ru, au=au),
             # Garde-fou de publication : part du vote 2024 que la nomenclature de blocs
             # rattache réellement (cf. coverage_2027). Sous le seuil, la ligne reste complète
             # mais NE DOIT PAS être publiée telle quelle — le modèle n'y voit qu'une fraction
@@ -86,11 +89,11 @@ def rows(scn: dict, arr: dict, hw: dict[str, float], cov: tuple, thr: float) -> 
 def check(recs: list[dict], key: str, summary: dict) -> str:
     """Les totaux de l'export doivent reproduire la répartition servie (summary.winnability)."""
     ref = summary["winnability"][key]
-    seats = {b: sum(1 for r in recs if r["vainqueur"] == b) for b in ("G", "CD", "ED")}
+    seats = {b: sum(1 for r in recs if r["vainqueur"] == b) for b in ("G", "CD", "ED", "AU")}
     counts = {s: sum(1 for r in recs if r["score"] == s) for s in range(1, 6)}
     ok = seats == {k: int(v) for k, v in ref["seats"].items()} and \
         counts == {int(k): int(v) for k, v in ref["counts"].items()}
-    return (f"sièges G/CD/ED {seats['G']}/{seats['CD']}/{seats['ED']} | "
+    return (f"sièges G/CD/ED/AU {seats['G']}/{seats['CD']}/{seats['ED']}/{seats['AU']} | "
             f"jouables (1-3) {sum(counts[s] for s in (1, 2, 3))} | "
             f"{'✅ conforme aux chiffres servis' if ok else '❌ DIVERGE de summary.json'}")
 

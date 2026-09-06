@@ -30,11 +30,25 @@ _POLLS_CSV = (
 )
 
 
-def _renorm3(g: float, cd: float, ed: float) -> dict[str, float]:
-    """Parts renormalisées sur 3 blocs, sommant **exactement** à 100 (le 3e absorbe l'arrondi)."""
+# Niveau national du bloc « Autre » (régionalistes/autonomistes hors axe G/CD/ED).
+# ~1,8 % du vote exprimé national — stable d'un scrutin à l'autre (cf. src/autre_oof.py) ;
+# ce n'est PAS un curseur : sa faible masse nationale est fixe, c'est sa **répartition
+# spatiale** (concentrée en Corse et outre-mer) que le modèle prédit via `dev_Other`.
+AUTRE_NATIONAL = 1.8
+
+
+def _renorm3(g: float, cd: float, ed: float, total: float = 100.0) -> dict[str, float]:
+    """Parts renormalisées sur 3 blocs, sommant **exactement** à `total` (le 3e absorbe
+    l'arrondi). `total` < 100 laisse la place au bloc « Autre »."""
     s = g + cd + ed
-    gg, cc = round(100 * g / s, 1), round(100 * cd / s, 1)
-    return {"G": gg, "CD": cc, "ED": round(100 - gg - cc, 1)}
+    gg, cc = round(total * g / s, 1), round(total * cd / s, 1)
+    return {"G": gg, "CD": cc, "ED": round(total - gg - cc, 1)}
+
+
+def _means4(g: float, cd: float, ed: float) -> dict[str, float]:
+    """Parts G/CD/ED/AU sommant à 100 : les trois blocs d'axe renormalisés sur
+    (100 − Autre), plus le bloc « Autre » à son niveau national fixe."""
+    return {**_renorm3(g, cd, ed, 100.0 - AUTRE_NATIONAL), "AU": AUTRE_NATIONAL}
 
 
 def _read_polls(path: Path = _POLLS_CSV) -> list[dict]:
@@ -113,7 +127,7 @@ SCENARIOS = [
         "desc": "À soutien de gauche égal, une seule candidature par circonscription "
         "(type NFP/Front populaire) capte tout le bloc. C'est la configuration qui "
         "convertit le mieux le soutien en sièges.",
-        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
+        "means": {**_means4(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "union",
         "radical_share": 1.0,
     },
@@ -123,7 +137,7 @@ SCENARIOS = [
         "desc": "Scénario de référence : même soutien de gauche, mais scindé en un pôle "
         "radical (LFI) et un pôle social-démocrate (PS-Place publique-EELV-PCF) qui "
         "concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
-        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
+        "means": {**_means4(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "split2",
         # Part du pôle radical (LFI) dans le total de gauche = moyenne simple des tests
         # « gauche divisée » du CSV (cf. `anchor_from_polls`) : LFI 9,7/27,4 (Touteleurope) et
@@ -136,7 +150,7 @@ SCENARIOS = [
         "label": "Fragmentation (statu quo)",
         "desc": "« Autre » : même soutien, mais éclaté en trois (LFI / PS-PP / éco-PCF) "
         "sans pôle fédérateur — dispersion maximale, presque aucune qualification.",
-        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
+        "means": {**_means4(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "split3",
         "radical_share": _RAD,
     },
@@ -146,7 +160,7 @@ SCENARIOS = [
         "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte "
         "sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre "
         "à franchir monte. (Le niveau national reste celui des curseurs.)",
-        "means": {**_renorm3(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
+        "means": {**_means4(_L, _CD, _ED), "AB": DEFAULT_ABSTENTION},
         "left_config": "union",
         "radical_share": 1.0,
         "right_union": True,

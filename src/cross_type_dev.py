@@ -48,11 +48,18 @@ from src.cross_type_ridge import (
     TYPE_ONEHOT,
 )
 
-BLOCKS_ABS = TARGET_BLOCKS + ["Abstention"]
+# "Other" (off-axis regionalist/autonomist residual) is modelled as a 4th vote bloc,
+# plumbed exactly like Abstention: a deviation target with cross-type lags but no poll
+# feature, its national level set externally (not from polls). It carries the seats
+# where the three axis blocs don't cover the electorate (Corsica, DOM autonomists).
+# `_build_block_scores` already emits the "Other" column from the block routing.
+BLOCKS_ABS = TARGET_BLOCKS + ["Other", "Abstention"]
+TARGET_COLS = BLOCKS_ABS  # shadow the 3+Ab import: Other is now a first-class target
 ABBR = {
     "Gauche": "G",
     "Centre+Droite": "CD",
     "Extreme_Droite": "ED",
+    "Other": "AU",
     "Abstention": "Ab",
 }
 ALPHAS = np.logspace(-2, 6, 20)

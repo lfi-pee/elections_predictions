@@ -35,8 +35,13 @@ function covApplied(summary) { return !!(summary && summary.attribution_applied)
 function covCompute(a, coverage, summary) {
   const after = covApplied(summary);
   const cov = (coverage && coverage[after ? "cov_apres" : "cov_avant"]) || {};
+  // Le bloc « Autre » est-il désormais MODÉLISÉ (4e bloc servi, colonne dAU) ? Si oui, le vote
+  // hors-axe est prédit comme les autres (incertitude portée par sa fourchette conforme) : la
+  // couverture d'une circo est complète et le garde-fou de grisage se retire. Miroir de
+  // src/coverage_2027.py. Les circos sans référence (null) restent « inconnues ».
+  const autreModeled = Array.isArray(a.dAU);
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  const val = a.id.map((id) => (cov[id] == null ? null : r3(Number(cov[id]))));
+  const val = a.id.map((id) => (cov[id] == null ? null : (autreModeled ? 100 : r3(Number(cov[id])))));
   const lab = covApplied(summary) ? "mesure" : "mesure (avant reconstruction)";
   const src = val.map((v) => (v == null ? null : lab));
   return { val, src };

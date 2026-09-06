@@ -3,9 +3,9 @@
 // Le modèle donne, par bureau, l'ÉCART au national (déviation) ; le niveau national est
 // posé par l'utilisateur (curseurs). On calcule en direct pred_b = national_b + dev_b.
 const APP = {
-  COL: { G: "#E4572E", CD: "#4A90D9", ED: "#6A4C93", AB: "#9AA0A6" },
+  COL: { G: "#E4572E", CD: "#4A90D9", ED: "#6A4C93", AU: "#2E8B7A", AB: "#9AA0A6" },
   ACCENT: "#cc2229",
-  PALE: { G: "#743627", CD: "#2F5074", ED: "#3D3155" },
+  PALE: { G: "#743627", CD: "#2F5074", ED: "#3D3155", AU: "#1E5B50" },
   // Échelle de couleur des scores de jouabilité (1 = victoire facile → 5 = impossible, rouge plein).
   WIN: { 1: "#1a9850", 2: "#91cf60", 3: "#fee08b", 4: "#fc8d59", 5: "#d7191c" },
   WIN_LAB: { 1: "victoire facile", 2: "jouable", 3: "disputé", 4: "difficile", 5: "quasi impossible" },
@@ -15,7 +15,7 @@ const APP = {
   COV_GREY: "#c2c6cd",
   COV_LAB: "non mesurée",
   MARGIN_FULL: 12,
-  NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AB: "Abstention" },
+  NAME: { G: "Gauche", CD: "Centre+Droite", ED: "Extrême Droite", AU: "Autre (régionaliste)", AB: "Abstention" },
   VOTE: ["G", "CD", "ED"],
   LYON: { center: [4.8357, 45.758], zoom: 12 },
   // mode carte : "win" (jouabilité circo) par défaut, "seat" (vainqueur du siège) ;
@@ -24,7 +24,7 @@ const APP = {
   // État national courant (parts de bloc %, abstention % inscrits) — piloté par les curseurs.
   // Repli seulement : au chargement, main.js écrase avec les moyennes du scénario (summary.json,
   // ancre calculée depuis les sondages : G ~30,4 · C+D ~29,6 · ED ~40,0).
-  nat: { G: 30.4, CD: 29.6, ED: 40.0, AB: 48 },
+  nat: { G: 30.4, CD: 29.6, ED: 40.0, AU: 1.8, AB: 48 },
   scenario: "split2",
   // Abstention de référence à laquelle les curseurs de parts (G/CD/ED) sont calés : en
   // deçà, les revenants aux urnes se répartissent selon la courbe γ (les abstentionnistes
@@ -132,5 +132,5 @@ function winColorExpr() {
 function seatColorExpr() {
   return ["case", ["==", ["feature-state", "pub"], false], APP.COV_GREY,
     ["match", ["feature-state", "win"],
-      "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "#c8ccd2"]];
+      "G", APP.COL.G, "CD", APP.COL.CD, "ED", APP.COL.ED, "AU", APP.COL.AU, "#c8ccd2"]];
 }

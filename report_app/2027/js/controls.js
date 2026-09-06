@@ -283,7 +283,14 @@ function renderTransfers() {
 
 // ── Barre dynamique des sièges (projection) ──
 function updateSeatBar() {
-  const t = seatTally(), tot = t.G + t.CD + t.ED || 1;
+  const t = seatTally(), tot = t.G + t.CD + t.ED + (t.AU || 0) || 1;
+  // Bloc « Autre » (régionaliste) : n'apparaît dans la barre que là où il remporte des sièges
+  // (bastions corses/ultramarins) — sinon 0, on ne l'affiche pas.
+  const auSeg = (t.AU > 0)
+    ? `<div class="seat-seg" style="width:${(t.AU / tot) * 100}%;background:${APP.COL.AU}"
+        title="${APP.NAME.AU} : ${t.AU} sièges">${t.AU >= 20 ? t.AU : ""}</div>` : "";
+  const auLeg = (t.AU > 0)
+    ? `<span class="sl-leg"><i style="background:${APP.COL.AU}"></i>${APP.NAME.AU} <b>${t.AU}</b></span>` : "";
   const stn = $("seat-total-note");
   // En rejeu, la barre somme sur les 501 circos cartographiables (= backtest) ; sinon 577.
   if (stn) stn.textContent = APP.replayMode
@@ -298,15 +305,15 @@ function updateSeatBar() {
     // Détail : sièges de gauche ventilés par pôle (seule sous-composante résolue par circo).
     const pm = poleMeta(APP.scnObj.left_config);
     const pseg = pm.map((p, i) => seg("G", p.col, p.lab, t.poles[i] || 0)).join("");
-    segs = pseg + seg("CD", APP.COL.CD, APP.NAME.CD, t.CD) + seg("ED", APP.COL.ED, APP.NAME.ED, t.ED);
+    segs = pseg + seg("CD", APP.COL.CD, APP.NAME.CD, t.CD) + seg("ED", APP.COL.ED, APP.NAME.ED, t.ED) + auSeg;
     legend = pm.map((p, i) =>
       `<span class="sl-leg"><i style="background:${p.col}"></i>${p.lab} <b>${t.poles[i] || 0}</b></span>`).join("") +
       ["CD", "ED"].map((b) =>
-        `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("");
+        `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("") + auLeg;
   } else {
-    segs = ["G", "CD", "ED"].map((b) => seg(b, APP.COL[b], APP.NAME[b], t[b])).join("");
+    segs = ["G", "CD", "ED"].map((b) => seg(b, APP.COL[b], APP.NAME[b], t[b])).join("") + auSeg;
     legend = ["G", "CD", "ED"].map((b) =>
-      `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("");
+      `<span class="sl-leg"><i style="background:${APP.COL[b]}"></i>${APP.NAME[b]} <b>${t[b]}</b></span>`).join("") + auLeg;
   }
   $("seatbar").innerHTML = segs + maj;
   const lead = t.G >= t.CD && t.G >= t.ED ? "G" : t.CD >= t.ED ? "CD" : "ED";

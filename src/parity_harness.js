@@ -38,8 +38,9 @@ API.APP.data = API.APP.data || {};
 API.APP.data.gamma = vectors.gamma; // pour turnoutAdjust (γ)
 
 const out = vectors.cases.map((c) => {
-  const sw = API.seatWinner(c.g, c.cd, c.ed, c.ab, c.cfg, c.rad, c.ru);
-  const sc = API.scoreCirco(c.g, c.cd, c.ed, c.ab, c.cfg, c.rad, c.ru);
+  const au = c.au || 0;
+  const sw = API.seatWinner(c.g, c.cd, c.ed, c.ab, c.cfg, c.rad, c.ru, au);
+  const sc = API.scoreCirco(c.g, c.cd, c.ed, c.ab, c.cfg, c.rad, c.ru, au);
   const ta = API.turnoutAdjust(c.g, c.cd, c.ed, c.ab, c.dAB || 0);
   return {
     win: sw.win, pole: sw.pole,

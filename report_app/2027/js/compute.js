@@ -40,18 +40,25 @@ function cdTransfer(ru) {
   return [ens * T.ensL + lr * lrl, ens * T.ensE + lr * lre];
 }
 
-// Score 1→5 de la GAUCHE (miroir de src/winnability_2027.py).
-function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
+// Score 1→5 de la GAUCHE (miroir de src/winnability_2027.py). `au` = bloc « Autre »
+// (régionaliste), adversaire là où il domine (bastions) ; 0 sinon → logique à 3 pôles.
+function scoreCirco(g, cd, ed, ab, cfg, rad, ru, au) {
+  au = au || 0;
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad), lbest = Math.max(...left);
-  const cands = left.concat([cd, ed]).sort((a, b) => b - a);
+  const cands = left.concat([cd, ed]).concat(au > 0 ? [au] : []).sort((a, b) => b - a);
   const leader = cands[0], second = cands[1];
   const [lbase, qL] = leftT2(left, second, thr);
   const [cd2l, cd2e] = cdTransfer(ru);
   const qC = qual(cd, second, thr), qE = qual(ed, second, thr);
-  if (!qL) return { sc: 5, lbest, ql: false, mt2: null, opp: ed >= cd ? "ED" : "CD" };
+  if (!qL) return { sc: 5, lbest, ql: false, mt2: null,
+    opp: (au > 0 && au >= cd && au >= ed) ? "AU" : (ed >= cd ? "ED" : "CD") };
   let l2, oppT2, opp;
-  if (ed >= cd) {
+  if (au > 0 && au >= cd && au >= ed) {
+    // Adversaire = pôle régionaliste dominant (bastion) : hors axe, ni front républicain ni
+    // report de barrage — duel direct gauche vs Autre.
+    opp = "AU"; l2 = lbase; oppT2 = au;
+  } else if (ed >= cd) {
     opp = "ED";
     if (qC && qE && !ru) {
       // Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front républicain).
@@ -70,9 +77,14 @@ function scoreCirco(g, cd, ed, ab, cfg, rad, ru) {
 
 // Bloc vainqueur du SIÈGE (G/CD/ED). La division de la gauche l'affaiblit au 2nd tour
 // (réunification imparfaite) et peut l'éliminer dès le 1er (aucun pôle qualifié).
-function seatWinner(g, cd, ed, ab, cfg, rad, ru) {
+function seatWinner(g, cd, ed, ab, cfg, rad, ru, au) {
+  au = au || 0;
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad);
+  // Bloc « Autre » = pôle sortant « collant » : là où il arrive en tête au 1er tour (bastions),
+  // il garde le siège. Hors axe, il n'entre pas dans le front républicain ; là où il n'est pas
+  // en tête, la logique à 3 pôles ci-dessous reprend inchangée. Miroir de winnability_2027.py.
+  if (au > 0 && au >= Math.max(...left.concat([cd, ed])) - 1e-9) return { win: "AU", pole: -1 };
   const cands = left.concat([cd, ed]).sort((a, b) => b - a), second = cands[1];
   const [lbase, qL] = leftT2(left, second, thr);
   const qC = qual(cd, second, thr), qE = qual(ed, second, thr);
@@ -140,6 +152,9 @@ function circoEval(pr) {
   const g0 = clamp(n.G + pr.dG, 0, 100), cd0 = clamp(n.CD + pr.dCD, 0, 100),
     ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
   const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
+  // Bloc « Autre » (régionaliste) : niveau national fixe + motif spatial, NON couplé à γ (hors
+  // axe) — comme côté Python (report_data_2027). Identité à l'abstention de référence.
+  const au = clamp((n.AU || 0) + (pr.dAU || 0), 0, 100);
   const ru = s.right_union;
   // Part radicale (LFI) : base = curseur (APP.radOverride) sinon valeur du scénario (ancrage
   // sondages) = MOYENNE nationale ; le MOTIF par circo vient du réel 2017 (pr.rdev, part LFI-
@@ -148,9 +163,9 @@ function circoEval(pr) {
   const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
   const rad = s.left_config === "union" ? 1.0
     : clamp(radBase + APP.RAD_GAIN * (pr.rdev || 0), 0.05, 0.95);
-  const r = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru);
-  const sw = seatWinner(g, cd, ed, ab, s.left_config, rad, ru);
-  return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
+  const r = scoreCirco(g, cd, ed, ab, s.left_config, rad, ru, au);
+  const sw = seatWinner(g, cd, ed, ab, s.left_config, rad, ru, au);
+  return { g, cd, ed, ab, au, win: sw.win, pole: sw.pole, ...r };
 }
 
 // « Rejouer 2024 » : évalue le modèle de 2nd tour sur les parts de 1er tour RÉELLES 2024 de la
@@ -161,9 +176,10 @@ function replayEval(i) {
   const g = a.r24G[i];
   if (g == null) return null;
   const cd = a.r24CD[i], ed = a.r24ED[i], ab = a.r24AB[i];
-  const r = scoreCirco(g, cd, ed, ab, "union", 1.0, false);
-  const sw = seatWinner(g, cd, ed, ab, "union", 1.0, false);
-  return { g, cd, ed, ab, win: sw.win, pole: sw.pole, ...r };
+  const au = a.r24AU ? (a.r24AU[i] || 0) : 0;  // bloc « Autre » réel 2024 (résidu hors-axe)
+  const r = scoreCirco(g, cd, ed, ab, "union", 1.0, false, au);
+  const sw = seatWinner(g, cd, ed, ab, "union", 1.0, false, au);
+  return { g, cd, ed, ab, au, win: sw.win, pole: sw.pole, ...r };
 }
 
 // La géométrie (15 Mo) est chargée UNE fois comme données de la source. Au curseur, on ne
@@ -202,13 +218,13 @@ function eachCirco(fn) {
   }
   for (let i = 0; i < a.id.length; i++)
     fn(circoEval({ dG: a.dG[i], dCD: a.dCD[i], dED: a.dED[i], dAB: a.dAB[i],
-      rdev: a.rdev ? a.rdev[i] : 0 }), i);
+      dAU: a.dAU ? a.dAU[i] : 0, rdev: a.rdev ? a.rdev[i] : 0 }), i);
 }
 
 // Projection en sièges (tally des vainqueurs) au scénario/curseur courant (577 circos).
 // `poles` = répartition des sièges de gauche entre pôles (index → nb) pour le détail parti.
 function seatTally() {
-  const t = { G: 0, CD: 0, ED: 0, poles: {} };
+  const t = { G: 0, CD: 0, ED: 0, AU: 0, poles: {} };
   eachCirco((r) => { t[r.win]++; if (r.win === "G") t.poles[r.pole] = (t.poles[r.pole] || 0) + 1; });
   return t;
 }

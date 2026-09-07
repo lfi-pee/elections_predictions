@@ -188,15 +188,18 @@ def build() -> None:
     code2idx = {c: i for i, c in enumerate(com.code_commune)}
 
     cir = build_circo(df)
-    # Déviation spatiale de la part radicale (LFI) dans la gauche, mesurée sur 2017 (cf.
-    # radical_spatial) : pilote le partage des sièges de gauche entre pôles. 0 hors couverture.
+    # Déviation spatiale de la part radicale (LFI) dans la gauche — source sélectionnée par LOO
+    # (présidentielle la plus récente avant la cible, cf. radical_spatial / lfi_geo_loo) : pilote
+    # le partage des sièges de gauche entre pôles. Niveau national posé par les sondages ; ceci
+    # n'en donne que la FORME (recentrée). 0 hors couverture.
     try:
         rdev_map = radical_spatial.radical_deviation()
     except Exception as e:
-        print(f"  (motif radical 2017 indisponible : {e})")
+        print(f"  (motif radical indisponible : {e})")
         rdev_map = {}
     cir["rdev"] = cir.circo.map(rdev_map).fillna(0.0)
-    print(f"  motif radical (LFI dans la gauche, 2017) : {sum(c in rdev_map for c in cir.circo)} circos")
+    print(f"  motif radical (LFI dans la gauche, présidentielle récente) : "
+          f"{sum(c in rdev_map for c in cir.circo)} circos")
     circo_arrays = {
         "id": cir.circo.tolist(),
         "nm": cir.nm.fillna("").tolist(),

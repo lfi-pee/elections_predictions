@@ -157,9 +157,10 @@ function circoEval(pr) {
   const au = clamp((n.AU || 0) + (pr.dAU || 0), 0, 100);
   const ru = s.right_union;
   // Part radicale (LFI) : base = curseur (APP.radOverride) sinon valeur du scénario (ancrage
-  // sondages) = MOYENNE nationale ; le MOTIF par circo vient du réel 2017 (pr.rdev, part LFI-
-  // dans-la-gauche, amplifiée ×RAD_GAIN). Sans ce motif spatial, un partage uniforme donnerait
-  // 0 siège au pôle radical jusqu'à 0,5 puis tous d'un coup (falaise) — cf. lfi_split_validate.
+  // sondages) = MOYENNE nationale ; le MOTIF par circo vient de la PRÉSIDENTIELLE la plus récente
+  // (pr.rdev, part Mélenchon-dans-la-gauche, ×RAD_GAIN — source validée en LOO, lfi_geo_loo).
+  // Sans ce motif spatial, un partage uniforme donnerait 0 siège au pôle radical jusqu'à 0,5 puis
+  // tous d'un coup (falaise) — cf. lfi_split_validate.
   const radBase = APP.radOverride != null ? APP.radOverride : s.radical_share;
   const rad = s.left_config === "union" ? 1.0
     : clamp(radBase + APP.RAD_GAIN * (pr.rdev || 0), 0.05, 0.95);

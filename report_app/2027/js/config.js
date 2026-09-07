@@ -47,8 +47,9 @@ const APP = {
   // (ancrage sondages) ; sinon override posé au curseur. Sans effet en « gauche unie ».
   radOverride: null,
   // La part radicale par circo = curseur (MOYENNE nationale, sondages) + RAD_GAIN · motif spatial
-  // (circo.rdev = part LFI-dans-la-gauche mesurée aux EUROPÉENNES 2024, le scrutin divisé le plus
-  // récent), borné [0,05 ; 0,95]. RAD_GAIN = 1,0 : dispersion appliquée TELLE QUELLE, sans calage.
+  // (circo.rdev = part Mélenchon-dans-la-gauche à la PRÉSIDENTIELLE la plus récente — source
+  // sélectionnée par validation croisée, cf. src/lfi_geo_loo.py), borné [0,05 ; 0,95]. RAD_GAIN
+  // = 1,0 : dispersion appliquée TELLE QUELLE, sans calage.
   // À ~37 % sondé, LFI obtient ~27 % des sièges de gauche en gauche divisée (pôle minoritaire →
   // moins de sièges que de voix). Cf. src/radical_spatial.py.
   RAD_GAIN: 1.0,

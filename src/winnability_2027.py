@@ -68,6 +68,19 @@ DESIST_TO_STRONG = 0.52
 DESIST_TO_ED = 0.17
 
 
+def _norm4(g: float, cd: float, ed: float, au: float) -> tuple[float, float, float, float]:
+    """Renormalise les quatre parts de bloc (G/CD/ED/AU) pour qu'elles somment à 100 % des
+    exprimés — la contrainte de composition. Les parts servies sont `national_b + déviation_b`
+    bornées, sommées indépendamment : leur somme dérive de 100 (jusqu'à ~114 % dans les bastions
+    où AU est grand). L'abstention est un axe séparé (% inscrits), non touchée ici. Idempotent :
+    un quadruplet déjà à 100 est renvoyé inchangé (cas métropole ≈ toujours). Miroir de compute.js."""
+    s = g + cd + ed + au
+    if s <= 0:
+        return g, cd, ed, au
+    k = 100.0 / s
+    return g * k, cd * k, ed * k, au * k
+
+
 def _left_candidates(g: float, cfg: str, rad: float) -> list[float]:
     """Parts (en % des exprimés) des candidatures de gauche selon la configuration."""
     if cfg == "union":
@@ -104,6 +117,7 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
     """Renvoie {score 1..5, l_best, qualifies, margin_t2, opp}. `g/cd/ed` = parts exprimées
     (somme ~100), `ab` = abstention % inscrits. `au` = bloc « Autre » (régionaliste), pris en
     compte comme adversaire là où il domine (bastions)."""
+    g, cd, ed, au = _norm4(g, cd, ed, au)
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout  # seuil de qualification en part d'exprimés (= 12,5 % des inscrits)
 
@@ -117,26 +131,38 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
     q_ed = ed >= second - 1e-9 or ed >= thr
     cd2l, cd2e = _cd_transfer(right_union, cd_lr)
 
+    # Bloc « Autre » SORTANT (bastion) : là où il arrive en tête au 1er tour, il garde le siège
+    # (pôle collant, cf. seat_winner). Le score DOIT s'aligner sur ce verdict : la gauche ne peut
+    # pas gagner, quel que soit son 2nd-tour reconstitué. Même condition que seat_winner (part
+    # comparée aux pôles de gauche DIVISÉS, pas à la gauche réunie).
+    r1max = max(left + [cd, ed])
+    if au > 0.0 and au >= r1max - 1e-9:
+        margin_t2 = l_best - au
+        score = 3 if (qualifies and margin_t2 > -8) else (5 if not qualifies else 4)
+        return {"score": score, "l_best": round(l_best, 1), "qualifies": qualifies,
+                "margin_t2": round(margin_t2, 1), "opp": "AU"}
+
     if not qualifies:
         opp = "AU" if (au > 0.0 and au >= cd and au >= ed) else ("ED" if ed >= cd else "CD")
         return {"score": 5, "l_best": round(l_best, 1), "qualifies": False,
                 "margin_t2": None, "opp": opp}
 
     # 2nd tour : gauche réunie (réunification imparfaite si divisée) face à l'adversaire le plus
-    # fort ; reports selon que cet adversaire est le RN, le centre-droit, ou le bloc « Autre ».
-    if au > 0.0 and au >= cd and au >= ed:
-        # Adversaire = pôle régionaliste dominant (bastion) : hors axe, pas de front
-        # républicain ni de report de barrage — duel direct gauche vs Autre.
-        opp = "AU"
-        left_t2 = left_base
-        opp_t2 = au
-    elif ed >= cd:
+    # fort ; reports selon que cet adversaire est le RN ou le centre-droit.
+    if ed >= cd:
         opp = "ED"
         if q_cd and q_ed and not right_union:
-            # Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front
-            # républicain). Renfort plus fort qu'un simple report de barrage.
-            left_t2 = left_base + desist * cd
-            opp_t2 = ed + DESIST_TO_ED * cd
+            # Triangulaire face au RN. Le front républicain va au pôle anti-RN le plus fort : la
+            # DIRECTION du désistement est celle de seat_winner (sinon score et vainqueur se
+            # contredisent). Si la gauche est le pôle anti-RN le plus fort, le CD se désiste pour
+            # elle ; SINON la gauche se désiste pour le CD → elle ne gagne pas le siège.
+            if left_base >= cd:
+                left_t2 = left_base + desist * cd
+                opp_t2 = ed + DESIST_TO_ED * cd
+            else:
+                opp = "CD"
+                left_t2 = left_base
+                opp_t2 = cd  # marge < 0 : la gauche s'efface, le siège lui échappe
         else:
             # Duel (CD éliminé) ou droites unies (pas de désistement) : barrage classique.
             left_t2 = left_base + cd2l * cd
@@ -164,6 +190,7 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
                 right_union: bool = False, desist: float = DESIST_TO_STRONG,
                 cd_lr: float = CD_LR_DEFAULT, au: float = 0.0) -> str:
     """Bloc vainqueur du siège (G/CD/ED/AU), même modèle de 2nd tour que `score_circo`."""
+    g, cd, ed, au = _norm4(g, cd, ed, au)
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout
     left = _left_candidates(g, cfg, rad)

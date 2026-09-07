@@ -85,23 +85,35 @@ def coverage(arr: dict, summary: dict | None = None) -> tuple[list[float | None]
     raw = json.loads(COVERAGE.read_text()) if COVERAGE.exists() else {}
     after = applied(summary or {})
     cov = raw.get("cov_apres" if after else "cov_avant", {})
-    # Le bloc « Autre » est-il désormais MODÉLISÉ (4e bloc servi) ? Si oui, le vote hors-axe
-    # n'est plus « non couvert » : il est prédit comme les autres (avec sa propre incertitude
-    # conforme). La couverture d'une circo redevient alors complète — le garde-fou de grisage,
-    # simple palliatif de l'absence de modèle sur ces territoires, se retire de lui-même.
+    # Le bloc « Autre » est-il MODÉLISÉ (4e bloc servi) ? Si oui, on ne peut PAS déclarer ces
+    # circos couvertes à 100 % : l'audit montre que là où l'Autre pèse lourd (bastions corses /
+    # ultramarins), la prédiction sur l'axe G/CD/ED ne porte que sur une fraction de l'électorat,
+    # et l'Autre lui-même est faiblement prédit (R² LOO ~0,19 ; ex. Cayenne prédite gauche 47,7 %
+    # pour 1,2 % réel). La fiabilité se mesure alors à la part HORS-AXE réellement servie — mesurée
+    # sur 2024 (r24AU, indépendante du scénario), à défaut prédite (niveau national Autre + dAU).
+    # `couverture d'axe = 100 − part hors-axe` ; le seuil habituel (100 − plus large demi-largeur)
+    # re-marque exactement les circos où le hors-axe dépasse l'incertitude que le modèle s'accorde.
     autre_modeled = "dAU" in arr
+    au_nat = 1.8
+    for s in (summary or {}).get("scenarios", []):
+        if s.get("key") == (summary or {}).get("default_scenario"):
+            au_nat = float(s["means"].get("AU", au_nat))
+    r24au = arr.get("r24AU")
+    dau = arr.get("dAU")
     vals: list[float | None] = []
     srcs: list[str | None] = []
     for i, cid in enumerate(arr["id"]):
-        v = cov.get(cid)
-        if v is not None and autre_modeled:
-            # Le vote hors-axe est désormais un bloc prédit : la circo est couverte à 100 %
-            # (l'incertitude propre à l'Autre est portée par sa fourchette conforme, pas par un
-            # grisage). Les circos sans AUCUNE référence (v=None, ex. Wallis) restent « inconnues ».
-            v = 100.0
+        base = cov.get(cid)
+        has_r24 = r24au is not None and r24au[i] is not None
+        if autre_modeled and (base is not None or has_r24):
+            off = r24au[i] if has_r24 else max(0.0, au_nat + (dau[i] if dau else 0.0))
+            v = 100.0 - off
+            src = "part hors-axe 2024" if has_r24 else "part hors-axe prédite"
+        else:
+            v = base  # Autre non modélisé, ou aucune référence (reste None → inconnue)
+            src = ("mesure" if after else "mesure (avant reconstruction)") if base is not None else None
         vals.append(round(float(v), 3) if v is not None else None)
-        srcs.append(("mesure" if after else "mesure (avant reconstruction)")
-                    if v is not None else None)
+        srcs.append(src)
     return vals, srcs
 
 

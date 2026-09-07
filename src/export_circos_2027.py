@@ -38,7 +38,7 @@ COLS = [
     "pred_G", "pred_CD", "pred_ED", "pred_AB",
     "ic90_G", "ic90_CD", "ic90_ED",
     "pred_AU", "ic90_AU",
-    "part_radicale", "gauche_meilleur_pole", "gauche_qualifiee",
+    "part_LFI", "gauche_meilleur_pole", "gauche_qualifiee",
     "marge_t2", "adversaire", "score", "score_label", "vainqueur",
     "couverture_2024", "couverture_source", "fiabilite",
 ]
@@ -59,6 +59,9 @@ def rows(scn: dict, arr: dict, hw: dict[str, float], cov: tuple, thr: float) -> 
         ed = _clamp(m["ED"] + arr["dED"][i])
         au = _clamp(m.get("AU", 0.0) + arr.get("dAU", [0.0] * len(arr["id"]))[i])
         ab = _clamp(m["AB"] + arr["dAB"][i])
+        # Composition : les 4 parts de bloc somment à 100 % des exprimés (cf. winnability_2027.
+        # _norm4). À l'abstention de référence le couplage γ est l'identité — comme sur le site.
+        g, cd, ed, au = W._norm4(g, cd, ed, au)
         # Part radicale (LFI) DANS la gauche : moyenne = scénario, motif spatial = 2017 amplifié.
         rad = 1.0 if cfg == "union" else min(
             0.95, max(0.05, scn["radical_share"] + radical_spatial.RAD_GAIN * arr["rdev"][i]))
@@ -70,7 +73,7 @@ def rows(scn: dict, arr: dict, hw: dict[str, float], cov: tuple, thr: float) -> 
             "pred_AU": round(au, 1), "pred_AB": round(ab, 1),
             **{f"ic90_{b}": hw[b] for b in ("G", "CD", "ED")},
             "ic90_AU": hw.get("AU", 0.0),
-            "part_radicale": round(rad, 3),
+            "part_LFI": round(rad, 3),
             "gauche_meilleur_pole": r["l_best"],
             "gauche_qualifiee": int(r["qualifies"]),
             "marge_t2": r["margin_t2"], "adversaire": r["opp"],

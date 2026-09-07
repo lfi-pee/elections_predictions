@@ -35,15 +35,30 @@ function covApplied(summary) { return !!(summary && summary.attribution_applied)
 function covCompute(a, coverage, summary) {
   const after = covApplied(summary);
   const cov = (coverage && coverage[after ? "cov_apres" : "cov_avant"]) || {};
-  // Le bloc « Autre » est-il désormais MODÉLISÉ (4e bloc servi, colonne dAU) ? Si oui, le vote
-  // hors-axe est prédit comme les autres (incertitude portée par sa fourchette conforme) : la
-  // couverture d'une circo est complète et le garde-fou de grisage se retire. Miroir de
-  // src/coverage_2027.py. Les circos sans référence (null) restent « inconnues ».
+  // Le bloc « Autre » est-il MODÉLISÉ (4e bloc servi, colonne dAU) ? Si oui, on ne déclare PAS ces
+  // circos couvertes à 100 % : là où l'Autre pèse lourd (bastions), la prédiction d'axe ne porte
+  // que sur une fraction de l'électorat et l'Autre est faiblement prédit. La fiabilité se mesure
+  // à la part HORS-AXE servie — mesurée 2024 (r24AU), à défaut prédite (national Autre + dAU) ;
+  // couverture d'axe = 100 − hors-axe. Miroir de src/coverage_2027.py.
   const autreModeled = Array.isArray(a.dAU);
+  let auNat = 1.8;
+  const scn = (summary && summary.scenarios) || [];
+  for (const s of scn) if (s.key === (summary && summary.default_scenario)) auNat = Number(s.means.AU != null ? s.means.AU : auNat);
   const r3 = (x) => Math.round(x * 1000) / 1000;
-  const val = a.id.map((id) => (cov[id] == null ? null : (autreModeled ? 100 : r3(Number(cov[id])))));
-  const lab = covApplied(summary) ? "mesure" : "mesure (avant reconstruction)";
-  const src = val.map((v) => (v == null ? null : lab));
+  const val = [], src = [];
+  const lab = after ? "mesure" : "mesure (avant reconstruction)";
+  for (let i = 0; i < a.id.length; i++) {
+    const base = cov[a.id[i]];
+    const hasR24 = Array.isArray(a.r24AU) && a.r24AU[i] != null;
+    if (autreModeled && (base != null || hasR24)) {
+      const off = hasR24 ? a.r24AU[i] : Math.max(0, auNat + (a.dAU ? a.dAU[i] : 0));
+      val.push(r3(100 - off));
+      src.push(hasR24 ? "part hors-axe 2024" : "part hors-axe prédite");
+    } else {
+      val.push(base == null ? null : r3(Number(base)));
+      src.push(base == null ? null : lab);
+    }
+  }
   return { val, src };
 }
 

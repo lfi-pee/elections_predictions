@@ -20,6 +20,16 @@ function leftCandidates(g, cfg, rad) {
   return [g * rad, o * 0.6, o * 0.4];
 }
 
+// Renormalise les 4 parts de bloc (G/CD/ED/AU) → somme = 100 % des exprimés (contrainte de
+// composition). Les parts servies (national+déviation, bornées, sommées indépendamment) dérivent
+// de 100 quand AU est grand (bastions). Abstention = axe séparé, non touchée. Miroir _norm4 (Py).
+function norm4(g, cd, ed, au) {
+  const s = g + cd + ed + au;
+  if (s <= 0) return [g, cd, ed, au];
+  const k = 100 / s;
+  return [g * k, cd * k, ed * k, au * k];
+}
+
 // Un bloc se qualifie s'il est dans le top 2 OU s'il atteint 12,5 % des inscrits.
 function qual(share, second, thr) { return share >= second - 1e-9 || share >= thr; }
 
@@ -44,6 +54,7 @@ function cdTransfer(ru) {
 // (régionaliste), adversaire là où il domine (bastions) ; 0 sinon → logique à 3 pôles.
 function scoreCirco(g, cd, ed, ab, cfg, rad, ru, au) {
   au = au || 0;
+  [g, cd, ed, au] = norm4(g, cd, ed, au);
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad), lbest = Math.max(...left);
   const cands = left.concat([cd, ed]).concat(au > 0 ? [au] : []).sort((a, b) => b - a);
@@ -51,18 +62,24 @@ function scoreCirco(g, cd, ed, ab, cfg, rad, ru, au) {
   const [lbase, qL] = leftT2(left, second, thr);
   const [cd2l, cd2e] = cdTransfer(ru);
   const qC = qual(cd, second, thr), qE = qual(ed, second, thr);
+  // Bloc « Autre » SORTANT en tête au 1er tour (bastion) : il garde le siège (pôle collant, cf.
+  // seatWinner). Le score s'aligne sur ce verdict — même condition (parts de gauche DIVISÉES).
+  const r1max = Math.max(...left.concat([cd, ed]));
+  if (au > 0 && au >= r1max - 1e-9) {
+    const mt2 = lbest - au;
+    const sc = (qL && mt2 > -8) ? 3 : (qL ? 4 : 5);
+    return { sc, lbest, ql: qL, mt2, opp: "AU" };
+  }
   if (!qL) return { sc: 5, lbest, ql: false, mt2: null,
     opp: (au > 0 && au >= cd && au >= ed) ? "AU" : (ed >= cd ? "ED" : "CD") };
   let l2, oppT2, opp;
-  if (au > 0 && au >= cd && au >= ed) {
-    // Adversaire = pôle régionaliste dominant (bastion) : hors axe, ni front républicain ni
-    // report de barrage — duel direct gauche vs Autre.
-    opp = "AU"; l2 = lbase; oppT2 = au;
-  } else if (ed >= cd) {
+  if (ed >= cd) {
     opp = "ED";
     if (qC && qE && !ru) {
-      // Triangulaire face au RN : le centre-droit se DÉSISTE pour la gauche (front républicain).
-      l2 = lbase + APP.coef.desist * cd; oppT2 = ed + APP.DESIST_ED * cd;
+      // Triangulaire face au RN : le front républicain va au pôle anti-RN le plus fort — MÊME
+      // direction de désistement que seatWinner (sinon score et vainqueur se contredisent).
+      if (lbase >= cd) { l2 = lbase + APP.coef.desist * cd; oppT2 = ed + APP.DESIST_ED * cd; }
+      else { opp = "CD"; l2 = lbase; oppT2 = cd; }  // gauche plus faible → elle s'efface, siège perdu
     } else {
       // Duel (CD éliminé) ou droites unies (pas de désistement) : barrage classique.
       l2 = lbase + cd2l * cd; oppT2 = ed + cd2e * cd;
@@ -79,6 +96,7 @@ function scoreCirco(g, cd, ed, ab, cfg, rad, ru, au) {
 // (réunification imparfaite) et peut l'éliminer dès le 1er (aucun pôle qualifié).
 function seatWinner(g, cd, ed, ab, cfg, rad, ru, au) {
   au = au || 0;
+  [g, cd, ed, au] = norm4(g, cd, ed, au);
   const turnout = Math.max(0.05, 1 - ab / 100), thr = 12.5 / turnout;
   const left = leftCandidates(g, cfg, rad);
   // Bloc « Autre » = pôle sortant « collant » : là où il arrive en tête au 1er tour (bastions),
@@ -151,10 +169,13 @@ function circoEval(pr) {
   const n = APP.nat, s = APP.scnObj;
   const g0 = clamp(n.G + pr.dG, 0, 100), cd0 = clamp(n.CD + pr.dCD, 0, 100),
     ed0 = clamp(n.ED + pr.dED, 0, 100), ab = clamp(n.AB + pr.dAB, 0, 100);
-  const [g, cd, ed] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
+  const [ga, cda, eda] = turnoutAdjust(g0, cd0, ed0, ab, pr.dAB);
   // Bloc « Autre » (régionaliste) : niveau national fixe + motif spatial, NON couplé à γ (hors
   // axe) — comme côté Python (report_data_2027). Identité à l'abstention de référence.
-  const au = clamp((n.AU || 0) + (pr.dAU || 0), 0, 100);
+  const au0 = clamp((n.AU || 0) + (pr.dAU || 0), 0, 100);
+  // Composition : les 4 parts somment à 100 % des exprimés (γ renormalise G/CD/ED sans AU, d'où
+  // une somme >100 si AU>0 ; on recompose ici). Miroir du _norm4 côté seat_winner/score_circo.
+  const [g, cd, ed, au] = norm4(ga, cda, eda, au0);
   const ru = s.right_union;
   // Part radicale (LFI) : base = curseur (APP.radOverride) sinon valeur du scénario (ancrage
   // sondages) = MOYENNE nationale ; le MOTIF par circo vient de la PRÉSIDENTIELLE la plus récente

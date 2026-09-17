@@ -65,31 +65,16 @@ python3 -m src.test_negotiation_2027 && python3 -m src.test_negotiation_page_202
 
 Méthode détaillée : `2027/METHODOLOGY.md` §3 ter. `rebuild_2027.sh` enchaîne ces étapes.
 
-## Comparateur 2027
+## Résultats passés par circonscription (données)
 
-`2027/comparison.html`, accessible depuis la carte 2027, compare les scores de premier
-tour (toute la gauche, LFI seule, autre gauche, centre+droite, extrême droite) : prédiction
-2027 du modèle, variante réglable (niveau de toute la gauche, part de LFI dans la gauche,
-abstention), législatives 2017/2022/2024, et deux extrapolations simples de 2024 (« 2024 +
-évolution nationale », en points ; « 2024 × évolution nationale », en %). Tri par défaut :
-prédiction 2027 décroissante. « LFI seule » n'est séparable qu'en 2017 (nuance FI).
-Les colonnes historiques utilisent les suffrages exprimés au dénominateur et les
-identifiants de circonscription du scrutin (2017/2022) ou le fichier officiel par
-circonscription (2024). Les nuances et attributions sont détaillées dans le JSON.
-La référence est le scénario par défaut des données servies. La variante utilise dès
-l'ouverture l'abstention nationale observée au premier tour de 2024 (33,29 %), avec
-les niveaux de vote de référence conservés avant couplage de participation. Le menu
-propose aussi la participation de 2022 (52,49 % d'abstention) et la référence identique.
-Les taux sont calculés depuis les totaux d'abstentions et d'inscrits des résultats,
-puis embarqués avec leur source dans le JSON ; ce sont des hypothèses de sensibilité.
-Modifier un curseur passe en réglage personnalisé ; réappliquer le préréglage restaure
-le dernier choix. Le libellé de colonne et le CSV identifient le préréglage actif. Les deux modèles simples utilisent le
-niveau national effectif de référence pour les trois blocs et le résidu Autre.
-Les projections non publiables selon la couverture du site restent vides.
+`2027/data/comparison_history.json` (produit par `report_comparison_2027`) : parts de bloc au
+1er tour des législatives 2017/2022/2024 par circonscription (LFI seule séparable en 2017,
+nuance FI). Il n'y a plus de page dédiée : ces colonnes sont intégrées au tableau de la page
+« Négocier », dans le groupe « arguments à mettre sur la table », avec les deux extrapolations
+simples de 2024 (« 2024 + évolution nationale », « 2024 × évolution nationale »).
 
 ```bash
 python -m src.report_comparison_2027  # reconstruit comparison_history.json
 ```
 
-L'export CSV conserve le filtre, le tri, le bloc observé, les paramètres et les
-sources. La reconstruction complète `rebuild_2027.sh` inclut cet export historique.
+

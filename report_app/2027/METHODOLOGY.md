@@ -113,7 +113,10 @@ réelles** (réglables au curseur) :
   réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne sur l'erreur des sondages.
   Colonnes de sensibilité : incertitude locale seule ; « droites unies ».
 - **Groupes** : *acquis* = député·e sortant·e LFI (71, hors négociation ; `deputes_an.py`, open
-  data AN) ; *sans enjeu* = aucune étiquette n'atteint 5 % (207) ; *libre* = prix ≤ 0,02 siège
+  data AN) ; *gauche hors union* = siège pris en 2024 par une candidature codée à gauche mais
+  hors union (DVG, régionaliste…) dont le titulaire ne siège pas dans un groupe de gauche
+  (La Rochelle/Falorni, Orthez/Habib, Les Abymes/Serva…) : le bloc de gauche prédit inclut ses
+  voix, qui ne se reporteraient pas sur une candidature d'union → sorti du classement, signalé ; *sans enjeu* = aucune étiquette n'atteint 5 % (207) ; *libre* = prix ≤ 0,02 siège
   (177 — à réclamer toutes, l'étiquette n'y coûte rien de mesurable) ; *à négocier* = prix > 0,02
   (116) ; *non mesurée* (6, §3 bis). Pas de groupe « à céder » : l'effet mesuré est un décalage
   modéré et quasi uniforme (prix max ≈ 0,08 siège), aucune circo ne voit l'autre étiquette doubler
@@ -136,6 +139,12 @@ réelles** (réglables au curseur) :
   modèle donne ~70 sièges LFI espérés ; le même nombre pris dans l'ordre du tableau ~148 — mais
   cet ordre inclut des sièges tenus par des sortant·es PS/écologistes, dont le tableau n'affiche
   que le coût *en sièges pour l'union*, pas le prix politique.
+- **Deux groupes de colonnes** : à gauche *notre lecture* (modèle : chances par étiquette, prix,
+  rapport de force, posture, 1er tour prévu, sensibilités) ; à droite *les arguments à la table*,
+  vérifiables par tous : sortant·e, parti NFP et sort du siège en 2024, gauche 2024/2022/2017,
+  LFI seule 2017 (nuance FI), écart local du vote Mélenchon dans la gauche, et deux
+  extrapolations de 2024 (« + évolution nationale » en points, « × évolution nationale » en %,
+  4 blocs, plancher 0, renormalisation). Une seule page, un seul tableau.
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, prix = p_autre − p_lfi,
   p_lfi ≤ p_autre partout, courbe triée et monotone, la pénalité fait basculer des cas-grille,
   postures reproductibles depuis les probabilités servies, q_lfi croissant avec la part LFI, la

@@ -68,6 +68,8 @@ def main() -> None:
             fails.append(f"{r['id']} prix ≠ p_other − p_lfi")
         if r["p_lfi"] > r["p_other"] + 1e-9:
             fails.append(f"{r['id']} p_lfi > p_other : la pénalité mesurée doit jouer dans un seul sens")
+        if r["group"] == "hors_union" and r["depute"]["groupe"] in N.LEFT_GROUPS:
+            fails.append(f"{r['id']} hors union mais sortant·e dans un groupe de gauche")
         if (r["depute"]["groupe"] == N.LFI_GROUP) != (r["group"] == "acquis"):
             fails.append(f"{r['id']} acquis ⇔ sortant·e LFI violé")
         if r["group"] == "sans_enjeu" and max(r["p_lfi"], r["p_other"]) >= N.P_MIN:
@@ -123,7 +125,7 @@ def main() -> None:
 
     # ── La page ne fige aucun chiffre : ses tuiles et sa méthode sont des gabarits remplis en JS ──
     html = HTML.read_text()
-    for anchor in ('id="tiles"', 'id="m-label"', 'id="m-groups"', 'id="m-unc"', 'id="m-posture"', 'id="share"',
+    for anchor in ('id="tiles"', 'id="m-label"', 'id="m-groups"', 'id="m-unc"', 'id="m-posture"', 'id="m-hors"', 'id="share"',
                    'data/negotiation.json', 'data/label_effect_2024.json'):
         if anchor not in html:
             fails.append(f"negotiation.html : {anchor} manquant")

@@ -16,6 +16,10 @@ nationale ET locale :
 
 D'où quatre groupes lisibles par tout le monde autour de la table :
   • ACQUIS      — député·e LFI sortant·e : hors négociation, compté à part.
+  • HORS UNION  — siège tenu par un·e élu·e de gauche HORS de l'union (dissident·e, LIOT, DEM :
+                  Falorni, Habib, Serva…) : le bloc de gauche prédit inclut ses voix, qui ne se
+                  reporteraient pas sur une candidature d'union. Ni négociable entre LFI et ses
+                  partenaires, ni « libre » : sorti du classement, signalé.
   • SANS ENJEU  — aucune étiquette de gauche n'a P_MIN de chance : la circo ne vaut rien à
                   personne, elle n'entre pas dans le troc (c'est la majorité des 577).
   • LIBRE       — prix ≤ PRICE_FREE : l'étiquette LFI ne coûte rien de mesurable à l'union.
@@ -73,6 +77,7 @@ from src import coverage_2027, deputes_an, label_effect_2024, scenarios_2027, wi
 
 SERVED = Path("report_app/2027/data")
 OUT = SERVED / "negotiation.json"
+HISTORY = SERVED / "comparison_history.json"   # résultats passés par circo (report_comparison_2027)
 REPARTITION = Path("data/nuance/nfp_repartition_2024.csv")
 
 # Erreur historique de l'ancre nationale (sondages → résultat, législatives T1) : RMSE par bloc
@@ -87,6 +92,9 @@ SEED = 2027
 PRICE_FREE = 0.02      # prix ≤ 2 % d'un siège : « libre »
 P_MIN = 0.05           # ni LFI ni l'autre étiquette n'atteint 5 % : « sans enjeu »
 LFI_GROUP = "LFI-NFP"
+LEFT_GROUPS = {"LFI-NFP", "SOC", "ECOS", "GDR"}
+# Nuances 2024 codées à gauche par le modèle mais HORS de l'union (candidature non-UG).
+LEFT_NON_UNION_NUANCES = {"DVG", "SOC", "ECO", "RDG", "REG", "DIV", "DSV", "COM", "FI", "VEC"}
 SCENARIO = "union"
 # Grille de parts nationales LFI-dans-la-gauche pour le rapport de force (curseur de la page).
 SHARES = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55]
@@ -190,7 +198,7 @@ def posture(group: str, q_lfi: float | None, q_other: float | None) -> str | Non
       monnaie   : sans enjeu mais LFI y paraît au moins aussi forte que l'autre gauche → à
                   céder, ça a l'air d'un sacrifice.
       rien      : sans enjeu, LFI plus faible."""
-    if group in ("acquis", "non_mesure") or q_lfi is None or q_other is None:
+    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_other is None:
         return None
     lfi, oth = q_lfi >= LEVERAGE_Q, q_other >= LEVERAGE_Q
     if group in ("libre", "a_negocier"):
@@ -198,16 +206,41 @@ def posture(group: str, q_lfi: float | None, q_other: float | None) -> str | Non
     return "monnaie" if q_lfi >= q_other else "rien"
 
 
-def _group(p_lfi: float, p_other: float, lfi_incumbent: bool) -> str:
+def _group(p_lfi: float, p_other: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
     if lfi_incumbent:
         return "acquis"
+    if outside_union:
+        return "hors_union"
     if max(p_lfi, p_other) < P_MIN:
         return "sans_enjeu"
     return "libre" if round(p_other - p_lfi, 3) <= PRICE_FREE else "a_negocier"
 
 
+def _extrapolations(h24: dict | None, nat24: dict, means: dict) -> tuple[float | None, float | None]:
+    """Deux extrapolations simples de 2024 pour la GAUCHE, vérifiables par tous :
+    « 2024 + évolution nationale » (chaque circo bouge du même nombre de points que la France) et
+    « 2024 × évolution nationale » (du même pourcentage). Quatre blocs (G/CD/ED/Autre), plancher 0,
+    renormalisation à 100 — même règle que l'ancien comparateur."""
+    if not h24:
+        return None, None
+    blocs = ("G", "CD", "ED", "AU")
+    plus = [max(0.0, h24[b] + means.get(b, 0.0) - nat24[b]) for b in blocs]
+    mult = [h24[b] * means.get(b, 0.0) / nat24[b] if nat24[b] > 0 else 0.0 for b in blocs]
+    sp, sm = sum(plus), sum(mult)
+    return (round(100 * plus[0] / sp, 1) if sp else None), (round(100 * mult[0] / sm, 1) if sm else None)
+
+
+def _history() -> dict:
+    """Résultats passés par circo (part de la gauche ; LFI seule en 2017) + nationaux 2024."""
+    if not HISTORY.exists():
+        return {}
+    h = json.loads(HISTORY.read_text())
+    return {e["key"]: e for e in h["elections"]}
+
+
 def build() -> dict:
     arr, summary = _load_served()
+    hist = _history()
     eff = label_effect_2024.load()
     deltas = {"lfi": eff["model"]["cd2l_delta_lfi"], "other": eff["model"]["cd2l_delta_other"], "avg": 0.0}
     print(f"  décalages d'étiquette du taux de report (2024) : {deltas}")
@@ -238,6 +271,10 @@ def build() -> dict:
         pub = coverage_2027.flag(cov_val[i], thr) != "faible"
         dep = deputes.get(cid, {})
         lfi_inc = dep.get("groupe") == LFI_GROUP
+        # Siège pris en 2024 par une candidature codée à gauche mais hors union, et dont le
+        # titulaire ne siège pas dans un groupe de gauche : la « gauche » prédite ici n'est pas
+        # celle de l'union.
+        outside = (win24.get(cid) in LEFT_NON_UNION_NUANCES and dep.get("groupe") not in LEFT_GROUPS) if win24 else False
         # Arrondi AVANT le groupage : le groupe servi doit être reproductible depuis les
         # probabilités servies (à 3 décimales), pas depuis des valeurs internes plus fines.
         pl, po, pa = (round(float(p[k][i]), 3) for k in ("lfi", "other", "avg"))
@@ -245,15 +282,24 @@ def build() -> dict:
         cd0 = min(100, max(0, m["CD"] + arr["dCD"][i]))
         ed0 = min(100, max(0, m["ED"] + arr["dED"][i]))
         au0 = min(100, max(0, m.get("AU", 0) + arr.get("dAU", [0] * len(arr["id"]))[i]))
+        h17 = hist.get("2017", {}).get("rows", {}).get(cid)
+        h22 = hist.get("2022", {}).get("rows", {}).get(cid)
+        h24 = hist.get("2024", {}).get("rows", {}).get(cid)
+        ext_plus, ext_mult = _extrapolations(h24, hist["2024"]["national"], m) if h24 and "2024" in hist else (None, None)
         rows.append({
             "id": cid, "nm": arr["nm"][i], "dept": arr["dept"][i], "ins": arr["ins"][i],
+            # Arguments vérifiables par tous : résultats passés (gauche ; LFI seule en 2017, seul
+            # scrutin où LFI concourait sous sa nuance) et extrapolations simples de 2024.
+            "h2017_G": round(h17["G"], 1) if h17 else None, "h2017_LFI": round(h17["LFI"], 1) if h17 and "LFI" in h17 else None,
+            "h2022_G": round(h22["G"], 1) if h22 else None, "h2024_G": round(h24["G"], 1) if h24 else None,
+            "ext_plus_G": ext_plus if pub else None, "ext_mult_G": ext_mult if pub else None,
             "pub": pub,
             "p_lfi": pl if pub else None, "p_other": po if pub else None,
             "p_avg": pa if pub else None, "price": round(po - pl, 3) if pub else None,
             "rate": (round(max(0.0, po - pl) / pl, 3) if pl >= P_MIN else None) if pub else None,
             "p_lfi_local": round(float(p_loc[i]), 3) if pub else None,
             "p_lfi_ru": round(float(p_ru[i]), 3) if pub else None,
-            "group": _group(pl, po, lfi_inc) if pub else "non_mesure",
+            "group": _group(pl, po, lfi_inc, outside) if pub else "non_mesure",
             "q_lfi": round(float(split[near]["q_lfi"][i]), 3) if pub else None,
             "q_other": round(float(split[near]["q_other"][i]), 3) if pub else None,
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
@@ -269,7 +315,7 @@ def build() -> dict:
                 for k in ("exiger", "disputer", "obtenir", "difficile", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).
-    neg = [r for r in rows if r["pub"] and r["group"] not in ("acquis", "sans_enjeu")]
+    neg = [r for r in rows if r["pub"] and r["group"] not in ("acquis", "sans_enjeu", "hors_union")]
     neg.sort(key=lambda r: (-r["p_lfi"], r["price"], r["id"]))
     for k, r in enumerate(neg, 1):
         r["rank"] = k
@@ -286,12 +332,15 @@ def build() -> dict:
     exp24 = sum(r["p_lfi"] for r in slate24)
     eff_same_n = base_lfi + (cum_lfi[min(n24 - len(acquis), len(cum_lfi)) - 1] if n24 > len(acquis) else 0)
     groups = {g: sum(1 for r in rows if r["group"] == g) for g in
-              ("acquis", "libre", "a_negocier", "sans_enjeu", "non_mesure")}
+              ("acquis", "libre", "a_negocier", "sans_enjeu", "hors_union", "non_mesure")}
     print(f"  groupes : {groups}")
     print(f"  sièges LFI espérés — acquis : {base_lfi:.1f} ; carte 2024 ({n24} circos FI) : {exp24:.1f} ; "
           f"répartition efficace à {n24} circos : {eff_same_n:.1f}")
     return {
         "scenario": {"key": SCENARIO, "label": scn["label"], "means": m},
+        "history": {k: {"label": e["label"], "source": e["source"], "national_G": round(e["national"]["G"], 1),
+                        **({"national_LFI": round(e["national"]["LFI"], 1)} if "LFI" in e["national"] else {})}
+                    for k, e in hist.items()},
         "params": {"draws": DRAWS, "seed": SEED, "nat_sigma": NAT_SIGMA,
                    "local_sigma": {b: round(summary["circo_halfwidth_90"][b] / Z90, 2) for b in ("G", "CD", "ED")},
                    "price_free": PRICE_FREE, "p_min": P_MIN,

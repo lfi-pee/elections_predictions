@@ -70,7 +70,7 @@ def main() -> None:
             assert f"{expected:.1f}".replace(".", ",") in txt, txt
             # Tri par prix décroissant.
             page.click('th button[data-sort="price"]')
-            prices = page.evaluate("[...document.querySelectorAll('#rows tr td:nth-child(6)')].slice(0,5).map(t=>t.textContent)")
+            prices = page.evaluate("[...document.querySelectorAll('#rows tr td:nth-child(7)')].slice(0,5).map(t=>t.textContent)")
             vals = [float(p.replace(",", ".")) for p in prices if p != "—"]
             assert vals == sorted(vals, reverse=True), vals
             # Export CSV : autant de lignes que le tableau, entête stable.

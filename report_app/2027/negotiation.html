@@ -4,11 +4,10 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2027 · Négocier les circonscriptions</title>
 <link rel="stylesheet" href="style.css?v=1">
-<link rel="stylesheet" href="comparison.css?v=1">
 <link rel="stylesheet" href="negotiation.css?v=1">
 </head>
-<body class="comparison negotiation">
-<header id="top"><a href="index.html">← Carte 2027</a><span>Législatives <b>2027</b></span><a href="comparison.html">Tableau comparatif</a><a href="METHODOLOGY.md">Méthode</a></header>
+<body class="negotiation">
+<header id="top"><a href="index.html">← Carte 2027</a><span>Législatives <b>2027</b></span><a href="METHODOLOGY.md">Méthode</a></header>
 <main>
   <p class="eyebrow">Union de la gauche · une candidature par circonscription</p>
   <h1>Quelles circonscriptions demander pour élire le plus de député·es LFI&nbsp;?</h1>
@@ -38,7 +37,7 @@
   </section>
 
   <section class="toolbar" aria-label="Filtres">
-    <label>Groupe<select id="group"><option value="">Tous</option><option value="negociables" selected>Négociables (libres + à négocier)</option><option value="libre">Libres</option><option value="a_negocier">À négocier</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="sans_enjeu">Sans enjeu</option><option value="non_mesure">Non mesurées</option></select></label>
+    <label>Groupe<select id="group"><option value="">Tous</option><option value="negociables" selected>Négociables (libres + à négocier)</option><option value="libre">Libres</option><option value="a_negocier">À négocier</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="hors_union">Tenues par une gauche hors union</option><option value="sans_enjeu">Sans enjeu</option><option value="non_mesure">Non mesurées</option></select></label>
     <label>Posture<select id="posture"><option value="">Toutes</option><option value="exiger">Exiger</option><option value="disputer">Disputer</option><option value="obtenir">Obtenir</option><option value="difficile">Difficile</option><option value="monnaie">Monnaie d'échange</option><option value="rien">Rien à jouer</option></select></label>
     <label>Part de LFI dans la gauche <small>(rapport de force)</small><select id="share"></select></label>
     <label>Circonscription<input id="filter" type="search" placeholder="Code, ville, département, député·e…"></label>
@@ -48,23 +47,36 @@
   <p id="status" role="status">Chargement…</p>
   <div class="table-scroll" tabindex="0" role="region" aria-label="Circonscriptions">
     <table id="neg-table">
-      <caption id="caption">Probabilités de siège moyennées sur l'incertitude nationale et locale. Les lignes surlignées sont dans la demande courante. Cliquez un en-tête pour trier.</caption>
-      <thead><tr>
+      <caption id="caption">Chaque paire de colonnes «&nbsp;si…&nbsp;» compare deux hypothèses pour la <b>même</b> circonscription, pas deux concurrents&nbsp;: dans un bastion, LFI comme l'autre gauche gagnent à coup sûr — les deux affichent >99&nbsp;% et le prix est nul. Probabilités moyennées sur l'incertitude nationale et locale. Les lignes surlignées sont dans la demande courante. Cliquez un en-tête pour trier.</caption>
+      <thead>
+        <tr class="grp-row">
+          <th colspan="3" scope="colgroup" class="cg-id"></th>
+          <th colspan="10" scope="colgroup" class="cg-ours">Notre lecture — le modèle, et ce qu'il implique pour la négociation</th>
+          <th colspan="9" scope="colgroup" class="cg-args">Les arguments à mettre sur la table — vérifiables par tous</th>
+        </tr>
+        <tr>
         <th scope="col" data-key="rank"><button data-sort="rank">#</button></th>
         <th scope="col" data-key="id" class="left"><button data-sort="id">Circonscription</button></th>
         <th scope="col" data-key="group" class="left"><button data-sort="group">Groupe</button></th>
-        <th scope="col" data-key="p_lfi"><button data-sort="p_lfi">Chance LFI</button><small>P(siège, étiquette LFI)</small></th>
-        <th scope="col" data-key="p_other"><button data-sort="p_other">Chance autre gauche</button><small>PS / écolo / PCF</small></th>
-        <th scope="col" data-key="price"><button data-sort="price">Prix pour l'union</button><small>sièges espérés</small></th>
-        <th scope="col" data-key="rate"><button data-sort="rate">Taux d'échange</button><small>prix / chance LFI</small></th>
-        <th scope="col" data-key="posture" class="left"><button data-sort="posture">Posture</button><small>valeur × rapport de force</small></th>
-        <th scope="col" data-key="q_lfi"><button data-sort="q_lfi">LFI seule</button><small>P(qualifiée au 2nd tour)</small></th>
-        <th scope="col" data-key="q_other"><button data-sort="q_other">Autre gauche seule</button><small>P(qualifiée au 2nd tour)</small></th>
-        <th scope="col" data-key="p_lfi_local"><button data-sort="p_lfi_local">Chance LFI, sondages exacts</button><small>incertitude locale seule</small></th>
-        <th scope="col" data-key="p_lfi_ru"><button data-sort="p_lfi_ru">Chance LFI, droites unies</button></th>
-        <th scope="col" data-key="depute" class="left"><button data-sort="depute">Député·e sortant·e</button></th>
-        <th scope="col" data-key="lab2024" class="left"><button data-sort="lab2024">2024</button><small>parti NFP · siège</small></th>
-        <th scope="col" data-key="pred"><button data-sort="pred">1<sup>er</sup> tour prévu</button><small>G · C+D · ED</small></th>
+        <th scope="col" data-key="posture" class="left ours"><button data-sort="posture">Posture</button><small>valeur × rapport de force</small></th>
+        <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi">Si la candidature est LFI</button><small>chance de gagner le siège</small></th>
+        <th scope="col" data-key="p_other" class="ours"><button data-sort="p_other">Si la candidature est PS · écolo · PCF</button><small>chance de gagner le siège</small></th>
+        <th scope="col" data-key="price" class="ours"><button data-sort="price">Prix pour l'union</button><small>sièges espérés</small></th>
+        <th scope="col" data-key="rate" class="ours"><button data-sort="rate">Taux d'échange</button><small>prix / chance LFI</small></th>
+        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Si LFI y allait seule</button><small>chance d'être au 2nd tour</small></th>
+        <th scope="col" data-key="q_other" class="ours"><button data-sort="q_other">Si l'autre gauche y allait seule</button><small>chance d'être au 2nd tour</small></th>
+        <th scope="col" data-key="pred" class="ours"><button data-sort="pred">1<sup>er</sup> tour prévu</button><small>G · C+D · ED</small></th>
+        <th scope="col" data-key="p_lfi_local" class="ours"><button data-sort="p_lfi_local">Si LFI, sondages exacts</button><small>incertitude locale seule</small></th>
+        <th scope="col" data-key="p_lfi_ru" class="ours"><button data-sort="p_lfi_ru">Si LFI, droites unies</button><small>LR refuse le front républicain</small></th>
+        <th scope="col" data-key="depute" class="left args"><button data-sort="depute">Député·e sortant·e</button></th>
+        <th scope="col" data-key="lab2024" class="left args"><button data-sort="lab2024">2024 : parti NFP</button><small>et sort du siège</small></th>
+        <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G">Gauche 2024</button><small>1<sup>er</sup> tour, % exprimés</small></th>
+        <th scope="col" data-key="h2022_G" class="args"><button data-sort="h2022_G">Gauche 2022</button><small>1<sup>er</sup> tour</small></th>
+        <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI">LFI seule 2017</button><small>dernier scrutin sous sa nuance</small></th>
+        <th scope="col" data-key="h2017_G" class="args"><button data-sort="h2017_G">Gauche 2017</button><small>1<sup>er</sup> tour</small></th>
+        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>présidentielle, écart au national</small></th>
+        <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G">Gauche : 2024 + évolution nationale</button><small>même nombre de points partout</small></th>
+        <th scope="col" data-key="ext_mult_G" class="args"><button data-sort="ext_mult_G">Gauche : 2024 × évolution nationale</button><small>même pourcentage partout</small></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -80,10 +92,14 @@
       <dt>Dans quel ordre lire le tableau</dt><dd>Par <b>chance LFI</b> décroissante&nbsp;: ce qui se négocie d'abord, c'est un <em>nombre</em> de circonscriptions, et à nombre donné chaque circonscription vaut pour LFI exactement sa chance d'y élire un·e député·e. Le prix, le rapport de force et la posture disent ensuite <em>comment</em> l'obtenir, ou quoi offrir à la place&nbsp;; ils ne remplacent pas la valeur, ils l'accompagnent. Aucun score composite n'est calculé&nbsp;: il cacherait le raisonnement que la négociation doit pouvoir dire à voix haute.</dd>
       <dt>Taux d'échange</dt><dd>Prix divisé par la chance LFI&nbsp;: ce que l'union perd par siège que LFI espère gagner dans cette circonscription. Les circonscriptions <em>à négocier</em> au taux le plus bas sont les moins chères à réclamer&nbsp;; celles au taux le plus élevé sont celles à offrir en échange. Il n'y a pas de groupe «&nbsp;à céder&nbsp;» tranché&nbsp;: l'effet d'étiquette mesuré est un décalage modéré et presque uniforme, aucune circonscription ne voit l'autre étiquette doubler sa chance&nbsp;; le taux ordonne ce continuum sans frontière arbitraire.</dd>
       <dt>Incertitude</dt><dd id="m-unc"></dd>
+      <dt>Deux groupes de colonnes</dt><dd>À gauche, <b>notre lecture</b>&nbsp;: ce que le modèle prédit et ce que cela implique — c'est pour décider, en interne, quoi demander et quoi céder. À droite, <b>les arguments</b>&nbsp;: des faits que les partenaires peuvent vérifier eux-mêmes (résultats du ministère, répartition NFP 2024, vote Mélenchon) et deux extrapolations si simples qu'elles ne se discutent pas — c'est pour justifier la demande à la table. Les extrapolations prennent le résultat 2024 de la circonscription et lui appliquent l'évolution nationale que donnent les sondages, en points ou en pourcentage&nbsp;; elles ne remplacent pas la prédiction, elles montrent qu'on arrive au même endroit sans modèle.</dd>
+      <dt>Deux colonnes à 100 %</dt><dd>«&nbsp;Si la candidature est LFI&nbsp;» et «&nbsp;si elle est PS · écolo · PCF&nbsp;» sont deux mondes possibles pour une même circonscription, où la gauche unie ne présente qu'un·e candidat·e. Dans un bastion, l'un comme l'autre gagne&nbsp;: les deux valent >99&nbsp;%, l'écart (le prix) est nul, et c'est précisément ce qui rend la circonscription <em>libre</em>&nbsp;: l'étiquette n'y change rien, LFI peut la réclamer sans qu'on lui oppose l'argument du report. De même, «&nbsp;si LFI y allait seule&nbsp;» et «&nbsp;si l'autre gauche y allait seule&nbsp;» peuvent tous deux atteindre 100 %&nbsp;: dans une gauche divisée, les deux candidatures se qualifieraient.</dd>
+      <dt>Sièges tenus par une gauche hors union</dt><dd id="m-hors"></dd>
       <dt>Ce que le tableau ne dit pas</dt><dd>Il ne connaît ni les accords locaux, ni les candidat·es réel·les, ni les dissidences. Le prix est un coût en sièges espérés pour l'union, pas la valeur politique qu'un parti attache à un siège. Les circonscriptions <em>non mesurées</em> sont celles où la nomenclature de blocs ne couvre pas l'électorat (Corse, Guyane)&nbsp;: aucune probabilité n'y est publiable. Le repère «&nbsp;carte 2024&nbsp;» rejoue les circonscriptions attribuées à LFI en 2024 avec le modèle 2027&nbsp;: il mesure la carte, pas la campagne.</dd>
     </dl>
     <ul class="src">
       <li><a href="data/negotiation.json">Données servies (JSON)</a> — une ligne par circonscription, paramètres et courbe.</li>
+      <li id="src-history"></li>
       <li><a href="data/label_effect_2024.json">Mesure de l'effet d'étiquette 2024 (JSON)</a> — échantillon, reports par parti, intervalle bootstrap, régression, hétérogénéité.</li>
       <li>Répartition des circonscriptions du Nouveau Front populaire 2024&nbsp;: <a href="https://www.data.gouv.fr/datasets/repartition-des-circonscriptions-front-populaire-legislatives-2024" target="_blank" rel="noopener">data.gouv.fr</a> (David Libeau, CC0). Député·es en exercice&nbsp;: <a href="https://data.assemblee-nationale.fr/" target="_blank" rel="noopener">open data de l'Assemblée nationale</a>.</li>
     </ul>

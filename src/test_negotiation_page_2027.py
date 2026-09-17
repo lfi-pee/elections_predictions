@@ -1,6 +1,7 @@
 """Rendu réel de la page « Négocier les circonscriptions » (Playwright) : chargement du JSON,
-tuiles, courbe, tableau (577 lignes en « Tous »), surlignage de la demande, tri, export CSV,
-aucune erreur JS. Capture d'écran dans screenshots/ pour relecture visuelle.
+tableau (577 lignes en « Toutes », « en jeu » par défaut), postures miroir du Python et
+survolables, curseur de part LFI, tri, colonnes redimensionnables, export CSV, aucune erreur
+JS, pas de défilement horizontal à 1440 px. Capture d'écran dans screenshots/.
 
     python3 -u -m src.test_negotiation_page_2027
 """
@@ -37,59 +38,51 @@ def main() -> None:
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(url)
             page.wait_for_function("document.querySelectorAll('#rows tr').length > 0")
-            n_neg = served["groups"]["libre"] + served["groups"]["a_negocier"]
-            assert page.locator("#rows tr").count() == n_neg, "vue par défaut = négociables"
+            assert page.locator("#rows tr").count() == served["groups"]["en_jeu"], "vue par défaut = en jeu"
+            # Rien au-dessus du tableau hormis l'explication et les filtres.
+            assert page.locator(".tile, .chart, #n").count() == 0
             page.select_option("#group", "")
             page.wait_for_function("document.querySelectorAll('#rows tr').length === 577")
-            assert page.locator(".tile").count() == 7
-            # Rapport de force : la part LFI par défaut est la plus proche des sondages ; changer la
-            # part recalcule les postures (miroir Python) et le tableau.
+            # Postures : miroir Python, survolables (title), et le curseur de part LFI les recalcule.
             assert page.evaluate("NEG.share === NEG.data.split.near")
-            assert page.evaluate("NEG.rows.every(r => r.posture === (r.pub && r.group !== 'acquis' ? negPosture(r.group, r.q_lfi, r.q_other) : null))")
             served_postures = {r["id"]: r["posture"] for r in served["rows"]}
             assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == served_postures
+            assert page.locator("#rows .pos[title]").count() == sum(1 for v in served_postures.values() if v)
+            assert page.locator("#rows .grp[title]").count() == 577 - sum(1 for v in served_postures.values() if v)
             page.select_option("#share", served["split"]["shares"][-1])
-            assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > sum(1 for v in served_postures.values() if v == "exiger")
+            assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > served["postures"]["exiger"]
             page.select_option("#share", served["split"]["near"])
-            page.select_option("#posture", "difficile")
-            assert page.locator("#rows tr").count() == served["postures"]["difficile"]
+            page.select_option("#posture", "monnaie")
+            assert page.locator("#rows tr").count() == served["postures"]["monnaie"]
             page.select_option("#posture", "")
-            assert page.locator("#chart-lfi svg path.line").count() == 1
-            assert page.locator("#chart-cost svg path.line").count() == 1
-            # Tuiles remplies depuis le JSON (aucun chiffre figé) : le compte des acquis y figure.
-            assert str(served["groups"]["acquis"]) in page.locator(".tile .v").first.text_content()
-            # Demande par défaut = carte 2024 − sortant·es ; surlignage = autant de lignes.
-            n_default = served["totals"]["slate2024_n"] - served["totals"]["n_acquis"]
-            assert page.evaluate("NEG.n") == n_default
-            assert page.locator("#rows tr.in-slate").count() == n_default
-            # Le curseur bouge la lecture et le surlignage.
-            page.evaluate("(() => { const s = document.getElementById('n'); s.value = 50; s.dispatchEvent(new Event('input')); })()")
-            assert page.locator("#rows tr.in-slate").count() == 50
-            expected = served["totals"]["acquis_expected"] + served["curve"]["cum_lfi"][49]
-            txt = page.locator("#slate-read").text_content()
-            assert f"{expected:.1f}".replace(".", ",") in txt, txt
-            # Tri par prix décroissant.
-            page.click('th button[data-sort="price"]')
-            prices = page.evaluate("[...document.querySelectorAll('#rows tr td:nth-child(6)')].slice(0,5).map(t=>t.textContent)")
-            vals = [float(p.replace("−", "").replace(" pts", "").replace(" pt", "")) for p in prices if p != "—"]
-            assert vals == sorted(vals, reverse=True), vals
-            # Export CSV : autant de lignes que le tableau, entête stable.
+            # Tri par chance LFI décroissante.
+            page.click('th button[data-sort="p_lfi"]')
+            vals = page.evaluate("negVisible().map(r => r.p_lfi).filter(v => v != null)")
+            assert vals == sorted(vals, reverse=True)
+            # Tient sur une largeur ; les colonnes se redimensionnent à la souris.
+            assert page.evaluate("(() => { const t = document.querySelector('.table-scroll'); return t.scrollWidth <= t.clientWidth + 1; })()"), "le tableau déborde en largeur"
+            th = page.locator('th[data-key="depute"]')
+            w0 = th.evaluate("e => e.offsetWidth")
+            box = page.locator('th[data-key="depute"] .rs').bounding_box()
+            page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            page.mouse.down(); page.mouse.move(box["x"] + 80, box["y"] + box["height"] / 2, steps=4); page.mouse.up()
+            assert th.evaluate("e => e.offsetWidth") > w0 + 40, "la colonne ne s'est pas élargie"
+            assert page.locator("#neg-table.resized").count() == 1
+            # Export CSV : autant de lignes que le tableau, entête stable, aucune colonne partenaire.
             with page.expect_download() as dl:
                 page.click("#export")
             text = Path(dl.value.path()).read_text(encoding="utf-8-sig")
             body = [ln for ln in text.splitlines() if not ln.startswith("#")]
             rows = list(csv.reader(io.StringIO("\n".join(body)), delimiter=";"))
-            assert rows[0][:3] == ["rang", "circo", "nom"]
+            assert rows[0][:3] == ["rang", "circo", "nom"] and not any("autre" in h or "prix" in h for h in rows[0])
             assert len(rows) - 1 == 577
-            # Tient sur une largeur : aucun défilement horizontal du tableau à 1440 px.
-            assert page.evaluate("(() => { const t = document.querySelector('.table-scroll'); return t.scrollWidth <= t.clientWidth + 1; })()"), "le tableau déborde en largeur"
             (ROOT / "screenshots").mkdir(exist_ok=True)
             page.screenshot(path=str(ROOT / "screenshots/negotiation_2027.png"), full_page=False)
             browser.close()
             assert not errors, errors
     finally:
         server.shutdown()
-    print("OK — page négociation : tuiles, courbes, tableau 577, surlignage, tri, export CSV, 0 erreur JS.")
+    print("OK — page négociation : tableau 577, postures survolables miroir du Python, part LFI, tri, colonnes redimensionnables, export CSV, 0 erreur JS.")
 
 
 if __name__ == "__main__":

@@ -1,66 +1,47 @@
-"""Négociation des circonscriptions 2027 pour LFI — l'avantage COMPARATIF par circo.
+"""Négociation des circonscriptions 2027 pour LFI — ce que chaque circo vaut pour LFI, et où
+LFI est forte ou faible.
 
 Question posée par l'outil : dans une gauche unie (une candidature par circonscription, les
 partis se répartissant les 577), QUELLES circonscriptions LFI doit-elle demander pour finir
 avec le plus de député·es ? Le score de jouabilité de la carte n'y répond pas : il dit où LA
-GAUCHE peut gagner, sans savoir quelle étiquette porte la candidature. Or l'étiquette compte
-(mesuré : `label_effect_2024`), et c'est l'argument que les partenaires opposent à LFI.
+GAUCHE peut gagner, sans savoir quelle étiquette porte la candidature. Ici tout est vu de LFI,
+et de LFI seulement — les autres partis n'entrent dans aucun calcul.
 
-Une négociation est un ÉCHANGE : un partenaire cède une circo si elle lui coûte peu. Chaque
-circo reçoit donc DEUX nombres, tous deux des probabilités de siège moyennées sur l'incertitude
-nationale ET locale :
+Trois nombres par circo, tous moyennés sur l'incertitude nationale ET locale :
 
-    p_lfi   = P(siège gagné par une candidature LFI)
-    p_autre = P(siège gagné par une candidature PS / écologiste / PCF)
-    prix    = p_autre − p_lfi   (sièges espérés que l'union perd en donnant la circo à LFI)
+    p_lfi   = P(siège gagné par une candidature LFI dans une gauche unie)   → la VALEUR
+    q_lfi   = P(LFI seule se qualifie au 2nd tour si la gauche se divise)   → la FORCE réelle
+    rdev    = écart local du vote Mélenchon dans la gauche (présidentielle) → la force APPARENTE
 
-D'où quatre groupes lisibles par tout le monde autour de la table :
+D'où les groupes et les postures :
   • ACQUIS      — député·e LFI sortant·e : hors négociation, compté à part.
   • HORS UNION  — siège tenu par un·e élu·e de gauche HORS de l'union (dissident·e, LIOT, DEM :
                   Falorni, Habib, Serva…) : le bloc de gauche prédit inclut ses voix, qui ne se
-                  reporteraient pas sur une candidature d'union. Ni négociable entre LFI et ses
-                  partenaires, ni « libre » : sorti du classement, signalé.
-  • SANS ENJEU  — aucune étiquette de gauche n'a P_MIN de chance : la circo ne vaut rien à
-                  personne, elle n'entre pas dans le troc (c'est la majorité des 577).
-  • LIBRE       — prix ≤ PRICE_FREE : l'étiquette LFI ne coûte rien de mesurable à l'union.
-                  Personne ne peut s'opposer à ce que LFI les réclame toutes.
-  • À NÉGOCIER  — prix > PRICE_FREE : l'union perd quelque chose à donner la circo à LFI ;
-                  LFI décide combien elle en dispute, le prix étant affiché.
-Le classement est par p_lfi décroissant (ce que LFI maximise) ; le prix est la colonne d'à côté,
-et le TAUX D'ÉCHANGE (prix / p_lfi = ce que l'union perd par siège que LFI espère) dit quelles
-circos à négocier sont les moins chères à réclamer — et lesquelles offrir en échange (taux le
-plus haut). Il n'y a pas de groupe « à céder » séparé : l'effet d'étiquette mesuré est un
-décalage modéré et quasi uniforme, aucune circo ne voit l'autre étiquette doubler sa chance ;
-le taux d'échange ordonne ce continuum au lieu d'y tracer une frontière arbitraire.
-La courbe « sièges LFI espérés selon le nombre de circos prises dans cet ordre » répond à
-l'autre question de la négociation : COMBIEN en demander (là où la courbe s'aplatit, la circo
-marginale ne vaut plus rien).
+                  reporteraient pas sur une candidature d'union → sorti du classement, signalé.
+  • SANS ENJEU  — p_lfi < P_MIN : imprenable pour LFI.
+  • EN JEU      — le reste : ce que LFI a intérêt à demander, classé par p_lfi décroissant.
+  Postures :
+    exiger   — en jeu ET LFI seule se qualifierait (q_lfi ≥ LEVERAGE_Q) : LFI n'a pas besoin de
+               l'accord ici, la revendication est incontestable, la menace d'y aller seule crédible.
+    obtenir  — en jeu mais LFI seule ne se qualifierait pas : la circo vaut cher, il faut l'obtenir
+               par la négociation (l'argument : une candidature LFI y gagne le siège).
+    monnaie  — sans enjeu mais LFI y PARAÎT forte (vote Mélenchon au-dessus du national) : la
+               céder ne coûte rien et a l'air d'un sacrifice.
+    rien     — sans enjeu, LFI faible : rien à jouer.
+Le classement est par p_lfi décroissant : ce qui se négocie est un NOMBRE de circos, et à nombre
+donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e. La courbe « sièges
+LFI espérés selon le nombre de circos prises dans cet ordre » dit COMBIEN en demander.
 
 Modèle : celui de la carte (`winnability_2027.seat_winner`, gauche UNIE, front républicain
-standard), avec un seul ajout — le multiplicateur d'étiquette sur les reports centre-droit →
-gauche mesuré sur 2024 (décalage additif du taux de report, `cd2l_delta`). Incertitude :
+standard), avec un ajout — le taux de report centre-droit → gauche propre à un·e candidat·e LFI,
+mesuré sur 2024 (`label_effect_2024`, décalage additif `cd2l_delta`). Incertitude :
   • nationale : niveaux de bloc tirés autour de l'ancre sondages (`scenarios_2027`) avec les
     erreurs historiques de sondage législatif (RMSE par bloc, `bayesian_polls`, validation LOO
-    2002→2022), renormalisés à 100 ; abstention fixée à la référence des scénarios (le couplage
-    participation γ y est l'identité, invariant vérifié par `test_parity_2027`) ;
+    2002→2022), renormalisés à 100 ; abstention fixée à la référence des scénarios ;
   • locale : bruit gaussien indépendant par circo et par bloc, σ = demi-largeur conforme circo
     à 90 % / 1,645 — le même que la fourchette Monte-Carlo du site.
-Un classement à un seul réglage de curseur ne survivrait pas à une réunion : celui-ci moyenne
-sur ce que les sondages peuvent se tromper. `p_lfi_local` (incertitude locale seule) est fourni
-à côté pour lire ce qu'apporte l'incertitude nationale.
-
-RAPPORT DE FORCE (l'« option extérieure »). Négocier, c'est aussi pouvoir menacer de ne pas
-s'entendre. Pour chaque circo et pour une grille de parts nationales LFI-dans-la-gauche (le
-curseur de la page), on rejoue le modèle en gauche DIVISÉE (LFI seule contre le reste de la
-gauche, motif local de la présidentielle) et on mesure :
-    q_lfi   = P(LFI seule se qualifie au 2nd tour)      q_autre = idem pour l'autre gauche
-    w_lfi   = P(LFI seule emporte le siège)              w_autre = idem
-Là où q_lfi est élevé, la menace d'y aller seule est crédible et la revendication LFI est
-incontestable (« exiger ») ; là où la circo vaut cher mais LFI paraît faible, il faut l'obtenir
-sur l'argument du prix (l'étiquette ne coûte presque rien), pas sur la force locale
-(« obtenir ») ; là où LFI paraît forte mais le siège n'est pas gagnable, la céder ne coûte rien
-et a l'air d'un sacrifice — et la menace d'y aller seule pèse sur le partenaire (« monnaie
-d'échange »). C'est la partie « impression de force et de faiblesse » de la négociation.
+La force réelle (q_lfi) est servie pour une grille de parts nationales LFI-dans-la-gauche (le
+curseur de la page) : le rapport de force bascule avec le niveau national de LFI.
 
     python3 -u -m src.negotiation_2027        # → report_app/2027/data/negotiation.json
 """
@@ -89,8 +70,7 @@ NAT_SIGMA = {"G": 6.3, "CD": 6.3, "ED": 7.5}
 Z90 = 1.645
 DRAWS = 600
 SEED = 2027
-PRICE_FREE = 0.02      # prix ≤ 2 % d'un siège : « libre »
-P_MIN = 0.05           # ni LFI ni l'autre étiquette n'atteint 5 % : « sans enjeu »
+P_MIN = 0.05           # p_lfi < 5 % : « sans enjeu »
 LFI_GROUP = "LFI-NFP"
 LEFT_GROUPS = {"LFI-NFP", "SOC", "ECOS", "GDR"}
 # Nuances 2024 codées à gauche par le modèle mais HORS de l'union (candidature non-UG).
@@ -167,7 +147,7 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
     dAU = np.array(arr.get("dAU", [0.0] * n))
     dAB = np.array(arr["dAB"])
     rdev = np.array(arr.get("rdev", [0.0] * n))
-    out = {f"{s:.2f}": {k: np.zeros(n) for k in ("q_lfi", "q_other", "w_lfi", "w_other")} for s in shares}
+    out = {f"{s:.2f}": {k: np.zeros(n) for k in ("q_lfi", "w_lfi")} for s in shares}
     for d in range(draws):
         eG, eCD, eED = (rng.normal(size=n) * sig[b] for b in ("G", "CD", "ED"))
         g = np.clip(nat[d, 0] + dG + eG, 0, 100)
@@ -181,46 +161,35 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
             o = out[key]
             for i in range(n):
                 qual, pole = W.split_outcome(g[i], cd[i], ed[i], ab[i], rad[i], au=au[i])
-                o["q_lfi"][i] += qual[0]; o["q_other"][i] += qual[1]
+                o["q_lfi"][i] += qual[0]
                 if pole == 0: o["w_lfi"][i] += 1
-                elif pole == 1: o["w_other"][i] += 1
     return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
 
 
-def posture(group: str, q_lfi: float | None, q_other: float | None) -> str | None:
-    """Posture de négociation = valeur de la circo (groupe) × rapport de force (qui, seul, se
-    qualifierait au 2nd tour). Miroir exact de `negPosture` (js/negotiation.js).
-      exiger    : circo précieuse, LFI seule se qualifie, pas l'autre gauche → terrain LFI.
-      disputer  : précieuse, les deux se qualifieraient seuls → cœur de la négociation.
-      obtenir   : précieuse, aucun des deux seul → l'union crée le siège ; argument = le prix.
-      difficile : précieuse, seule l'autre gauche se qualifie → terrain du partenaire, à ne
-                  demander qu'en échange.
-      monnaie   : sans enjeu mais LFI y paraît au moins aussi forte que l'autre gauche → à
-                  céder, ça a l'air d'un sacrifice.
-      rien      : sans enjeu, LFI plus faible."""
-    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_other is None:
+def posture(group: str, q_lfi: float | None, rdev: float | None) -> str | None:
+    """Posture = valeur (groupe) × force. Miroir exact de `negPosture` (js/negotiation.js).
+    exiger : en jeu, LFI seule se qualifierait · obtenir : en jeu, pas seule · monnaie : sans
+    enjeu mais LFI y paraît forte (Mélenchon au-dessus du national) · rien."""
+    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None:
         return None
-    lfi, oth = q_lfi >= LEVERAGE_Q, q_other >= LEVERAGE_Q
-    if group in ("libre", "a_negocier"):
-        return "exiger" if lfi and not oth else "disputer" if lfi and oth else "difficile" if oth else "obtenir"
-    return "monnaie" if q_lfi >= q_other else "rien"
+    if group == "en_jeu":
+        return "exiger" if q_lfi >= LEVERAGE_Q else "obtenir"
+    return "monnaie" if (rdev or 0.0) > 0 else "rien"
 
 
-def _group(p_lfi: float, p_other: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
+def _group(p_lfi: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
     if lfi_incumbent:
         return "acquis"
     if outside_union:
         return "hors_union"
-    if max(p_lfi, p_other) < P_MIN:
-        return "sans_enjeu"
-    return "libre" if round(p_other - p_lfi, 3) <= PRICE_FREE else "a_negocier"
+    return "sans_enjeu" if p_lfi < P_MIN else "en_jeu"
 
 
 def _extrapolations(h24: dict | None, nat24: dict, means: dict) -> tuple[float | None, float | None]:
     """Deux extrapolations simples de 2024 pour la GAUCHE, vérifiables par tous :
     « 2024 + évolution nationale » (chaque circo bouge du même nombre de points que la France) et
     « 2024 × évolution nationale » (du même pourcentage). Quatre blocs (G/CD/ED/Autre), plancher 0,
-    renormalisation à 100 — même règle que l'ancien comparateur."""
+    renormalisation à 100."""
     if not h24:
         return None, None
     blocs = ("G", "CD", "ED", "AU")
@@ -242,8 +211,8 @@ def build() -> dict:
     arr, summary = _load_served()
     hist = _history()
     eff = label_effect_2024.load()
-    deltas = {"lfi": eff["model"]["cd2l_delta_lfi"], "other": eff["model"]["cd2l_delta_other"], "avg": 0.0}
-    print(f"  décalages d'étiquette du taux de report (2024) : {deltas}")
+    deltas = {"lfi": eff["model"]["cd2l_delta_lfi"]}
+    print(f"  décalage du taux de report pour une candidature LFI (2024) : {deltas}")
     print(f"  Monte-Carlo {DRAWS} tirages × 577 circos × {len(deltas)} étiquettes …")
     p = simulate(arr, summary, deltas)
     p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
@@ -277,7 +246,7 @@ def build() -> dict:
         outside = (win24.get(cid) in LEFT_NON_UNION_NUANCES and dep.get("groupe") not in LEFT_GROUPS) if win24 else False
         # Arrondi AVANT le groupage : le groupe servi doit être reproductible depuis les
         # probabilités servies (à 3 décimales), pas depuis des valeurs internes plus fines.
-        pl, po, pa = (round(float(p[k][i]), 3) for k in ("lfi", "other", "avg"))
+        pl = round(float(p["lfi"][i]), 3)
         g0 = min(100, max(0, m["G"] + arr["dG"][i]))
         cd0 = min(100, max(0, m["CD"] + arr["dCD"][i]))
         ed0 = min(100, max(0, m["ED"] + arr["dED"][i]))
@@ -294,14 +263,11 @@ def build() -> dict:
             "h2022_G": round(h22["G"], 1) if h22 else None, "h2024_G": round(h24["G"], 1) if h24 else None,
             "ext_plus_G": ext_plus if pub else None, "ext_mult_G": ext_mult if pub else None,
             "pub": pub,
-            "p_lfi": pl if pub else None, "p_other": po if pub else None,
-            "p_avg": pa if pub else None, "price": round(po - pl, 3) if pub else None,
-            "rate": (round(max(0.0, po - pl) / pl, 3) if pl >= P_MIN else None) if pub else None,
+            "p_lfi": pl if pub else None,
             "p_lfi_local": round(float(p_loc[i]), 3) if pub else None,
             "p_lfi_ru": round(float(p_ru[i]), 3) if pub else None,
-            "group": _group(pl, po, lfi_inc, outside) if pub else "non_mesure",
+            "group": _group(pl, lfi_inc, outside) if pub else "non_mesure",
             "q_lfi": round(float(split[near]["q_lfi"][i]), 3) if pub else None,
-            "q_other": round(float(split[near]["q_other"][i]), 3) if pub else None,
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
             "pred": {"G": round(g0, 1), "CD": round(cd0, 1), "ED": round(ed0, 1), "AU": round(au0, 1)},
             "depute": {"nom": dep.get("nom", ""), "prenom": dep.get("prenom", ""),
@@ -310,29 +276,28 @@ def build() -> dict:
         })
 
     for r in rows:
-        r["posture"] = posture(r["group"], r["q_lfi"], r["q_other"])
-    postures = {k: sum(1 for r in rows if r["posture"] == k)
-                for k in ("exiger", "disputer", "obtenir", "difficile", "monnaie", "rien")}
+        r["posture"] = posture(r["group"], r["q_lfi"], r["rdev"])
+    postures = {k: sum(1 for r in rows if r["posture"] == k) for k in ("exiger", "obtenir", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).
-    neg = [r for r in rows if r["pub"] and r["group"] not in ("acquis", "sans_enjeu", "hors_union")]
-    neg.sort(key=lambda r: (-r["p_lfi"], r["price"], r["id"]))
+    neg = [r for r in rows if r["group"] == "en_jeu"]
+    neg.sort(key=lambda r: (-r["p_lfi"], r["id"]))
     for k, r in enumerate(neg, 1):
         r["rank"] = k
     acquis = [r for r in rows if r["group"] == "acquis"]
     base_lfi = sum(r["p_lfi"] for r in acquis if r["pub"])
-    cum_lfi, cum_price, ids = [], [], []
-    s_l = s_p = 0.0
+    cum_lfi, ids = [], []
+    s_l = 0.0
     for r in neg:
-        s_l += r["p_lfi"]; s_p += max(0.0, r["price"])
-        cum_lfi.append(round(s_l, 2)); cum_price.append(round(s_p, 2)); ids.append(r["id"])
+        s_l += r["p_lfi"]
+        cum_lfi.append(round(s_l, 2)); ids.append(r["id"])
     # Repère : la carte 2024 (les 229 circos FI) rejouée avec le modèle d'étiquette.
     slate24 = [r for r in rows if r["lab2024"] == "FI" and r["pub"]]
     n24 = len([r for r in rows if r["lab2024"] == "FI"])
     exp24 = sum(r["p_lfi"] for r in slate24)
     eff_same_n = base_lfi + (cum_lfi[min(n24 - len(acquis), len(cum_lfi)) - 1] if n24 > len(acquis) else 0)
     groups = {g: sum(1 for r in rows if r["group"] == g) for g in
-              ("acquis", "libre", "a_negocier", "sans_enjeu", "hors_union", "non_mesure")}
+              ("acquis", "en_jeu", "sans_enjeu", "hors_union", "non_mesure")}
     print(f"  groupes : {groups}")
     print(f"  sièges LFI espérés — acquis : {base_lfi:.1f} ; carte 2024 ({n24} circos FI) : {exp24:.1f} ; "
           f"répartition efficace à {n24} circos : {eff_same_n:.1f}")
@@ -343,10 +308,10 @@ def build() -> dict:
                     for k, e in hist.items()},
         "params": {"draws": DRAWS, "seed": SEED, "nat_sigma": NAT_SIGMA,
                    "local_sigma": {b: round(summary["circo_halfwidth_90"][b] / Z90, 2) for b in ("G", "CD", "ED")},
-                   "price_free": PRICE_FREE, "p_min": P_MIN,
+                   "p_min": P_MIN,
                    "cd2l_delta": deltas, "label_effect": eff["model"],
-                   "label_effect_k": {"fi": eff["duels_vs_rn"]["k_fi"], "other": eff["duels_vs_rn"]["k_other"],
-                                      "union": eff["duels_vs_rn"]["k_union"]},
+                   "label_effect_k": {"fi": eff["duels_vs_rn"]["k_fi"], "union": eff["duels_vs_rn"]["k_union"]},
+                   "label_effect_n_fi": eff["sample"]["n_duels_fi"],
                    "label_effect_ci95": eff["duels_vs_rn"]["diff_ci95"],
                    "label_effect_n": eff["sample"]["n_duels_vs_rn"], "lfi_group": LFI_GROUP},
         "groups": groups,
@@ -358,10 +323,8 @@ def build() -> dict:
                                for k, v in split.items()}},
         "totals": {"acquis_expected": round(base_lfi, 2), "n_acquis": len(acquis),
                    "slate2024_n": n24, "slate2024_expected": round(exp24, 2),
-                   "efficient_same_n_expected": round(eff_same_n, 2),
-                   "union_expected_avg": round(sum(r["p_avg"] for r in rows if r["pub"]), 1),
-                   "union_expected_best_label": round(sum(max(r["p_lfi"], r["p_other"]) for r in rows if r["pub"]), 1)},
-        "curve": {"ids": ids, "cum_lfi": cum_lfi, "cum_price": cum_price},
+                   "efficient_same_n_expected": round(eff_same_n, 2)},
+        "curve": {"ids": ids, "cum_lfi": cum_lfi},
         "rows": rows,
     }
 

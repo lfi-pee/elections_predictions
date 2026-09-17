@@ -1,5 +1,5 @@
-"""Tests de la négociation 2027 (`negotiation_2027`) et de la mesure d'étiquette
-(`label_effect_2024`) : invariants du JSON servi + cohérence du modèle d'étiquette.
+"""Tests de la négociation 2027 (`negotiation_2027`) et de la mesure du report vers une
+candidature LFI (`label_effect_2024`) : invariants du JSON servi + cohérence du modèle.
 
     python3 -u -m src.test_negotiation_2027
 """
@@ -23,10 +23,10 @@ def main() -> None:
     e = json.loads(EFF.read_text())
     rows = d["rows"]
 
-    # ── Mesure d'étiquette : centrée, signée, cohérente avec le JSON servi ──
+    # ── Mesure du report LFI : signée, cohérente avec le JSON servi ──
     k = e["duels_vs_rn"]
-    if not (k["k_fi"] < k["k_union"] < k["k_other"]):
-        fails.append("k_fi < k_union < k_other attendu (pénalité LFI mesurée)")
+    if not (k["k_fi"] < k["k_union"]):
+        fails.append("k_fi < k_union attendu (report LFI mesuré sous la moyenne de l'union)")
     if abs(e["model"]["cd2l_delta_lfi"] - (k["k_fi"] - k["k_union"])) > 1e-3:
         fails.append("delta_lfi ≠ k_fi − k_union")
     if d["params"]["cd2l_delta"]["lfi"] != e["model"]["cd2l_delta_lfi"]:
@@ -37,21 +37,20 @@ def main() -> None:
     # ── Le décalage joue dans le modèle de sièges, dans le bon sens, et 0 = modèle de la carte ──
     if W.seat_winner(30, 30, 40, 48, "union", 1.0) != W.seat_winner(30, 30, 40, 48, "union", 1.0, cd2l_delta=0.0):
         fails.append("cd2l_delta=0 doit être le modèle inchangé")
-    # duel G–RN serré : la gauche gagne avec le bonus « autre » mais perd avec la pénalité LFI
     flips = 0
     for g in range(26, 40):
         for ed in range(38, 50):
             cd = 100 - g - ed
-            a = W.seat_winner(g, cd, ed, 48, "union", 1.0, cd2l_delta=e["model"]["cd2l_delta_other"])
+            a = W.seat_winner(g, cd, ed, 48, "union", 1.0)
             b = W.seat_winner(g, cd, ed, 48, "union", 1.0, cd2l_delta=e["model"]["cd2l_delta_lfi"])
             if a == "G" and b != "G":
                 flips += 1
             if b == "G" and a != "G":
-                fails.append(f"étiquette LFI gagne là où l'autre perd : g={g} cd={cd} ed={ed}")
+                fails.append(f"candidature LFI gagne là où le candidat moyen perd : g={g} cd={cd} ed={ed}")
     if flips == 0:
-        fails.append("aucune circo ne bascule entre étiquettes : le décalage est inopérant")
+        fails.append("aucune circo ne bascule : le décalage est inopérant")
 
-    # ── JSON servi : 577 lignes, groupes partitionnés, probabilités bornées, prix cohérent ──
+    # ── JSON servi : 577 lignes, groupes partitionnés, probabilités bornées ──
     if len(rows) != 577:
         fails.append(f"{len(rows)} lignes (577 attendues)")
     groups = {}
@@ -61,29 +60,32 @@ def main() -> None:
             if r["group"] != "non_mesure" or r["p_lfi"] is not None:
                 fails.append(f"{r['id']} non publiable mais chiffré")
             continue
-        for key in ("p_lfi", "p_other", "p_avg", "p_lfi_local", "p_lfi_ru"):
+        for key in ("p_lfi", "p_lfi_local", "p_lfi_ru", "q_lfi"):
             if not (0.0 <= r[key] <= 1.0):
                 fails.append(f"{r['id']} {key} hors [0,1]")
-        if abs(r["price"] - (r["p_other"] - r["p_lfi"])) > 2e-3:
-            fails.append(f"{r['id']} prix ≠ p_other − p_lfi")
-        if r["p_lfi"] > r["p_other"] + 1e-9:
-            fails.append(f"{r['id']} p_lfi > p_other : la pénalité mesurée doit jouer dans un seul sens")
         if r["group"] == "hors_union" and r["depute"]["groupe"] in N.LEFT_GROUPS:
             fails.append(f"{r['id']} hors union mais sortant·e dans un groupe de gauche")
         if (r["depute"]["groupe"] == N.LFI_GROUP) != (r["group"] == "acquis"):
             fails.append(f"{r['id']} acquis ⇔ sortant·e LFI violé")
-        if r["group"] == "sans_enjeu" and max(r["p_lfi"], r["p_other"]) >= N.P_MIN:
+        if r["group"] == "sans_enjeu" and r["p_lfi"] >= N.P_MIN:
             fails.append(f"{r['id']} sans enjeu mais chance ≥ P_MIN")
-        if r["group"] == "libre" and r["price"] > N.PRICE_FREE + 1e-9:
-            fails.append(f"{r['id']} libre mais prix > PRICE_FREE")
-        if r["group"] == "a_negocier" and r["price"] <= N.PRICE_FREE:
-            fails.append(f"{r['id']} à négocier mais prix ≤ PRICE_FREE")
+        if r["group"] == "en_jeu" and r["p_lfi"] < N.P_MIN:
+            fails.append(f"{r['id']} en jeu mais chance < P_MIN")
+        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["rdev"]):
+            fails.append(f"{r['id']} posture non reproductible")
     if groups != d["groups"]:
         fails.append(f"comptes de groupes incohérents {groups} ≠ {d['groups']}")
     if d["groups"].get("acquis") != d["totals"]["n_acquis"]:
         fails.append("n_acquis ≠ nombre d'acquis")
+    if sum(d["postures"].values()) != sum(1 for r in rows if r["posture"]):
+        fails.append("comptes de postures incohérents")
+    for r in rows:
+        for bad in ("p_other", "price", "rate", "q_other"):
+            if bad in r:
+                fails.append(f"champ {bad} encore servi : le partenaire ne doit entrer dans aucun calcul")
+                break
 
-    # ── Courbe : ordre par p_lfi décroissant, cumuls monotones, sommes exactes ──
+    # ── Courbe : en jeu seulement, triée par p_lfi décroissant, cumul monotone ──
     c = d["curve"]
     by = {r["id"]: r for r in rows}
     neg = [by[i] for i in c["ids"]]
@@ -91,50 +93,44 @@ def main() -> None:
         fails.append("courbe : ids non triés par p_lfi décroissant")
     if [r["rank"] for r in neg] != list(range(1, len(neg) + 1)):
         fails.append("rangs ≠ position dans la courbe")
-    if any(r["group"] not in ("libre", "a_negocier") for r in neg):
-        fails.append("courbe : contient des acquis / sans enjeu / non mesurées")
+    if any(r["group"] != "en_jeu" for r in neg):
+        fails.append("courbe : contient des circos hors « en jeu »")
     if abs(c["cum_lfi"][-1] - sum(r["p_lfi"] for r in neg)) > 0.05:
-        fails.append("cum_lfi final ≠ somme des p_lfi négociables")
-    if any(c["cum_lfi"][i] > c["cum_lfi"][i + 1] + 1e-9 or c["cum_price"][i] > c["cum_price"][i + 1] + 1e-9
-           for i in range(len(neg) - 1)):
-        fails.append("cumuls non monotones")
+        fails.append("cum_lfi final ≠ somme des p_lfi en jeu")
 
-    # ── Rapport de force : grille de parts LFI, postures reproductibles depuis les q servis ──
+    # ── Force réelle : grille de parts LFI, q servi = grille à near, monotone en moyenne ──
     sp = d["split"]
     if sp["near"] not in sp["shares"] or sp["near"] not in sp["by_share"]:
         fails.append("split.near absent de la grille")
-    for k, b in sp["by_share"].items():
-        for kk in ("q_lfi", "q_other", "w_lfi", "w_other"):
-            if len(b[kk]) != 577 or not all(0.0 <= v <= 1.0 for v in b[kk]):
-                fails.append(f"split[{k}].{kk} : longueur ou bornes")
-        # w ≤ q : gagner seul suppose de s'être qualifié seul.
+    for kk, b in sp["by_share"].items():
+        for key in ("q_lfi", "w_lfi"):
+            if len(b[key]) != 577 or not all(0.0 <= v <= 1.0 for v in b[key]):
+                fails.append(f"split[{kk}].{key} : longueur ou bornes")
         if any(w > q + 1e-9 for w, q in zip(b["w_lfi"], b["q_lfi"])):
-            fails.append(f"split[{k}] : w_lfi > q_lfi")
+            fails.append(f"split[{kk}] : w_lfi > q_lfi")
     near = sp["by_share"][sp["near"]]
     for i, r in enumerate(rows):
-        if r["pub"] and (r["q_lfi"] != near["q_lfi"][i] or r["q_other"] != near["q_other"][i]):
+        if r["pub"] and r["q_lfi"] != near["q_lfi"][i]:
             fails.append(f"{r['id']} q servi ≠ grille à near")
-        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["q_other"]):
-            fails.append(f"{r['id']} posture non reproductible")
-    # Plus la part LFI monte, plus LFI seule se qualifie (monotone en moyenne).
-    means = [sum(sp["by_share"][k]["q_lfi"]) for k in sp["shares"]]
+    means = [sum(sp["by_share"][kk]["q_lfi"]) for kk in sp["shares"]]
     if any(means[i] > means[i + 1] for i in range(len(means) - 1)):
         fails.append("q_lfi moyen non croissant avec la part LFI")
-    if sum(d["postures"].values()) != sum(1 for r in rows if r["posture"]):
-        fails.append("comptes de postures incohérents")
 
-    # ── La page ne fige aucun chiffre : ses tuiles et sa méthode sont des gabarits remplis en JS ──
+    # ── La page : un seul tableau, gabarits remplis en JS, aucun chiffre ni partenaire figé ──
     html = HTML.read_text()
-    for anchor in ('id="tiles"', 'id="m-label"', 'id="m-groups"', 'id="m-unc"', 'id="m-posture"', 'id="m-hors"', 'id="share"',
-                   'data/negotiation.json', 'data/label_effect_2024.json'):
+    for anchor in ('id="m-label"', 'id="m-groups"', 'id="m-unc"', 'id="m-posture"', 'id="m-hors"', 'id="share"',
+                   'id="neg-table"', 'data/negotiation.json', 'data/label_effect_2024.json'):
         if anchor not in html:
             fails.append(f"negotiation.html : {anchor} manquant")
+    for bad in ('id="tiles"', 'class="chart"', "PS · écolo", "Prix", "notre prédiction"):
+        if bad in html:
+            fails.append(f"negotiation.html : {bad} ne doit plus apparaître")
 
     if fails:
         print("ÉCHEC :\n  - " + "\n  - ".join(fails[:30]))
         sys.exit(1)
-    print(f"OK — négociation 2027 : {len(rows)} circos, groupes {d['groups']}, postures {d['postures']}, "
-          f"{flips} cas-grille basculés par l'étiquette, effet mesuré sur {e['sample']['n_duels_vs_rn']} duels.")
+    print(f"OK — négociation 2027 (LFI) : {len(rows)} circos, groupes {d['groups']}, postures {d['postures']}, "
+          f"{flips} cas-grille basculés par le report LFI, mesuré sur {e['sample']['n_duels_vs_rn']} duels.")
 
 
 if __name__ == "__main__":

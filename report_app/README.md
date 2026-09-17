@@ -47,13 +47,15 @@ est en mémoire.
 
 ## Négocier les circonscriptions (LFI) — 2027
 
-`2027/negotiation.html`, accessible depuis la carte 2027 : pour une gauche unie, la chance de
-siège de chaque circonscription **avec une étiquette LFI** et **avec une autre étiquette de
-gauche**, leur différence (le prix pour l'union), le **rapport de force** (qui, seul, se
-qualifierait au 2nd tour, selon la part nationale de LFI réglable), une **posture** par circo
-(exiger / disputer / obtenir / difficile / monnaie d'échange / rien), un classement, une courbe
-« combien en demander » et l'export CSV. L'effet d'étiquette est mesuré sur le second tour 2024 (parti de
-chaque candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;
+`2027/negotiation.html`, accessible depuis la carte 2027 : un seul tableau, vu de LFI. Par
+circonscription, la **chance d'élire un·e député·e LFI** si LFI porte la candidature unique de la
+gauche, la **force réelle** (sans accord, LFI seule atteindrait-elle le 2nd tour ? selon la part
+nationale de LFI, réglable), la **force apparente** (écart du vote Mélenchon dans la gauche), une
+**posture** (exiger / obtenir / monnaie d'échange / rien), et à droite les chiffres à mettre sur
+la table (sortant·e, parti NFP et sort du siège 2024, gauche 2024, LFI seule 2017, extrapolation
+simple de 2024, score de la gauche selon le modèle). Colonnes redimensionnables, export CSV.
+Le report vers une candidature LFI est mesuré sur le second tour 2024 (parti de chaque
+candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;
 les député·es en exercice viennent de l'open data de l'Assemblée (`data/nuance/deputes_2026.csv`).
 
 ```bash

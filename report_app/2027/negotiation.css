@@ -118,3 +118,13 @@
 .negotiation .pb { grid-template-columns: 40px 40px; gap: 6px; }
 .negotiation .table-scroll { max-height: 70vh; }
 @media (min-width: 1280px) { .negotiation main { max-width: none; padding-left: 2vw; padding-right: 2vw; } .negotiation .table-scroll { overflow-x: hidden; } }
+
+/* Redimensionnement des colonnes : poignée sur le bord droit de chaque en-tête de colonne. */
+.negotiation thead th { position: relative; }
+.negotiation th .rs { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; z-index: 3; }
+.negotiation th .rs:hover, .negotiation th .rs.on { background: rgba(48,116,150,.35); }
+.negotiation table.resized { table-layout: fixed; min-width: 0; }
+.negotiation table.resized td, .negotiation table.resized th { overflow: hidden; text-overflow: ellipsis; }
+.negotiation .grp[title], .negotiation .pos[title] { cursor: help; }
+.negotiation .charts.one { grid-template-columns: 1fr; }
+@media (min-width: 1280px) { .negotiation .table-scroll { overflow-x: auto; } }

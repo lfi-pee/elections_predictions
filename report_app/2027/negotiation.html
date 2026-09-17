@@ -9,37 +9,15 @@
 <body class="negotiation">
 <header id="top"><a href="index.html">← Carte 2027</a><span>Législatives <b>2027</b></span><a href="METHODOLOGY.md">Méthode</a></header>
 <main>
-  <p class="eyebrow">Union de la gauche · une candidature par circonscription</p>
+
+  <p class="eyebrow">Union de la gauche · une candidature par circonscription · vu de LFI</p>
   <h1>Quelles circonscriptions demander pour élire le plus de député·es LFI&nbsp;?</h1>
-  <p class="lede">La carte dit où <em>la gauche</em> peut gagner. Pour négocier, il faut trois choses de plus par circonscription&nbsp;: <b>ce qu'elle vaut pour LFI</b> (la chance d'y élire un·e député·e LFI), <b>ce qu'elle coûte au partenaire</b> (ce que l'union perd à la donner à LFI plutôt qu'à un·e PS ou écologiste — mesuré sur 2024), et <b>le rapport de force</b> (qui, s'il y allait seul, se qualifierait au second tour&nbsp;: c'est ce qui rend une revendication crédible, ou une concession indolore). Le tableau donne les trois, et en tire une posture par circonscription.</p>
-  <div class="howto">
-    <div><b>Pourquoi négocier ici&nbsp;?</b> Parce que la chance LFI est haute et que le prix pour l'union est bas&nbsp;: l'étiquette LFI n'y perd presque rien, l'argument «&nbsp;ton étiquette fait perdre&nbsp;» ne tient pas.</div>
-    <div><b>Où LFI est forte&nbsp;?</b> Là où LFI seule se qualifierait au second tour (colonne «&nbsp;LFI seule&nbsp;»). Là, LFI n'a pas besoin de l'accord&nbsp;: la revendication est incontestable, la menace d'y aller seule est crédible.</div>
-    <div><b>Où LFI paraît faible&nbsp;?</b> Là où seule l'autre gauche se qualifierait&nbsp;: demander coûte du capital. Et là où LFI paraît forte mais où le siège est imprenable, céder ne coûte rien et a l'air d'un sacrifice — c'est la monnaie d'échange.</div>
-  </div>
-
-  <section class="tiles" id="tiles" aria-label="Chiffres clés"></section>
-
-  <section class="slate" aria-label="Combien de circonscriptions demander">
-    <div class="slate-head">
-      <h2>Combien en demander&nbsp;?</h2>
-      <p>Les circonscriptions négociables sont prises dans l'ordre de la chance LFI. Déplacez le curseur pour lire ce que rapporte — et coûte — la <span id="n-label">n</span><sup>e</sup> circonscription.</p>
-    </div>
-    <div class="slate-ctl">
-      <label>Circonscriptions demandées <small>(en plus des sortant·es LFI)</small> <output id="n-value"></output>
-        <input id="n" type="range" min="0" max="500" step="1"></label>
-      <div class="slate-read" id="slate-read"></div>
-    </div>
-    <div class="charts">
-      <figure><figcaption>Sièges LFI espérés selon le nombre de circonscriptions demandées</figcaption><div class="chart" id="chart-lfi"></div></figure>
-      <figure><figcaption>Coût cumulé pour l'union (sièges espérés perdus par l'étiquette)</figcaption><div class="chart" id="chart-cost"></div></figure>
-    </div>
-  </section>
+  <p class="lede">Une ligne par circonscription, classée par la <b>chance d'élire un·e député·e LFI</b> si LFI porte la candidature unique de la gauche. À côté, deux mesures de force&nbsp;: <b>réelle</b> — sans accord, LFI seule atteindrait-elle le second tour&nbsp;? — et <b>apparente</b> — le vote Mélenchon y dépasse-t-il le national&nbsp;? La <b>posture</b> les croise (survolez-la pour sa définition). À droite, les chiffres à mettre sur la table&nbsp;: résultats passés, une extrapolation simple de 2024, et le score de la gauche selon le modèle. Les bords des en-têtes se tirent pour redimensionner les colonnes.</p>
 
   <section class="toolbar" aria-label="Filtres">
-    <label>Groupe<select id="group"><option value="">Tous</option><option value="negociables" selected>Négociables (libres + à négocier)</option><option value="libre">Libres</option><option value="a_negocier">À négocier</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="hors_union">Tenues par une gauche hors union</option><option value="sans_enjeu">Sans enjeu</option><option value="non_mesure">Non mesurées</option></select></label>
-    <label>Posture<select id="posture"><option value="">Toutes</option><option value="exiger">Exiger</option><option value="disputer">Disputer</option><option value="obtenir">Obtenir</option><option value="difficile">Difficile</option><option value="monnaie">Monnaie d'échange</option><option value="rien">Rien à jouer</option></select></label>
-    <label>Part de LFI dans la gauche <small>(rapport de force)</small><select id="share"></select></label>
+    <label>Groupe<select id="group"><option value="">Toutes</option><option value="en_jeu" selected>En jeu (à demander)</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="sans_enjeu">Sans enjeu</option><option value="hors_union">Tenues par une gauche hors union</option><option value="non_mesure">Non mesurées</option></select></label>
+    <label>Posture<select id="posture"><option value="">Toutes</option><option value="exiger">Exiger</option><option value="obtenir">Obtenir</option><option value="monnaie">Monnaie d'échange</option><option value="rien">Rien à jouer</option></select></label>
+    <label>Part de LFI dans la gauche <small>(force réelle)</small><select id="share"></select></label>
     <label>Circonscription<input id="filter" type="search" placeholder="Code, ville, département, député·e…"></label>
     <label>Député·e sortant·e<select id="dep"><option value="">Tous groupes</option></select></label>
     <button id="export" disabled>Exporter le CSV</button>
@@ -47,28 +25,26 @@
   <p id="status" role="status">Chargement…</p>
   <div class="table-scroll" tabindex="0" role="region" aria-label="Circonscriptions">
     <table id="neg-table">
-      <caption id="caption">«&nbsp;Si la candidature est LFI&nbsp;» et «&nbsp;si elle est PS · écolo · PCF&nbsp;» sont deux hypothèses pour la <b>même</b> circonscription, pas deux concurrents&nbsp;: dans un bastion les deux affichent >99&nbsp;% et le prix est nul. Lignes surlignées = demande courante. Le CSV exporté contient aussi les colonnes détaillées (taux d'échange, sensibilités, gauche 2022 et 2017, extrapolation en %).</caption>
+      <caption id="caption">Chances moyennées sur l'incertitude nationale et locale, jamais affichées comme des certitudes (>99&nbsp;%, <1&nbsp;%). Cliquez un en-tête pour trier, tirez son bord droit pour l'élargir (double-clic&nbsp;: largeurs d'origine). Le CSV exporté contient aussi les colonnes détaillées (sensibilités, gauche 2022 et 2017, extrapolation en %).</caption>
       <thead>
         <tr class="grp-row">
           <th colspan="2" scope="colgroup" class="cg-id"></th>
-          <th colspan="5" scope="colgroup" class="cg-ours">Notre lecture pour négocier</th>
-          <th colspan="7" scope="colgroup" class="cg-args">Les chiffres à mettre sur la table — résultats passés, extrapolation simple, notre prédiction</th>
+          <th colspan="3" scope="colgroup" class="cg-ours">Notre lecture pour négocier</th>
+          <th colspan="7" scope="colgroup" class="cg-args">Les chiffres à mettre sur la table</th>
         </tr>
         <tr>
         <th scope="col" data-key="rank"><button data-sort="rank">#</button></th>
         <th scope="col" data-key="id" class="left"><button data-sort="id">Circonscription</button></th>
-        <th scope="col" data-key="posture" class="left ours"><button data-sort="posture">Posture</button><small>valeur × rapport de force</small></th>
-        <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi">Si la candidature est LFI</button><small>chance de gagner le siège</small></th>
-        <th scope="col" data-key="p_other" class="ours"><button data-sort="p_other">Si elle est PS · écolo · PCF</button><small>chance de gagner le siège</small></th>
-        <th scope="col" data-key="price" class="ours"><button data-sort="price">Prix de l'étiquette LFI</button><small>points de chance en moins qu'avec PS · écolo · PCF</small></th>
-        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Sans accord, qui atteint le 2<sup>nd</sup> tour&nbsp;?</button><small>chance de LFI seule · de l'autre gauche seule</small></th>
+        <th scope="col" data-key="posture" class="left ours"><button data-sort="posture">Posture</button><small>valeur × force (survoler)</small></th>
+        <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi">Chance d'élire un·e député·e LFI</button><small>si LFI porte la candidature de la gauche unie</small></th>
+        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Sans accord, LFI seule au 2<sup>nd</sup> tour</button><small>chance de se qualifier si la gauche se divise</small></th>
         <th scope="col" data-key="depute" class="left args"><button data-sort="depute">Député·e sortant·e</button></th>
         <th scope="col" data-key="lab2024" class="left args"><button data-sort="lab2024">2024 : parti NFP</button><small>et sort du siège</small></th>
         <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G">Gauche 2024</button><small>1<sup>er</sup> tour</small></th>
         <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI">LFI seule 2017</button><small>sous sa nuance</small></th>
-        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>écart au national</small></th>
+        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>présidentielle, écart au national</small></th>
         <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G">Gauche 2027, extrapolation</button><small>2024 + évolution nationale, même écart partout</small></th>
-        <th scope="col" data-key="pred" class="args"><button data-sort="pred">Gauche 2027, notre prédiction</button><small>1<sup>er</sup> tour, % exprimés</small></th>
+        <th scope="col" data-key="pred" class="args"><button data-sort="pred">Gauche 2027 (modèle)</button><small>1<sup>er</sup> tour, % exprimés</small></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -77,17 +53,14 @@
   <details class="methods" open>
     <summary>Comment lire ce tableau, et d'où viennent les chiffres</summary>
     <dl>
-      <dt>La question</dt><dd>Dans une gauche unie, les partis se répartissent les 577 circonscriptions. LFI veut celles qui élisent des député·es LFI. Une négociation est un échange&nbsp;: un partenaire cède une circonscription si elle lui coûte peu. Chaque ligne porte donc ce que la circonscription <b>vaut</b> pour LFI (chance LFI) et ce qu'elle <b>coûte</b> à l'union (prix). Le classement suit la chance LFI — ce que LFI maximise — et le prix est affiché à côté.</dd>
-      <dt>Effet d'étiquette, mesuré</dt><dd id="m-label"></dd>
+      <dt>La question</dt><dd>Dans une gauche unie, les partis se répartissent les 577 circonscriptions. LFI veut celles qui élisent des député·es LFI. Tout est vu de LFI&nbsp;: aucune chance, aucun coût n'est calculé pour un autre parti. Le classement suit la chance d'élire un·e député·e LFI, parce que ce qui se négocie d'abord est un <em>nombre</em> de circonscriptions et qu'à nombre donné chacune vaut exactement cette chance. La force réelle et la force apparente disent comment obtenir la circonscription, ou quoi céder.</dd>
+      <dt>Report vers un·e candidat·e LFI, mesuré</dt><dd id="m-label"></dd>
       <dt>Groupes</dt><dd id="m-groups"></dd>
-      <dt>Rapport de force et postures</dt><dd id="m-posture"></dd>
-      <dt>Dans quel ordre lire le tableau</dt><dd>Par <b>chance LFI</b> décroissante&nbsp;: ce qui se négocie d'abord, c'est un <em>nombre</em> de circonscriptions, et à nombre donné chaque circonscription vaut pour LFI exactement sa chance d'y élire un·e député·e. Le prix, le rapport de force et la posture disent ensuite <em>comment</em> l'obtenir, ou quoi offrir à la place&nbsp;; ils ne remplacent pas la valeur, ils l'accompagnent. Aucun score composite n'est calculé&nbsp;: il cacherait le raisonnement que la négociation doit pouvoir dire à voix haute.</dd>
-      <dt>Taux d'échange</dt><dd>Prix divisé par la chance LFI&nbsp;: ce que l'union perd par siège que LFI espère gagner dans cette circonscription. Les circonscriptions <em>à négocier</em> au taux le plus bas sont les moins chères à réclamer&nbsp;; celles au taux le plus élevé sont celles à offrir en échange. Il n'y a pas de groupe «&nbsp;à céder&nbsp;» tranché&nbsp;: l'effet d'étiquette mesuré est un décalage modéré et presque uniforme, aucune circonscription ne voit l'autre étiquette doubler sa chance&nbsp;; le taux ordonne ce continuum sans frontière arbitraire.</dd>
+      <dt>Force réelle, force apparente, postures</dt><dd id="m-posture"></dd>
+      <dt>Deux groupes de colonnes</dt><dd>À gauche, <b>notre lecture</b>&nbsp;: ce que le modèle prédit pour une candidature LFI et ce que cela implique — pour décider, en interne, quoi demander et quoi céder. À droite, <b>les chiffres à mettre sur la table</b>&nbsp;: des faits vérifiables (résultats du ministère, répartition NFP 2024, vote Mélenchon), une extrapolation si simple qu'elle ne se discute pas (le résultat 2024 de la circonscription décalé de l'évolution nationale des sondages) et le score de la gauche selon le modèle, pour montrer qu'on arrive au même endroit sans modèle.</dd>
       <dt>Incertitude</dt><dd id="m-unc"></dd>
-      <dt>Deux groupes de colonnes</dt><dd>À gauche, <b>notre lecture</b>&nbsp;: ce que le modèle prédit et ce que cela implique — c'est pour décider, en interne, quoi demander et quoi céder. À droite, <b>les arguments</b>&nbsp;: des faits que les partenaires peuvent vérifier eux-mêmes (résultats du ministère, répartition NFP 2024, vote Mélenchon) et deux extrapolations si simples qu'elles ne se discutent pas — c'est pour justifier la demande à la table. Les extrapolations prennent le résultat 2024 de la circonscription et lui appliquent l'évolution nationale que donnent les sondages, en points ou en pourcentage&nbsp;; elles ne remplacent pas la prédiction, elles montrent qu'on arrive au même endroit sans modèle.</dd>
-      <dt>Deux colonnes à 100 %</dt><dd>«&nbsp;Si la candidature est LFI&nbsp;» et «&nbsp;si elle est PS · écolo · PCF&nbsp;» sont deux mondes possibles pour une même circonscription, où la gauche unie ne présente qu'un·e candidat·e. Dans un bastion, l'un comme l'autre gagne&nbsp;: les deux valent >99&nbsp;%, l'écart (le prix) est nul, et c'est précisément ce qui rend la circonscription <em>libre</em>&nbsp;: l'étiquette n'y change rien, LFI peut la réclamer sans qu'on lui oppose l'argument du report. De même, «&nbsp;si LFI y allait seule&nbsp;» et «&nbsp;si l'autre gauche y allait seule&nbsp;» peuvent tous deux atteindre 100 %&nbsp;: dans une gauche divisée, les deux candidatures se qualifieraient.</dd>
       <dt>Sièges tenus par une gauche hors union</dt><dd id="m-hors"></dd>
-      <dt>Ce que le tableau ne dit pas</dt><dd>Il ne connaît ni les accords locaux, ni les candidat·es réel·les, ni les dissidences. Le prix est un coût en sièges espérés pour l'union, pas la valeur politique qu'un parti attache à un siège. Les circonscriptions <em>non mesurées</em> sont celles où la nomenclature de blocs ne couvre pas l'électorat (Corse, Guyane)&nbsp;: aucune probabilité n'y est publiable. Le repère «&nbsp;carte 2024&nbsp;» rejoue les circonscriptions attribuées à LFI en 2024 avec le modèle 2027&nbsp;: il mesure la carte, pas la campagne.</dd>
+      <dt>Ce que le tableau ne dit pas</dt><dd>Il ne connaît ni les accords locaux, ni les candidat·es réel·les, ni les dissidences. Les circonscriptions <em>non mesurées</em> sont celles où la nomenclature de blocs ne couvre pas l'électorat (Corse, Guyane)&nbsp;: aucune probabilité n'y est publiable.</dd>
     </dl>
     <ul class="src">
       <li><a href="data/negotiation.json">Données servies (JSON)</a> — une ligne par circonscription, paramètres et courbe.</li>

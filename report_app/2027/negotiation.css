@@ -128,3 +128,4 @@
 .negotiation .grp[title], .negotiation .pos[title] { cursor: help; }
 .negotiation .charts.one { grid-template-columns: 1fr; }
 @media (min-width: 1280px) { .negotiation .table-scroll { overflow-x: auto; } }
+.negotiation thead th button[title] { cursor: help; }

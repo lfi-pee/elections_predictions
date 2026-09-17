@@ -12,7 +12,7 @@
 
   <p class="eyebrow">Union de la gauche · une candidature par circonscription · vu de LFI</p>
   <h1>Quelles circonscriptions demander pour élire le plus de député·es LFI&nbsp;?</h1>
-  <p class="lede">Une ligne par circonscription, classée par la <b>chance d'élire un·e député·e LFI</b> si LFI porte la candidature unique de la gauche. À côté, deux mesures de force&nbsp;: <b>réelle</b> — sans accord, LFI seule atteindrait-elle le second tour&nbsp;? — et <b>apparente</b> — le vote Mélenchon y dépasse-t-il le national&nbsp;? La <b>posture</b> les croise (survolez-la pour sa définition). À droite, les chiffres à mettre sur la table&nbsp;: résultats passés, une extrapolation simple de 2024, et le score de la gauche selon le modèle. Les bords des en-têtes se tirent pour redimensionner les colonnes.</p>
+  <p class="lede">Une ligne par circonscription, classée par la <b>chance d'élire un·e député·e LFI</b> si LFI porte la candidature unique de la gauche. À côté, deux mesures de force&nbsp;: <b>réelle</b> — sans accord, LFI seule atteindrait-elle le second tour&nbsp;? — et <b>apparente</b> — à la présidentielle 2022, Mélenchon pesait-il plus dans le vote de gauche ici qu'en France entière&nbsp;? La <b>posture</b> les croise (survolez-la pour sa définition). À droite, les chiffres à mettre sur la table&nbsp;: résultats passés, une extrapolation simple de 2024, et le score de la gauche selon le modèle. Les bords des en-têtes se tirent pour redimensionner les colonnes.</p>
 
   <section class="toolbar" aria-label="Filtres">
     <label>Groupe<select id="group"><option value="">Toutes</option><option value="en_jeu" selected>En jeu (à demander)</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="sans_enjeu">Sans enjeu</option><option value="hors_union">Tenues par une gauche hors union</option><option value="non_mesure">Non mesurées</option></select></label>
@@ -33,18 +33,18 @@
           <th colspan="7" scope="colgroup" class="cg-args">Les chiffres à mettre sur la table</th>
         </tr>
         <tr>
-        <th scope="col" data-key="rank"><button data-sort="rank">#</button></th>
-        <th scope="col" data-key="id" class="left"><button data-sort="id">Circonscription</button></th>
-        <th scope="col" data-key="posture" class="left ours"><button data-sort="posture">Posture</button><small>valeur × force (survoler)</small></th>
-        <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi">Chance d'élire un·e député·e LFI</button><small>si LFI porte la candidature de la gauche unie</small></th>
-        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Sans accord, LFI seule au 2<sup>nd</sup> tour</button><small>chance de se qualifier si la gauche se divise</small></th>
-        <th scope="col" data-key="depute" class="left args"><button data-sort="depute">Député·e sortant·e</button></th>
-        <th scope="col" data-key="lab2024" class="left args"><button data-sort="lab2024">2024 : parti NFP</button><small>et sort du siège</small></th>
-        <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G">Gauche 2024</button><small>1<sup>er</sup> tour</small></th>
-        <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI">LFI seule 2017</button><small>sous sa nuance</small></th>
-        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>présidentielle, écart au national</small></th>
-        <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G">Gauche 2027, extrapolation</button><small>2024 + évolution nationale, même écart partout</small></th>
-        <th scope="col" data-key="pred" class="args"><button data-sort="pred">Gauche 2027 (modèle)</button><small>1<sup>er</sup> tour, % exprimés</small></th>
+        <th scope="col" data-key="rank"><button data-sort="rank" title="Rang parmi les circonscriptions en jeu, par chance décroissante d'élire un·e député·e LFI.">#</button></th>
+        <th scope="col" data-key="id" class="left"><button data-sort="id" title="Code et ville principale de la circonscription.">Circonscription</button></th>
+        <th scope="col" data-key="posture" class="left ours"><button data-sort="posture" title="Valeur × force : exiger (en jeu, LFI seule se qualifie), obtenir (en jeu, pas seule), monnaie d'échange (imprenable mais LFI paraît forte), rien à jouer. Survolez chaque pastille pour sa définition.">Posture</button><small>valeur × force (survoler)</small></th>
+        <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi" title="Probabilité que le siège soit gagné si LFI porte la candidature unique de la gauche, en moyenne sur l'incertitude des sondages et l'erreur locale du modèle.">Chance d'élire un·e député·e LFI</button><small>si LFI porte la candidature de la gauche unie</small></th>
+        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi" title="Si la gauche se divise (LFI contre le reste), probabilité que LFI seule atteigne le second tour dans cette circonscription — la force réelle, celle qui rend une revendication incontestable.">Sans accord, LFI seule au 2<sup>nd</sup> tour</button><small>chance de se qualifier si la gauche se divise</small></th>
+        <th scope="col" data-key="depute" class="left args"><button data-sort="depute" title="Titulaire actuel du siège et son groupe à l'Assemblée (open data AN).">Député·e sortant·e</button></th>
+        <th scope="col" data-key="lab2024" class="left args"><button data-sort="lab2024" title="Parti du Nouveau Front populaire qui avait la circonscription en 2024, et si l'union a gagné ou perdu le siège.">2024 : parti NFP</button><small>et sort du siège</small></th>
+        <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G" title="Score de toute la gauche au premier tour des législatives 2024, en % des suffrages exprimés.">Gauche 2024</button><small>1<sup>er</sup> tour</small></th>
+        <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI" title="Score du·de la candidat·e LFI au premier tour des législatives 2017, le dernier scrutin où LFI concourait sous sa propre étiquette.">LFI seule 2017</button><small>sous sa nuance</small></th>
+        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev" title="Au premier tour de la présidentielle 2022, part des voix de gauche allées à Mélenchon dans cette circonscription, moins la même part en France entière. +20 pt : LFI pèse bien plus dans la gauche ici qu'ailleurs — la force apparente, visible par tous.">Part de Mélenchon dans le vote de gauche</button><small>présidentielle 2022 · écart à la France, en points</small></th>
+        <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G" title="Score 2024 de la gauche dans la circonscription, décalé du même nombre de points que l'évolution nationale donnée par les sondages. Une extrapolation si simple qu'elle ne se discute pas.">Gauche 2027, extrapolation</button><small>2024 + évolution nationale, même écart partout</small></th>
+        <th scope="col" data-key="pred" class="args"><button data-sort="pred" title="Score de toute la gauche au premier tour 2027 selon le modèle géographique de la carte.">Gauche 2027 (modèle)</button><small>1<sup>er</sup> tour, % exprimés</small></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>

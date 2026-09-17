@@ -118,6 +118,19 @@ réelles** (réglables au curseur) :
   (116) ; *non mesurée* (6, §3 bis). Pas de groupe « à céder » : l'effet mesuré est un décalage
   modéré et quasi uniforme (prix max ≈ 0,08 siège), aucune circo ne voit l'autre étiquette doubler
   sa chance ; le taux d'échange ordonne ce continuum (taux élevé = à offrir en échange).
+- **Rapport de force (option extérieure)** : pour une grille de parts nationales LFI-dans-la-gauche
+  (25→55 %, sondages ~37 %), le modèle rejoue une gauche DIVISÉE (LFI seule contre le reste, motif
+  local Mélenchon, `split_outcome`) et sert P(LFI seule se qualifie au 2nd tour) et P(autre gauche
+  seule se qualifie). Un camp qui se qualifie seul (≥ 50 %) n'a pas besoin de l'accord dans la circo.
+  Croisé avec la valeur, six **postures** : exiger (6 circos à 35 %), disputer (17), obtenir (146 :
+  l'union crée le siège, l'argument est le prix), difficile (124 : terrain du partenaire), monnaie
+  d'échange (18 : imprenable mais LFI y paraît au moins aussi forte), rien (189). À 37 % de la
+  gauche, LFI est le partenaire junior en options extérieures — c'est le chiffre honnête ; le
+  curseur montre la bascule au-dessus de ~45 %.
+- **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de circos
+  et qu'à nombre donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e ;
+  prix, rapport de force et posture disent comment l'obtenir ou quoi offrir. Aucun score
+  composite : il cacherait le raisonnement.
 - **Combien en demander** : courbe des sièges LFI espérés selon le nombre de circos prises dans
   l'ordre (+ coût cumulé pour l'union). Repère : la carte 2024 (229 circos FI) rejouée avec ce
   modèle donne ~70 sièges LFI espérés ; le même nombre pris dans l'ordre du tableau ~148 — mais
@@ -125,8 +138,9 @@ réelles** (réglables au curseur) :
   que le coût *en sièges pour l'union*, pas le prix politique.
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, prix = p_autre − p_lfi,
   p_lfi ≤ p_autre partout, courbe triée et monotone, la pénalité fait basculer des cas-grille,
-  la page ne fige aucun chiffre) ; `test_negotiation_page_2027.py` (rendu réel, 577 lignes, tri,
-  export CSV, 0 erreur JS).
+  postures reproductibles depuis les probabilités servies, q_lfi croissant avec la part LFI, la
+  page ne fige aucun chiffre) ; `test_negotiation_page_2027.py` (rendu réel, 577 lignes, curseur
+  de part LFI ↔ postures miroir du Python, tri, export CSV, 0 erreur JS).
 
 ## 4. Validation sur 2024
 - **À l'aveugle (chaîne complète)** : 2024 **retiré de l'entraînement**, prévision du 1er tour →

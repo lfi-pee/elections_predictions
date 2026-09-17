@@ -49,8 +49,10 @@ est en mémoire.
 
 `2027/negotiation.html`, accessible depuis la carte 2027 : pour une gauche unie, la chance de
 siège de chaque circonscription **avec une étiquette LFI** et **avec une autre étiquette de
-gauche**, leur différence (le prix pour l'union), un classement, une courbe « combien en
-demander » et l'export CSV. L'effet d'étiquette est mesuré sur le second tour 2024 (parti de
+gauche**, leur différence (le prix pour l'union), le **rapport de force** (qui, seul, se
+qualifierait au 2nd tour, selon la part nationale de LFI réglable), une **posture** par circo
+(exiger / disputer / obtenir / difficile / monnaie d'échange / rien), un classement, une courbe
+« combien en demander » et l'export CSV. L'effet d'étiquette est mesuré sur le second tour 2024 (parti de
 chaque candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;
 les député·es en exercice viennent de l'open data de l'Assemblée (`data/nuance/deputes_2026.csv`).
 
@@ -66,8 +68,11 @@ Méthode détaillée : `2027/METHODOLOGY.md` §3 ter. `rebuild_2027.sh` enchaîn
 ## Comparateur 2027
 
 `2027/comparison.html`, accessible depuis la carte 2027, compare les scores de premier
-tour des trois blocs : modèle de référence, variante de niveau national/abstention,
-législatives 2017/2022/2024, variation uniforme et proportionnelle depuis 2024.
+tour (toute la gauche, LFI seule, autre gauche, centre+droite, extrême droite) : prédiction
+2027 du modèle, variante réglable (niveau de toute la gauche, part de LFI dans la gauche,
+abstention), législatives 2017/2022/2024, et deux extrapolations simples de 2024 (« 2024 +
+évolution nationale », en points ; « 2024 × évolution nationale », en %). Tri par défaut :
+prédiction 2027 décroissante. « LFI seule » n'est séparable qu'en 2017 (nuance FI).
 Les colonnes historiques utilisent les suffrages exprimés au dénominateur et les
 identifiants de circonscription du scrutin (2017/2022) ou le fichier officiel par
 circonscription (2024). Les nuances et attributions sont détaillées dans le JSON.

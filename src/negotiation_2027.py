@@ -45,6 +45,19 @@ Un classement à un seul réglage de curseur ne survivrait pas à une réunion :
 sur ce que les sondages peuvent se tromper. `p_lfi_local` (incertitude locale seule) est fourni
 à côté pour lire ce qu'apporte l'incertitude nationale.
 
+RAPPORT DE FORCE (l'« option extérieure »). Négocier, c'est aussi pouvoir menacer de ne pas
+s'entendre. Pour chaque circo et pour une grille de parts nationales LFI-dans-la-gauche (le
+curseur de la page), on rejoue le modèle en gauche DIVISÉE (LFI seule contre le reste de la
+gauche, motif local de la présidentielle) et on mesure :
+    q_lfi   = P(LFI seule se qualifie au 2nd tour)      q_autre = idem pour l'autre gauche
+    w_lfi   = P(LFI seule emporte le siège)              w_autre = idem
+Là où q_lfi est élevé, la menace d'y aller seule est crédible et la revendication LFI est
+incontestable (« exiger ») ; là où la circo vaut cher mais LFI paraît faible, il faut l'obtenir
+sur l'argument du prix (l'étiquette ne coûte presque rien), pas sur la force locale
+(« obtenir ») ; là où LFI paraît forte mais le siège n'est pas gagnable, la céder ne coûte rien
+et a l'air d'un sacrifice — et la menace d'y aller seule pèse sur le partenaire (« monnaie
+d'échange »). C'est la partie « impression de force et de faiblesse » de la négociation.
+
     python3 -u -m src.negotiation_2027        # → report_app/2027/data/negotiation.json
 """
 
@@ -75,6 +88,9 @@ PRICE_FREE = 0.02      # prix ≤ 2 % d'un siège : « libre »
 P_MIN = 0.05           # ni LFI ni l'autre étiquette n'atteint 5 % : « sans enjeu »
 LFI_GROUP = "LFI-NFP"
 SCENARIO = "union"
+# Grille de parts nationales LFI-dans-la-gauche pour le rapport de force (curseur de la page).
+SHARES = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55]
+LEVERAGE_Q = 0.5   # q_lfi ≥ 0,5 : LFI seule a plus d'une chance sur deux de se qualifier
 
 
 def _load_served() -> tuple[dict, dict]:
@@ -127,6 +143,61 @@ def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bo
     return {k: v / draws for k, v in wins.items()}
 
 
+def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = DRAWS,
+                   seed: int = SEED) -> dict[str, dict[str, np.ndarray]]:
+    """Option extérieure par circo et par part nationale LFI : mêmes tirages national + local
+    que `simulate` (même graine), gauche divisée en deux pôles avec le motif local `rdev`."""
+    from src import radical_spatial
+    scn = _scenario(SCENARIO)
+    m = scn["means"]
+    rng = np.random.default_rng(seed)
+    n = len(arr["id"])
+    hw = summary["circo_halfwidth_90"]
+    sig = {b: hw[b] / Z90 for b in ("G", "CD", "ED")}
+    nat = _draw_national(rng, m, draws)
+    dG, dCD, dED = (np.array(arr[k]) for k in ("dG", "dCD", "dED"))
+    dAU = np.array(arr.get("dAU", [0.0] * n))
+    dAB = np.array(arr["dAB"])
+    rdev = np.array(arr.get("rdev", [0.0] * n))
+    out = {f"{s:.2f}": {k: np.zeros(n) for k in ("q_lfi", "q_other", "w_lfi", "w_other")} for s in shares}
+    for d in range(draws):
+        eG, eCD, eED = (rng.normal(size=n) * sig[b] for b in ("G", "CD", "ED"))
+        g = np.clip(nat[d, 0] + dG + eG, 0, 100)
+        cd = np.clip(nat[d, 1] + dCD + eCD, 0, 100)
+        ed = np.clip(nat[d, 2] + dED + eED, 0, 100)
+        au = np.clip(m.get("AU", 0.0) + dAU, 0, 100)
+        ab = np.clip(m["AB"] + dAB, 0, 100)
+        for s in shares:
+            key = f"{s:.2f}"
+            rad = np.clip(s + radical_spatial.RAD_GAIN * rdev, 0.05, 0.95)
+            o = out[key]
+            for i in range(n):
+                qual, pole = W.split_outcome(g[i], cd[i], ed[i], ab[i], rad[i], au=au[i])
+                o["q_lfi"][i] += qual[0]; o["q_other"][i] += qual[1]
+                if pole == 0: o["w_lfi"][i] += 1
+                elif pole == 1: o["w_other"][i] += 1
+    return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
+
+
+def posture(group: str, q_lfi: float | None, q_other: float | None) -> str | None:
+    """Posture de négociation = valeur de la circo (groupe) × rapport de force (qui, seul, se
+    qualifierait au 2nd tour). Miroir exact de `negPosture` (js/negotiation.js).
+      exiger    : circo précieuse, LFI seule se qualifie, pas l'autre gauche → terrain LFI.
+      disputer  : précieuse, les deux se qualifieraient seuls → cœur de la négociation.
+      obtenir   : précieuse, aucun des deux seul → l'union crée le siège ; argument = le prix.
+      difficile : précieuse, seule l'autre gauche se qualifie → terrain du partenaire, à ne
+                  demander qu'en échange.
+      monnaie   : sans enjeu mais LFI y paraît au moins aussi forte que l'autre gauche → à
+                  céder, ça a l'air d'un sacrifice.
+      rien      : sans enjeu, LFI plus faible."""
+    if group in ("acquis", "non_mesure") or q_lfi is None or q_other is None:
+        return None
+    lfi, oth = q_lfi >= LEVERAGE_Q, q_other >= LEVERAGE_Q
+    if group in ("libre", "a_negocier"):
+        return "exiger" if lfi and not oth else "disputer" if lfi and oth else "difficile" if oth else "obtenir"
+    return "monnaie" if q_lfi >= q_other else "rien"
+
+
 def _group(p_lfi: float, p_other: float, lfi_incumbent: bool) -> str:
     if lfi_incumbent:
         return "acquis"
@@ -144,6 +215,10 @@ def build() -> dict:
     p = simulate(arr, summary, deltas)
     p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
     p_loc = simulate(arr, summary, {"lfi": deltas["lfi"]}, national=False)["lfi"]
+    print(f"  rapport de force : gauche divisée × {len(SHARES)} parts LFI …")
+    split = simulate_split(arr, summary, SHARES)
+    default_share = round(float(next(x for x in scenarios_2027.SCENARIOS if x["key"] == "split2")["radical_share"]), 3)
+    near = f"{min(SHARES, key=lambda x: abs(x - default_share)):.2f}"
 
     deputes = deputes_an.load()
     with REPARTITION.open() as f:
@@ -179,6 +254,8 @@ def build() -> dict:
             "p_lfi_local": round(float(p_loc[i]), 3) if pub else None,
             "p_lfi_ru": round(float(p_ru[i]), 3) if pub else None,
             "group": _group(pl, po, lfi_inc) if pub else "non_mesure",
+            "q_lfi": round(float(split[near]["q_lfi"][i]), 3) if pub else None,
+            "q_other": round(float(split[near]["q_other"][i]), 3) if pub else None,
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
             "pred": {"G": round(g0, 1), "CD": round(cd0, 1), "ED": round(ed0, 1), "AU": round(au0, 1)},
             "depute": {"nom": dep.get("nom", ""), "prenom": dep.get("prenom", ""),
@@ -186,6 +263,11 @@ def build() -> dict:
             "lab2024": lab24.get(cid), "union_won_2024": (win24.get(cid) == "UG") if win24 else None,
         })
 
+    for r in rows:
+        r["posture"] = posture(r["group"], r["q_lfi"], r["q_other"])
+    postures = {k: sum(1 for r in rows if r["posture"] == k)
+                for k in ("exiger", "disputer", "obtenir", "difficile", "monnaie", "rien")}
+    print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).
     neg = [r for r in rows if r["pub"] and r["group"] not in ("acquis", "sans_enjeu")]
     neg.sort(key=lambda r: (-r["p_lfi"], r["price"], r["id"]))
@@ -219,6 +301,12 @@ def build() -> dict:
                    "label_effect_ci95": eff["duels_vs_rn"]["diff_ci95"],
                    "label_effect_n": eff["sample"]["n_duels_vs_rn"], "lfi_group": LFI_GROUP},
         "groups": groups,
+        "postures": postures,
+        # Option extérieure par part nationale LFI (clé = part, tableaux alignés sur `rows`).
+        "split": {"shares": [f"{s:.2f}" for s in SHARES], "default_share": default_share, "near": near,
+                  "leverage_q": LEVERAGE_Q, "publishable": [r["pub"] for r in rows],
+                  "by_share": {k: {kk: [round(float(x), 3) for x in vv] for kk, vv in v.items()}
+                               for k, v in split.items()}},
         "totals": {"acquis_expected": round(base_lfi, 2), "n_acquis": len(acquis),
                    "slate2024_n": n24, "slate2024_expected": round(exp24, 2),
                    "efficient_same_n_expected": round(eff_same_n, 2),

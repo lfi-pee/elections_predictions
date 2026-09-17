@@ -259,3 +259,24 @@ SCORE_LABELS = {
     4: "difficile",
     5: "quasi impossible",
 }
+
+
+def split_outcome(g: float, cd: float, ed: float, ab: float, rad: float, au: float = 0.0,
+                  right_union: bool = False) -> tuple[list[bool], int | None]:
+    """Gauche DIVISÉE en deux pôles (radical/LFI = 0, soc-dém = 1) : quels pôles se qualifient
+    au 2nd tour, et lequel emporte le siège si la gauche le gagne (None sinon). Même règle de
+    qualification et même modèle de 2nd tour que `seat_winner` (config split2). Sert à mesurer
+    l'« option extérieure » de chaque pôle dans une négociation : là où LFI seule se qualifie,
+    sa menace d'y aller seule est crédible."""
+    g, cd, ed, au = _norm4(g, cd, ed, au)
+    thr = 12.5 / max(0.05, 1 - ab / 100.0)
+    left = _left_candidates(g, "split2", rad)
+    if au > 0.0 and au >= max(left + [cd, ed]) - 1e-9:
+        return [False, False], None
+    second = sorted(left + [cd, ed], reverse=True)[1]
+    qual = [p >= second - 1e-9 or p >= thr for p in left]
+    win = seat_winner(g, cd, ed, ab, "split2", rad, right_union, au=au)
+    if win != "G":
+        return qual, None
+    ql = [(p, i) for i, (p, q) in enumerate(zip(left, qual)) if q]
+    return qual, (max(ql)[1] if ql else int(left[1] > left[0]))

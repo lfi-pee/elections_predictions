@@ -97,17 +97,41 @@ def main() -> None:
            for i in range(len(neg) - 1)):
         fails.append("cumuls non monotones")
 
+    # ── Rapport de force : grille de parts LFI, postures reproductibles depuis les q servis ──
+    sp = d["split"]
+    if sp["near"] not in sp["shares"] or sp["near"] not in sp["by_share"]:
+        fails.append("split.near absent de la grille")
+    for k, b in sp["by_share"].items():
+        for kk in ("q_lfi", "q_other", "w_lfi", "w_other"):
+            if len(b[kk]) != 577 or not all(0.0 <= v <= 1.0 for v in b[kk]):
+                fails.append(f"split[{k}].{kk} : longueur ou bornes")
+        # w ≤ q : gagner seul suppose de s'être qualifié seul.
+        if any(w > q + 1e-9 for w, q in zip(b["w_lfi"], b["q_lfi"])):
+            fails.append(f"split[{k}] : w_lfi > q_lfi")
+    near = sp["by_share"][sp["near"]]
+    for i, r in enumerate(rows):
+        if r["pub"] and (r["q_lfi"] != near["q_lfi"][i] or r["q_other"] != near["q_other"][i]):
+            fails.append(f"{r['id']} q servi ≠ grille à near")
+        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["q_other"]):
+            fails.append(f"{r['id']} posture non reproductible")
+    # Plus la part LFI monte, plus LFI seule se qualifie (monotone en moyenne).
+    means = [sum(sp["by_share"][k]["q_lfi"]) for k in sp["shares"]]
+    if any(means[i] > means[i + 1] for i in range(len(means) - 1)):
+        fails.append("q_lfi moyen non croissant avec la part LFI")
+    if sum(d["postures"].values()) != sum(1 for r in rows if r["posture"]):
+        fails.append("comptes de postures incohérents")
+
     # ── La page ne fige aucun chiffre : ses tuiles et sa méthode sont des gabarits remplis en JS ──
     html = HTML.read_text()
-    for anchor in ('id="tiles"', 'id="m-label"', 'id="m-groups"', 'id="m-unc"', 'data/negotiation.json',
-                   'data/label_effect_2024.json'):
+    for anchor in ('id="tiles"', 'id="m-label"', 'id="m-groups"', 'id="m-unc"', 'id="m-posture"', 'id="share"',
+                   'data/negotiation.json', 'data/label_effect_2024.json'):
         if anchor not in html:
             fails.append(f"negotiation.html : {anchor} manquant")
 
     if fails:
         print("ÉCHEC :\n  - " + "\n  - ".join(fails[:30]))
         sys.exit(1)
-    print(f"OK — négociation 2027 : {len(rows)} circos, groupes {d['groups']}, "
+    print(f"OK — négociation 2027 : {len(rows)} circos, groupes {d['groups']}, postures {d['postures']}, "
           f"{flips} cas-grille basculés par l'étiquette, effet mesuré sur {e['sample']['n_duels_vs_rn']} duels.")
 
 

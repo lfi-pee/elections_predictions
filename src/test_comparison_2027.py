@@ -32,7 +32,10 @@ def main():
             page.goto(url)
             page.wait_for_function("document.querySelectorAll('#rows tr').length === 577")
             assert page.locator('th[scope="colgroup"]').all_text_contents() == [
-                "Modèle de référence", "Résultats historiques et modèles alternatifs"]
+                "Prédiction 2027 (modèle)", "Résultats passés et extrapolations simples de 2024"]
+            # Tri par défaut : prédiction 2027 décroissante.
+            assert page.evaluate("COMPARISON.sort === 'reference' && COMPARISON.ascending === false")
+            assert page.evaluate("(() => { const v = comparisonVisibleRows().map(r => r.reference?.G).filter(x => x != null); return v.every((x, i) => !i || x <= v[i-1]); })()")
             assert page.locator('#preset').input_value() == 'turnout2024'
             assert page.evaluate("COMPARISON.variant.AB === APP.data.history.elections.find(e=>e.key==='2024').participation.abstention_pct")
             assert page.evaluate("COMPARISON.rows.some(r=>r.reference && Math.abs(r.reference.G-r.variant.G)>0.1)")
@@ -85,10 +88,22 @@ def main():
             page.locator('#reset-variant').click()
             assert page.locator('#preset').input_value() == 'turnout2024'
             assert page.evaluate('COMPARISON.rows.map(r=>r.variant)') == initial_variant
-            for bloc in ('CD', 'ED', 'G'):
+            for bloc in ('CD', 'ED', 'LFI', 'AG', 'G'):
                 page.locator('#bloc').select_option(bloc)
                 assert page.evaluate('COMPARISON.block') == bloc
                 assert page.locator('#rows tr').count() == 577
+            # LFI seule : 2027 = G × part locale ; 2017 séparable (nuance FI), 2022/2024 non.
+            assert page.evaluate("COMPARISON.rows.every(r => !r.reference || Math.abs(r.reference.LFI + r.reference.AG - r.reference.G) < 1e-9)")
+            assert page.evaluate("COMPARISON.rows.filter(r => r.h2017 && r.h2017.LFI != null).length > 500")
+            assert page.evaluate("COMPARISON.rows.every(r => !r.h2024 || r.h2024.LFI == null)")
+            # Le curseur « part LFI » ne bouge que la variante LFI/AG, pas la gauche entière.
+            g_before = page.evaluate("COMPARISON.rows.map(r => r.variant && r.variant.G)")
+            page.locator('#share').fill('60')
+            assert page.locator('#preset').input_value() == 'custom'
+            assert page.evaluate("COMPARISON.rows.map(r => r.variant && r.variant.G)") == g_before
+            assert page.evaluate("COMPARISON.rows.some(r => r.reference && r.variant.LFI > r.reference.LFI + 1)")
+            page.locator('#reset-variant').click()
+            assert page.evaluate("COMPARISON.share === COMPARISON.refShare")
             page.locator('#filter').fill('01-01')
             assert page.locator('#rows tr').count() == 1
             with page.expect_download() as download:
@@ -100,7 +115,7 @@ def main():
             assert 'AB' in rows[0]['parametres_variante']
             assert rows[0]['prereglage_variante'] == 'Participation 2024'
             assert 'abstention_pct' in rows[0]['sources_et_methodes']
-            assert abs(float(rows[0]['Référence 2027 (% exprimés)']) - page.evaluate('comparisonVisibleRows()[0].reference.G')) < 1e-9
+            assert abs(float(rows[0]['Prédiction 2027 (% exprimés)']) - page.evaluate('comparisonVisibleRows()[0].reference.G')) < 1e-9
             page.locator('#filter').fill('no-such-circo')
             assert page.locator('#rows tr').count() == 0
             page.locator('#filter').fill('')

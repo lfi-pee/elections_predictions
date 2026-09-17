@@ -50,3 +50,12 @@
 .negotiation .tip { position: absolute; pointer-events: none; background: #202731; color: white; font-size: 11.5px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -10px; display: none; }
 .negotiation .methods .src { font-size: 12px; margin: 14px 0 0; padding-left: 18px; line-height: 1.7; }
 @media (max-width: 900px) { .negotiation .slate-ctl, .negotiation .charts { grid-template-columns: 1fr; } }
+
+.negotiation .howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 0 0 8px; }
+.negotiation .howto div { font-size: 12.5px; line-height: 1.55; color: #3a4450; background: white; border: 1px solid #d8dcdd; border-left: 3px solid #a01722; border-radius: 6px; padding: 10px 12px; }
+.negotiation .howto div:nth-child(2) { border-left-color: #1a9850; } .negotiation .howto div:nth-child(3) { border-left-color: #2f6fd0; }
+.negotiation .pos { display: inline-block; font-weight: 600; font-size: 11.5px; padding: 2px 7px; border-radius: 10px; border: 1px solid #cdd2d4; white-space: nowrap; }
+.negotiation .pos-exiger { background: #e8f5ee; border-color: #1a9850; } .negotiation .pos-disputer { background: #fdf1e3; border-color: #b7791f; }
+.negotiation .pos-obtenir { background: #e9f0fb; border-color: #2f6fd0; } .negotiation .pos-difficile { background: #f6e7e9; border-color: #a01722; }
+.negotiation .pos-monnaie { background: #efeff2; border-color: #6a7380; } .negotiation .pos-rien { color: #8a919b; }
+.negotiation .pb.q i b { background: #6a7380; }

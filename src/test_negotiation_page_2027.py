@@ -41,7 +41,19 @@ def main() -> None:
             assert page.locator("#rows tr").count() == n_neg, "vue par défaut = négociables"
             page.select_option("#group", "")
             page.wait_for_function("document.querySelectorAll('#rows tr').length === 577")
-            assert page.locator(".tile").count() == 6
+            assert page.locator(".tile").count() == 7
+            # Rapport de force : la part LFI par défaut est la plus proche des sondages ; changer la
+            # part recalcule les postures (miroir Python) et le tableau.
+            assert page.evaluate("NEG.share === NEG.data.split.near")
+            assert page.evaluate("NEG.rows.every(r => r.posture === (r.pub && r.group !== 'acquis' ? negPosture(r.group, r.q_lfi, r.q_other) : null))")
+            served_postures = {r["id"]: r["posture"] for r in served["rows"]}
+            assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == served_postures
+            page.select_option("#share", served["split"]["shares"][-1])
+            assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > sum(1 for v in served_postures.values() if v == "exiger")
+            page.select_option("#share", served["split"]["near"])
+            page.select_option("#posture", "difficile")
+            assert page.locator("#rows tr").count() == served["postures"]["difficile"]
+            page.select_option("#posture", "")
             assert page.locator("#chart-lfi svg path.line").count() == 1
             assert page.locator("#chart-cost svg path.line").count() == 1
             # Tuiles remplies depuis le JSON (aucun chiffre figé) : le compte des acquis y figure.

@@ -18,6 +18,10 @@ from src import attribution_2027 as attribution
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "report_app/2027/data/comparison_history.json"
 BLOCKS = ("G", "CD", "ED", "AU")
+# Sous-bloc LFI (pôle radical) : nuances propres par scrutin. Séparable seulement quand LFI a
+# présenté ses candidats sous sa propre nuance (2017 : FI) ; sous une nuance d'union (2022 NUP,
+# 2024 UG), le score LFI n'existe pas au 1er tour → absent (la page affiche « — »).
+LFI_NUANCES = {2017: {"FI"}, 2022: set(), 2024: set()}
 
 
 def historical(year: int, sets: dict) -> tuple[dict, dict, dict]:
@@ -46,6 +50,15 @@ def historical(year: int, sets: dict) -> tuple[dict, dict, dict]:
     rows = {cid: {b: round(float(row[b]), 6) for b in BLOCKS}
             for cid, row in shares.iterrows() if expressed[cid] > 0}
     national = {b: float(100 * votes[b].sum() / expressed.sum()) for b in BLOCKS}
+    lfi_n = LFI_NUANCES.get(year, set())
+    if lfi_n:
+        lfi = candidates[candidates.nuance.isin(lfi_n)].groupby("circo").voix.sum()
+        lfi = (lfi.reindex(expressed.index, fill_value=0) / expressed * 100)
+        for cid in rows:
+            rows[cid]["LFI"] = round(float(lfi[cid]), 6)
+            rows[cid]["AG"] = round(rows[cid]["G"] - rows[cid]["LFI"], 6)
+        national["LFI"] = float(100 * candidates[candidates.nuance.isin(lfi_n)].voix.sum() / expressed.sum())
+        national["AG"] = national["G"] - national["LFI"]
     registered, abstentions = int(general.inscrits.sum()), int(general.abstentions.sum())
     assert 0 <= abstentions <= registered and registered > 0
     participation = dict(registered=registered, abstentions=abstentions,
@@ -93,13 +106,14 @@ def build() -> None:
     for election in elections:
         assert set(election["rows"]) <= set(ids), "Unknown constituency identifiers"
         for shares in election["rows"].values():
-            assert all(0 <= v <= 100 for v in shares.values())
+            assert all(-1e-6 <= v <= 100 for v in shares.values())
             # Official 2024 candidate totals differ by 1–2 votes in four constituencies.
             # Preserve the official expressed-vote denominator rather than renormalizing.
-            assert abs(sum(shares.values()) - 100) < 0.01
+            assert abs(sum(shares[b] for b in BLOCKS) - 100) < 0.01
         print(election["label"], len(election["rows"]), "circonscriptions ; abstention", round(election["participation"]["abstention_pct"], 3))
     payload = dict(unit="Pourcentage des suffrages exprimés, tous candidats au dénominateur",
-                   block_nuances={b: sorted(nuances) for b, nuances in sets.items()}, elections=elections)
+                   block_nuances={b: sorted(nuances) for b, nuances in sets.items()},
+                   lfi_nuances={str(y): sorted(n) for y, n in LFI_NUANCES.items()}, elections=elections)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
     print(OUTPUT)
 

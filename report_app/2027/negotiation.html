@@ -12,7 +12,7 @@
 
   <p class="eyebrow">Union de la gauche · une candidature par circonscription · vu de LFI</p>
   <h1>Quelles circonscriptions demander pour élire le plus de député·es LFI&nbsp;?</h1>
-  <p class="lede">Une ligne par circonscription, classée par la <b>chance d'élire un·e député·e LFI</b> si LFI porte la candidature unique de la gauche. À côté, deux mesures de force&nbsp;: <b>réelle</b> — sans accord, LFI seule atteindrait-elle le second tour&nbsp;? — et <b>apparente</b> — à la présidentielle 2022, Mélenchon pesait-il plus dans le vote de gauche ici qu'en France entière&nbsp;? La <b>posture</b> les croise (survolez-la pour sa définition). À droite, les chiffres à mettre sur la table&nbsp;: résultats passés, un calcul simple à partir de 2024, et le score de la gauche selon le modèle de la carte. Les bords des en-têtes se tirent pour redimensionner les colonnes.</p>
+  <p class="lede">Une ligne par circonscription, classée par la <b>chance d'élire un·e député·e LFI</b> si LFI porte la candidature unique de la gauche. À côté, deux mesures de force&nbsp;: <b>réelle</b> — sans accord, LFI seule atteindrait-elle le second tour&nbsp;? — et <b>apparente</b> — à la présidentielle 2022, Mélenchon pesait-il plus dans le vote de gauche ici qu'en France entière&nbsp;? La <b>posture</b> les croise (survolez-la pour sa définition). À droite, les chiffres à mettre sur la table&nbsp;: résultats passés et un calcul simple à partir de 2024. Les bords des en-têtes se tirent pour redimensionner les colonnes.</p>
 
   <section class="toolbar" aria-label="Filtres">
     <label>Groupe<select id="group"><option value="">Toutes</option><option value="en_jeu" selected>En jeu (à demander)</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="sans_enjeu">Sans enjeu</option><option value="hors_union">Tenues par une gauche hors union</option><option value="non_mesure">Non mesurées</option></select></label>
@@ -30,7 +30,7 @@
         <tr class="grp-row">
           <th colspan="2" scope="colgroup" class="cg-id"></th>
           <th colspan="3" scope="colgroup" class="cg-ours">Notre lecture pour négocier</th>
-          <th colspan="7" scope="colgroup" class="cg-args">Les chiffres à mettre sur la table</th>
+          <th colspan="6" scope="colgroup" class="cg-args">Les chiffres à mettre sur la table</th>
         </tr>
         <tr>
         <th scope="col" data-key="rank"><button data-sort="rank" title="Rang parmi les circonscriptions en jeu, par chance décroissante d'élire un·e député·e LFI.">#</button></th>
@@ -44,7 +44,6 @@
         <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI" title="Score du·de la candidat·e LFI au premier tour des législatives 2017, le dernier scrutin où LFI concourait sous sa propre étiquette.">LFI 2017</button><small>législatives, 1<sup>er</sup> tour, sous sa propre étiquette</small></th>
         <th scope="col" data-key="rdev" class="args"><button data-sort="rdev" title="Au premier tour de la présidentielle 2022, part des voix de gauche allées à Mélenchon dans cette circonscription, moins la même part en France entière. +20 pt : Mélenchon pesait bien plus dans la gauche ici qu'ailleurs ; négatif : moins qu'ailleurs. C'est la force apparente, visible par tous.">Poids de Mélenchon dans la gauche</button><small>présidentielle 2022 · écart à la France entière, en points</small></th>
         <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G" title="Score de la gauche au 1er tour 2024 dans cette circonscription, plus (ou moins) les points que la gauche a gagnés (ou perdus) dans les sondages nationaux depuis 2024. Le même décalage est appliqué à toutes les circonscriptions : un calcul si simple qu'il ne se discute pas.">Gauche 2027, calcul simple</button><small>score 2024 + évolution nationale des sondages</small></th>
-        <th scope="col" data-key="pred" class="args"><button data-sort="pred" title="Score de toute la gauche au 1er tour 2027 tel que le prévoit le modèle de la carte 2027, en % des suffrages exprimés. À comparer au calcul simple de la colonne précédente.">Gauche 2027 (modèle)</button><small>1<sup>er</sup> tour · prévision de la carte</small></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -57,7 +56,7 @@
       <dt>Report vers un·e candidat·e LFI, mesuré</dt><dd id="m-label"></dd>
       <dt>Groupes</dt><dd id="m-groups"></dd>
       <dt>Force réelle, force apparente, postures</dt><dd id="m-posture"></dd>
-      <dt>Deux groupes de colonnes</dt><dd>À gauche, <b>notre lecture</b>&nbsp;: ce que le modèle prédit pour une candidature LFI et ce que cela implique — pour décider, en interne, quoi demander et quoi céder. À droite, <b>les chiffres à mettre sur la table</b>&nbsp;: des faits vérifiables (résultats du ministère, répartition NFP 2024, vote Mélenchon), un calcul si simple qu'il ne se discute pas (le résultat 2024 de la circonscription décalé de l'évolution nationale des sondages) et le score de la gauche selon le modèle, pour montrer qu'on arrive au même endroit sans modèle.</dd>
+      <dt>Deux groupes de colonnes</dt><dd>À gauche, <b>notre lecture</b>&nbsp;: ce que le modèle prédit pour une candidature LFI et ce que cela implique — pour décider, en interne, quoi demander et quoi céder. À droite, <b>les chiffres à mettre sur la table</b>&nbsp;: des faits vérifiables (résultats du ministère, répartition NFP 2024, vote Mélenchon) et un calcul si simple qu'il ne se discute pas (le résultat 2024 de la circonscription décalé de l'évolution nationale des sondages). Aucune prévision du modèle n'y figure&nbsp;: rien que l'autre partie puisse contester.</dd>
       <dt>Incertitude</dt><dd id="m-unc"></dd>
       <dt>Sièges tenus par une gauche hors union</dt><dd id="m-hors"></dd>
       <dt>Ce que le tableau ne dit pas</dt><dd>Il ne connaît ni les accords locaux, ni les candidat·es réel·les, ni les dissidences. Les circonscriptions <em>non mesurées</em> sont celles où la nomenclature de blocs ne couvre pas l'électorat (Corse, Guyane)&nbsp;: aucune probabilité n'y est publiable.</dd>

@@ -23,7 +23,7 @@ const POSTURE_TIP = {
 const GROUP_LAB_DEP = { "LFI-NFP": "LFI", SOC: "PS", ECOS: "Écologistes", GDR: "GDR (PCF & outre-mer)",
   EPR: "Ensemble", DEM: "MoDem", HOR: "Horizons", DR: "LR", UDDPLR: "UDR (Ciotti)", RN: "RN",
   LIOT: "LIOT", NI: "Non inscrit" };
-const NUMERIC_DESC = ["p_lfi", "q_lfi", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "rdev", "ext_plus_G", "pred"];
+const NUMERIC_DESC = ["p_lfi", "q_lfi", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "rdev", "ext_plus_G"];
 const $n = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -114,7 +114,7 @@ function negVisible() {
   const rows = NEG.rows.filter((r) => (!g || r.group === g) && (!po || r.posture === po) && (!dep || r.depGroup === dep)
     && (!term || fold(`${r.id} ${r.nm} ${r.dept} ${r.depute} ${r.lab2024 || ""}`).includes(term)));
   const k = NEG.sort, s = NEG.asc ? 1 : -1;
-  const val = (r) => k === "posture" ? POSTURE_ORDER[stateKey(r)] : k === "pred" ? (r.pred ? r.pred.G : null)
+  const val = (r) => k === "posture" ? POSTURE_ORDER[stateKey(r)]
     : k === "lab2024" ? (r.lab2024 || "") : k === "rank" ? (r.rank ?? 1e9) : r[k];
   rows.sort((a, b) => {
     const va = val(a), vb = val(b);
@@ -144,7 +144,6 @@ function negTable() {
     <td class="num args">${r.h2017_LFI == null ? "—" : f1(r.h2017_LFI) + " %"}</td>
     <td class="num args">${!r.rdev ? `<span class="dim" data-tip="Non calculable ici : communes à cheval sur plusieurs circonscriptions (Paris, Marseille, Lyon…) — la part nationale s'applique">—</span>` : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
     <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %"}</td>
-    <td class="num args">${r.pred ? f1(r.pred.G) + " %" : "—"}</td>
   </tr>`).join("");
   document.querySelectorAll("th[data-key]").forEach((th) => {
     const on = th.dataset.key === NEG.sort;

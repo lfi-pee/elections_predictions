@@ -130,8 +130,8 @@ réelles** (réglables au curseur) :
 - **Deux groupes de colonnes, un seul tableau** : à gauche *notre lecture* (posture, p_lfi,
   q_lfi) ; à droite *les chiffres à mettre sur la table* : sortant·e, parti NFP et sort du siège
   2024, gauche 2024, LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
-  évolution nationale » (4 blocs, plancher 0, renormalisation) et le score de la gauche selon le
-  modèle. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
+  évolution nationale » (4 blocs, plancher 0, renormalisation). Aucune sortie du modèle à
+  droite : le score de gauche prévu ne reste que dans le CSV. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
   « sondages exacts » et « droites unies », gauche 2022/2017, extrapolation en %).
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, postures reproductibles
   depuis les valeurs servies, q_lfi croissant avec la part LFI, la courbe ne contient que les

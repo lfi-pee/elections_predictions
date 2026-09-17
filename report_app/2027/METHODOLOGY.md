@@ -92,11 +92,13 @@ réelles** (réglables au curseur) :
 - **La question** : dans une gauche unie (une candidature par circo), quelles circos LFI
   doit-elle demander pour élire le plus de député·es ? Le score de jouabilité (§2) dit où *la
   gauche* peut gagner, sans connaître l'étiquette. Tout est vu de LFI : aucun autre parti n'entre
-  dans un calcul. Deux prédictions du modèle par circo (`negotiation_2027.py`,
+  dans un calcul. Trois prédictions du modèle par circo (`negotiation_2027.py`,
   `data/negotiation.json`), et rien d'autre à gauche du tableau : **p_lfi** = P(siège avec une
   candidature LFI) — la valeur ; **q_lfi** = P(LFI seule se qualifie au 2nd tour si la gauche se
-  divise) — la force réelle. L'**écart Mélenchon** dans la gauche (présidentielle) est servi à
-  DROITE, comme argument visible par tous : il n'entre dans aucune posture.
+  divise) — la force réelle ; **p_left** = P(siège avec la candidature d'union MOYENNE, report
+  moyen 2024, étiquette quelconque) — la valeur du siège pour l'union. La **part de Mélenchon**
+  dans le vote de gauche (présidentielle 2022, part brute, moyenne nationale ~68 %) est servie à
+  DROITE, comme argument visible par tous : elle n'entre dans aucune posture.
 - **Report vers une candidature LFI, MESURÉ** (`label_effect_2024.py`) : le parti de chaque
   candidat·e d'union 2024 est connu par la répartition des circos du NFP (data.gouv, 546 circos :
   FI 229, PS 175, écologistes 92, PCF 50). Dans les **142 duels** union–RN de 2024 (centre-droit
@@ -122,11 +124,11 @@ réelles** (réglables au curseur) :
   reste, motif Mélenchon, `split_outcome`) et sert q_lfi. Postures : *exiger* (en jeu et q_lfi ≥
   50 % : LFI n'a pas besoin de l'accord, la revendication est incontestable), *obtenir* (en jeu,
   pas seule : s'obtient par la négociation, l'argument étant qu'une candidature LFI y gagne),
-  *monnaie d'échange* (sans enjeu pour LFI mais q_lfi ≥ 50 % : LFI ne gagne pas, mais son
-  retrait a un prix), *rien* (sans enjeu et q_lfi < 50 %). Une grille 2×2 sur les deux seules
-  colonnes du modèle : la posture n'utilise JAMAIS un chiffre de la partie droite. À 37 % de la
-  gauche, LFI seule se qualifie rarement — c'est le chiffre honnête : *monnaie d'échange* est vide
-  au niveau des sondages et n'apparaît qu'en montant le curseur (~50 % et plus).
+  *monnaie d'échange* (sans enjeu pour LFI mais p_left ≥ 5 % : LFI ne gagne pas, la gauche unie
+  si — céder s'échange), *rien* (p_left < 5 % : personne à gauche ne gagne). Trois prédictions du
+  modèle, jamais un chiffre de la partie droite ; le survol d'une pastille donne les trois
+  chiffres de la ligne. À 37 % de la gauche, LFI seule se qualifie rarement — c'est le chiffre
+  honnête ; le curseur montre la bascule au-dessus de ~45 %.
 - **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de
   circos et qu'à nombre donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e
   député·e. Aucun score composite : il cacherait le raisonnement.
@@ -134,11 +136,14 @@ réelles** (réglables au curseur) :
   q_lfi) ; à droite *les chiffres à mettre sur la table* : sortant·e, parti NFP et sort du siège
   2024, gauche 2024 **ventilée par nuance** (UG = candidature NFP avec son parti ; DVG/EXG/ECO…
   = gauche hors NFP), LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
-  évolution nationale » (4 blocs, plancher 0, renormalisation) **partagée LFI / reste de la
-  gauche** par la règle de la force réelle : part nationale de LFI dans la gauche (filtre,
-  sondages par défaut ~37 %) + RAD_GAIN × écart Mélenchon 2022, bornée [0,05 ; 0,95]. Les
-  sondages législatifs ne séparent pas PS, Écologistes et PCF (une seule enquête Ifop, juin
-  2025) : ils restent groupés. Aucune sortie du modèle à droite : le score de gauche prévu ne
+  évolution nationale » (4 blocs, plancher 0, renormalisation) **répartie entre LFI, PS,
+  Écologistes et PCF** : LFI par la règle de la force réelle (part nationale de LFI dans la
+  gauche, filtre, sondages par défaut ~37 %, + RAD_GAIN × écart Mélenchon 2022, bornée
+  [0,05 ; 0,95]) ; le reste selon la seule enquête législative qui sépare PS/EELV/PCF (Ifop
+  3-4 juin 2025 : 12/5/3, `data/polls/legislatives/legislatives_2027_partis_gauche.csv`, hors
+  ancre du modèle), chaque part décalée de l'écart local de son·sa candidat·e présidentiel·le 2022
+  (Hidalgo, Jadot, Roussel ; `radical_spatial.left_presidential_shares`), bornée [0,02 ; 0,96],
+  renormalisée. Aucune sortie du modèle à droite : le score de gauche prévu ne
   reste que dans le CSV. Vue par défaut : toutes les circonscriptions (les postures « monnaie »
   et « rien » ne vivent que dans les sans-enjeu). Le partage LFI / reste du calcul simple est un
   chiffre de DROITE (argument), pas une entrée du modèle ni de la posture. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités

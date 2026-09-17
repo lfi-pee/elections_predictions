@@ -170,18 +170,17 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
     return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
 
 
-def posture(group: str, q_lfi: float | None) -> str | None:
-    """Posture = valeur (groupe, depuis p_lfi) × force réelle (q_lfi). Deux quantités du modèle,
-    rien d'autre — jamais un chiffre de la partie droite du tableau. Miroir exact de
-    `negPosture` (js/negotiation.js).
+def posture(group: str, q_lfi: float | None, p_left: float | None) -> str | None:
+    """Posture = trois prédictions du modèle, rien d'autre — jamais un chiffre de la partie droite
+    du tableau. Miroir exact de `negPosture` (js/negotiation.js).
     exiger : en jeu, LFI seule se qualifierait · obtenir : en jeu, pas seule · monnaie : sans
-    enjeu pour LFI, mais LFI seule se qualifierait quand même (son retrait a un prix) · rien :
-    sans enjeu, et LFI seule n'atteindrait pas le 2nd tour."""
-    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None:
+    enjeu pour LFI, mais la gauche unie (candidature d'union moyenne, étiquette quelconque) a une
+    vraie chance de gagner le siège : le céder a une valeur · rien : la gauche ne gagne pas ici."""
+    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or p_left is None:
         return None
     if group == "en_jeu":
         return "exiger" if q_lfi >= LEVERAGE_Q else "obtenir"
-    return "monnaie" if q_lfi >= LEVERAGE_Q else "rien"
+    return "monnaie" if p_left >= P_MIN else "rien"
 
 
 def _group(p_lfi: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
@@ -206,6 +205,26 @@ def _extrapolations(h24: dict | None, nat24: dict, means: dict) -> tuple[float |
     return (round(100 * plus[0] / sp, 1) if sp else None), (round(100 * mult[0] / sm, 1) if sm else None)
 
 
+PARTIES_CSV = Path("data/polls/legislatives/legislatives_2027_partis_gauche.csv")
+
+
+def _party_shares_rest() -> dict:
+    """Part de chaque parti (PS, EELV, PCF) dans le RESTE de la gauche (hors LFI), moyenne simple
+    des enquêtes qui les publient séparément. Sert à partager le « calcul simple » 2027 ; n'entre
+    pas dans l'ancre du modèle."""
+    import csv as _csv
+    lines = [ln for ln in PARTIES_CSV.read_text().splitlines() if ln and not ln.startswith("#")]
+    rows = list(_csv.DictReader(lines))
+    acc = {"PS": [], "EELV": [], "PCF": []}
+    for r in rows:
+        tot = sum(float(r[k]) for k in acc)
+        for k in acc:
+            acc[k].append(float(r[k]) / tot)
+    return {"shares_rest": {k: round(sum(v) / len(v), 3) for k, v in acc.items()}, "n_polls": len(rows),
+            "polls": [f"{r['institut']} {r['periode']}" for r in rows],
+            "levels": {k: [float(r[k]) for r in rows] for k in ("LFI", "PS", "EELV", "PCF")}, "clip": [0.02, 0.96]}
+
+
 def _history() -> dict:
     """Résultats passés par circo (part de la gauche ; LFI seule en 2017) + nationaux 2024."""
     if not HISTORY.exists():
@@ -223,6 +242,10 @@ def build() -> dict:
     print(f"  Monte-Carlo {DRAWS} tirages × 577 circos × {len(deltas)} étiquettes …")
     p = simulate(arr, summary, deltas)
     p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
+    # Chance de la gauche unie avec la candidature d'union MOYENNE (report moyen mesuré en 2024,
+    # décalage 0) : la valeur du siège pour l'union, étiquette quelconque. Sert la posture
+    # « monnaie d'échange » (LFI ne gagne pas, la gauche unie si). Mêmes tirages.
+    p_left = simulate(arr, summary, {"union": 0.0})["union"]
     p_loc = simulate(arr, summary, {"lfi": deltas["lfi"]}, national=False)["lfi"]
     default_share = round(float(next(x for x in scenarios_2027.SCENARIOS if x["key"] == "split2")["radical_share"]), 3)
     # La part sondages elle-même est dans la grille (et sert de réglage par défaut) : la force
@@ -232,6 +255,9 @@ def build() -> dict:
     print(f"  rapport de force : gauche divisée × {len(shares)} parts LFI …")
     split = simulate_split(arr, summary, shares)
 
+    pres_src, pres, pres_nat = radical_spatial.left_presidential_shares()
+    parties = _party_shares_rest()
+    print(f"  présidentielle {pres_src} : Mélenchon dans la gauche {pres_nat['LFI']:.3f} ; reste PS/EELV/PCF {({k: round(v, 3) for k, v in pres_nat.items() if k != 'LFI'})} ; sondages reste {parties['shares_rest']}")
     deputes = deputes_an.load()
     with REPARTITION.open() as f:
         lab24 = {r["circo"]: r["parti"] for r in csv.DictReader(f)}
@@ -281,6 +307,12 @@ def build() -> dict:
             "group": _group(pl, lfi_inc, outside) if pub else "non_mesure",
             "q_lfi": round(float(split[near]["q_lfi"][i]), 3) if pub else None,
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
+            # Présidentielle : part BRUTE de Mélenchon dans le vote de gauche (colonne de droite,
+            # la moyenne nationale est servie à part) ; écart local de chaque parti du reste.
+            "mel": round(pres[cid]["LFI"], 3) if cid in pres else None,
+            "pres_rest": ({pt: round(pres[cid][pt] - pres_nat[pt], 3) for pt in ("PS", "EELV", "PCF") if pt in pres[cid]}
+                          if cid in pres else None),
+            "p_left": round(float(p_left[i]), 3) if pub else None,
             "pred": {"G": round(g0, 1), "CD": round(cd0, 1), "ED": round(ed0, 1), "AU": round(au0, 1)},
             "depute": {"nom": dep.get("nom", ""), "prenom": dep.get("prenom", ""),
                        "groupe": dep.get("groupe", ""), "bloc": dep.get("bloc", "")},
@@ -288,7 +320,7 @@ def build() -> dict:
         })
 
     for r in rows:
-        r["posture"] = posture(r["group"], r["q_lfi"])
+        r["posture"] = posture(r["group"], r["q_lfi"], r["p_left"])
     postures = {k: sum(1 for r in rows if r["posture"] == k) for k in ("exiger", "obtenir", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).
@@ -331,6 +363,9 @@ def build() -> dict:
                    # ventiler le « calcul simple » 2027 entre LFI et le reste de la gauche.
                    "rad_gain": radical_spatial.RAD_GAIN, "rad_clip": list(RAD_CLIP)},
         "groups": groups,
+        "presidential": {"source": pres_src, "national": {k: round(v, 4) for k, v in pres_nat.items()},
+                         "note": "Part de Mélenchon dans le vote de gauche ; PS/EELV/PCF = part de chaque candidat·e dans le vote des trois. Communes à cheval sur plusieurs circos exclues (« — »)."},
+        "parties_2027": parties,
         "postures": postures,
         # Option extérieure par part nationale LFI (clé = part, tableaux alignés sur `rows`).
         "split": {"shares": [f"{s:.2f}" for s in shares], "default_share": default_share, "near": near,

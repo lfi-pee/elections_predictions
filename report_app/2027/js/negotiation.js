@@ -22,8 +22,10 @@ const POSTURE_ORDER = { exiger: 0, obtenir: 1, monnaie: 2, rien: 3, acquis: 4, h
 const POSTURE_TIP = {
   get exiger() { return `Calcul : chance d'élire un·e député·e LFI ≥ ${pctInt(P().p_min)} ET, sans accord, chance que LFI seule atteigne le 2nd tour ≥ ${pctInt(SP().leverage_q)}. Sens : la revendication est incontestable, la menace d'y aller seule crédible.`; },
   get obtenir() { return `Calcul : chance d'élire un·e député·e LFI ≥ ${pctInt(P().p_min)} ET chance que LFI seule atteigne le 2nd tour < ${pctInt(SP().leverage_q)}. Sens : la circonscription vaut cher mais s'obtient par la négociation (l'argument : une candidature LFI y gagne le siège).`; },
-  get monnaie() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que LFI seule atteigne le 2nd tour ≥ ${pctInt(SP().leverage_q)}. Sens : LFI ne gagne pas le siège, mais y pèse assez pour atteindre seule le 2nd tour : son retrait a un prix, la circonscription se cède contre autre chose.`; },
-  get rien() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que LFI seule atteigne le 2nd tour < ${pctInt(SP().leverage_q)}. Sens : ni siège à gagner ni présence à monnayer, rien à jouer.`; } };
+  get monnaie() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que la gauche unie gagne le siège avec une candidature d'union moyenne (étiquette quelconque) ≥ ${pctInt(P().p_min)}. Sens : LFI ne gagne pas ici, mais le siège a de la valeur pour l'union : le céder s'échange contre autre chose.`; },
+  get rien() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que la gauche unie gagne le siège < ${pctInt(P().p_min)}. Sens : personne à gauche ne gagne ici, rien à jouer.`; } };
+// Infobulle d'une pastille : la règle, puis les chiffres de la ligne qui la déclenchent.
+const postureTipRow = (r) => `${POSTURE_TIP[r.posture]} Ici : chance d'élire LFI ${pct(r.p_lfi)} · LFI seule au 2nd tour ${pct(r.q_lfi)} · gauche unie ${pct(r.p_left)}.`;
 const GROUP_LAB_DEP = { "LFI-NFP": "LFI", SOC: "PS", ECOS: "Écologistes", GDR: "GDR (PCF & outre-mer)",
   EPR: "Ensemble", DEM: "MoDem", HOR: "Horizons", DR: "LR", UDDPLR: "UDR (Ciotti)", RN: "RN",
   LIOT: "LIOT", NI: "Non inscrit" };
@@ -34,9 +36,21 @@ const NFP_PARTY = { FI: "LFI", PS: "PS", PE: "Écologistes", PCF: "PCF" };
 // règle que la force réelle. Sert à partager le « calcul simple » 2027.
 const radLocal = (r) => { const p = P(); const g = p.rad_gain ?? 1, c = p.rad_clip || [0.05, 0.95]; return Math.min(c[1], Math.max(c[0], +NEG.share + g * (r.rdev || 0))); };
 const lfi27 = (r) => r.ext_plus_G == null ? null : Math.round(r.ext_plus_G * radLocal(r) * 10) / 10;
+// Reste de la gauche partagé PS / Écologistes / PCF : part nationale (sondages qui les séparent)
+// + écart local du·de la candidat·e présidentiel·le de chaque parti, bornée, renormalisée.
+const REST = ["PS", "EELV", "PCF"], REST_LAB = { PS: "PS", EELV: "Écolo.", PCF: "PCF" };
+const split27 = (r) => {
+  if (r.ext_plus_G == null) return null;
+  const pa = NEG.data.parties_2027, c = pa.clip, l = lfi27(r), rest = Math.max(0, r.ext_plus_G - l);
+  const sh = REST.map((p) => Math.min(c[1], Math.max(c[0], pa.shares_rest[p] + ((r.pres_rest || {})[p] || 0))));
+  const s = sh.reduce((a, b) => a + b, 0);
+  const out = { LFI: l };
+  REST.forEach((p, i) => { out[p] = Math.round(rest * sh[i] / s * 10) / 10; });
+  return out;
+};
 const parts24 = (r) => r.h2024_parts ? Object.entries(r.h2024_parts).sort((a, b) => b[1] - a[1]).map(([nu, v]) =>
   `${nu === "UG" ? "NFP" + (r.lab2024 ? "-" + esc(NFP_PARTY[r.lab2024] || r.lab2024) : "") : esc(NUANCE_LAB[nu] || nu)} ${f1(v)}`).join(" · ") : "";
-const NUMERIC_DESC = ["p_lfi", "q_lfi", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "rdev", "ext_plus_G"];
+const NUMERIC_DESC = ["p_lfi", "q_lfi", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "mel", "p_left", "ext_plus_G"];
 const $n = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -71,6 +85,7 @@ async function negLoad() {
   }));
   $n("export").disabled = false;
   $n("export").addEventListener("click", negExport);
+  const mn = $n("mel-nat"); if (mn) mn.textContent = Math.round(NEG.data.presidential.national.LFI * 100) + " %";
   negResizers();
   negTooltips();
   negMethods(); negTable();
@@ -97,19 +112,19 @@ function negTooltips() {
 }
 
 // Posture = valeur (groupe) × force. Miroir de negotiation_2027.posture (Python) — même règle.
-// Posture : deux quantités du modèle (groupe ← chance d'élire ; force réelle), jamais un chiffre
+// Posture : trois prédictions du modèle (chance d'élire → groupe ; force réelle ; chance de la
+// gauche unie, candidature d'union moyenne), jamais un chiffre
 // de la partie droite du tableau. Miroir exact de `posture` (src/negotiation_2027.py).
-function negPosture(group, qL) {
-  if (group === "acquis" || group === "hors_union" || group === "non_mesure" || qL == null) return null;
-  const q = NEG.data.split.leverage_q;
-  if (group === "en_jeu") return qL >= q ? "exiger" : "obtenir";
-  return qL >= q ? "monnaie" : "rien";
+function negPosture(group, qL, pLeft) {
+  if (group === "acquis" || group === "hors_union" || group === "non_mesure" || qL == null || pLeft == null) return null;
+  if (group === "en_jeu") return qL >= NEG.data.split.leverage_q ? "exiger" : "obtenir";
+  return pLeft >= NEG.data.params.p_min ? "monnaie" : "rien";
 }
 
 // Applique la part LFI choisie : recopie q_lfi de la grille et recalcule la posture.
 function negApplyShare() {
   const b = NEG.data.split.by_share[NEG.share];
-  NEG.rows.forEach((r, i) => { r.q_lfi = r.pub ? b.q_lfi[i] : null; r.posture = negPosture(r.group, r.q_lfi); });
+  NEG.rows.forEach((r, i) => { r.q_lfi = r.pub ? b.q_lfi[i] : null; r.posture = negPosture(r.group, r.q_lfi, r.p_left); });
 }
 
 function negMethods() {
@@ -117,11 +132,11 @@ function negMethods() {
   $n("m-label").innerHTML = `Le parti de chaque candidat·e d'union 2024 est connu par la répartition des circonscriptions du Nouveau Front populaire. Dans les <b>${d.params.label_effect_n} duels</b> candidat·e d'union contre RN de 2024 (centre-droit éliminé), un·e candidat·e LFI a récupéré <b>${Math.round(k.fi * 100)} %</b> des voix libérées au 1<sup>er</sup> tour, contre ${Math.round(k.union * 100)} % pour le·la candidat·e moyen·ne de l'union (${d.params.label_effect_n_fi} duels LFI ; écart ${f2(le.cd2l_delta_lfi)}, intervalle bootstrap à 95 % de ${f2(ci[0])} à ${f2(ci[1])} ; présent dans les trois terciles de force de la gauche, donc pas compensé dans les bastions ; ${f1(le.margin_effect_lfi_pts_inscrits)} point d'inscrits sur la marge de 2<sup>nd</sup> tour à marge de 1<sup>er</sup> tour égale). C'est ce taux de report propre à LFI que le modèle de sièges applique pour calculer la chance d'une candidature LFI. Un taux de report, pas un taux de victoire : le fait que LFI ait reçu des circonscriptions plus dures en 2024 ne le biaise pas.`;
   $n("m-groups").innerHTML = `<b>Acquis</b> : député·e sortant·e du groupe LFI (${d.groups.acquis}). <b>En jeu</b> : une candidature LFI a au moins ${Math.round(d.params.p_min * 100)} % de chance de gagner le siège (${d.groups.en_jeu}) — le classement (#) ne porte que sur elles, par chance décroissante. <b>Sans enjeu</b> : moins de ${Math.round(d.params.p_min * 100)} % (${d.groups.sans_enjeu}). <b>Gauche hors union</b> : siège tenu par un·e élu·e de gauche hors de l'union (${d.groups.hors_union || 0}, voir ci-dessous). <b>Non mesurée</b> : hors nomenclature de blocs (${d.groups.non_mesure}).`;
   const sp = d.split;
-  $n("m-posture").innerHTML = `<b>Force réelle</b> : pour chaque circonscription, le modèle rejoue une gauche <b>divisée</b> (LFI seule contre le reste de la gauche, part nationale de LFI réglable de ${Math.round(+sp.shares[0] * 100)} à ${Math.round(+sp.shares[sp.shares.length - 1] * 100)} %, sondages : ${Math.round(sp.default_share * 100)} %, motif local du vote Mélenchon à la dernière présidentielle) et mesure la probabilité que LFI seule se qualifie au 2<sup>nd</sup> tour. À ${Math.round(sp.leverage_q * 100)} % ou plus, LFI n'a pas besoin de l'accord dans cette circonscription : sa revendication est incontestable, sa menace d'y aller seule crédible. <b>Postures</b>, calculées depuis les deux seules colonnes du modèle (chance d'élire, chance seule au 2<sup>nd</sup> tour) et jamais depuis les chiffres de droite : <b>exiger</b> = chance d'élire ≥ ${Math.round(d.params.p_min * 100)} % et chance seule ≥ ${Math.round(sp.leverage_q * 100)} % ; <b>obtenir</b> = chance d'élire ≥ ${Math.round(d.params.p_min * 100)} % et chance seule < ${Math.round(sp.leverage_q * 100)} % ; <b>monnaie d'échange</b> = chance d'élire < ${Math.round(d.params.p_min * 100)} % et chance seule ≥ ${Math.round(sp.leverage_q * 100)} % (LFI ne gagne pas mais son retrait a un prix) ; <b>rien à jouer</b> = chance d'élire < ${Math.round(d.params.p_min * 100)} % et chance seule < ${Math.round(sp.leverage_q * 100)} %. Au niveau national des sondages, LFI seule n'atteint le 2<sup>nd</sup> tour dans presque aucune circonscription sans enjeu : « monnaie d'échange » n'apparaît qu'en montant le curseur de part LFI. Le <b>poids de Mélenchon</b> (colonne de droite) est un argument visible par tous, pas une entrée de la posture.`;
+  $n("m-posture").innerHTML = `<b>Force réelle</b> : pour chaque circonscription, le modèle rejoue une gauche <b>divisée</b> (LFI seule contre le reste de la gauche, part nationale de LFI réglable de ${Math.round(+sp.shares[0] * 100)} à ${Math.round(+sp.shares[sp.shares.length - 1] * 100)} %, sondages : ${Math.round(sp.default_share * 100)} %, motif local du vote Mélenchon à la dernière présidentielle) et mesure la probabilité que LFI seule se qualifie au 2<sup>nd</sup> tour. À ${Math.round(sp.leverage_q * 100)} % ou plus, LFI n'a pas besoin de l'accord dans cette circonscription : sa revendication est incontestable, sa menace d'y aller seule crédible. <b>Valeur du siège pour l'union</b> : la chance que la gauche unie le gagne avec une candidature d'union moyenne (report moyen mesuré en 2024, étiquette quelconque). <b>Postures</b>, calculées depuis ces trois prédictions du modèle et jamais depuis les chiffres de droite : <b>exiger</b> = chance d'élire LFI ≥ ${Math.round(d.params.p_min * 100)} % et chance seule ≥ ${Math.round(sp.leverage_q * 100)} % ; <b>obtenir</b> = chance d'élire LFI ≥ ${Math.round(d.params.p_min * 100)} % et chance seule < ${Math.round(sp.leverage_q * 100)} % ; <b>monnaie d'échange</b> = chance d'élire LFI < ${Math.round(d.params.p_min * 100)} % et chance de la gauche unie ≥ ${Math.round(d.params.p_min * 100)} % (LFI ne gagne pas, l'union si : céder s'échange) ; <b>rien à jouer</b> = chance d'élire LFI < ${Math.round(d.params.p_min * 100)} % et chance de la gauche unie < ${Math.round(d.params.p_min * 100)} %. Le survol d'une pastille donne les trois chiffres de la ligne.`;
   const hors = NEG.rows.filter((r) => r.group === "hors_union");
   $n("m-hors").innerHTML = `${hors.length} circonscription${hors.length > 1 ? "s" : ""} — ${hors.map((r) => `${esc(r.id)} ${esc(r.nm)} (${esc(r.depute)}, ${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})`).join(" ; ")} — ont été gagnées en 2024 par une candidature codée à gauche mais hors de l'union, dont le ou la titulaire ne siège pas dans un groupe de gauche. Le bloc de gauche prédit y inclut ses voix, qui ne se reporteraient pas sur une candidature d'union : la chance affichée surestime ce qu'obtiendrait LFI. Ces sièges sont sortis du classement et signalés.`;
   const hs = d.history || {};
-  $n("src-history").innerHTML = "Résultats passés : " + Object.values(hs).map((e) => `<b>${esc(e.label)}</b> (gauche nationale ${f1(e.national_G)} %${e.national_LFI != null ? `, LFI ${f1(e.national_LFI)} %` : ""}) — ${e.source.startsWith("https://") ? `<a href="${esc(e.source)}" target="_blank" rel="noopener">fichier officiel</a>` : esc(e.source)}`).join(" ; ") + ". Les scores sont en % des suffrages exprimés, tous candidats au dénominateur ; « LFI seule » n'est séparable qu'en 2017 (nuance FI), la gauche étant unie au 1<sup>er</sup> tour en 2022 et 2024. Sous « Gauche 2024 », la ventilation distingue la candidature NFP (nuance UG, avec le parti qui la portait) des candidatures de gauche hors NFP (nuances DVG, EXG, ECO…). Sous « Gauche 2027, calcul simple », le total est partagé entre LFI et le reste de la gauche par la règle : part nationale de LFI dans la gauche (filtre, sondages par défaut) + écart local du vote Mélenchon 2022, bornée entre ${Math.round(d.params.rad_clip[0] * 100)} et ${Math.round(d.params.rad_clip[1] * 100)} %. Les sondages législatifs ne séparent pas PS, Écologistes et PCF (une seule enquête Ifop de juin 2025 le fait) : ils restent groupés.";
+  $n("src-history").innerHTML = "Résultats passés : " + Object.values(hs).map((e) => `<b>${esc(e.label)}</b> (gauche nationale ${f1(e.national_G)} %${e.national_LFI != null ? `, LFI ${f1(e.national_LFI)} %` : ""}) — ${e.source.startsWith("https://") ? `<a href="${esc(e.source)}" target="_blank" rel="noopener">fichier officiel</a>` : esc(e.source)}`).join(" ; ") + ". Les scores sont en % des suffrages exprimés, tous candidats au dénominateur ; « LFI seule » n'est séparable qu'en 2017 (nuance FI), la gauche étant unie au 1<sup>er</sup> tour en 2022 et 2024. Sous « Gauche 2024 », la ventilation distingue la candidature NFP (nuance UG, avec le parti qui la portait) des candidatures de gauche hors NFP (nuances DVG, EXG, ECO…). Sous « Gauche 2027, calcul simple », le total est partagé entre les partis : LFI = part nationale de LFI dans la gauche (filtre, sondages par défaut) + écart local du vote Mélenchon 2022, bornée entre ${Math.round(d.params.rad_clip[0] * 100)} et ${Math.round(d.params.rad_clip[1] * 100)} % ; le reste va à PS, Écologistes et PCF selon la seule enquête qui les sépare (${esc(d.parties_2027.polls.join(", "))} : PS ${Math.round(d.parties_2027.shares_rest.PS * 100)} %, Écologistes ${Math.round(d.parties_2027.shares_rest.EELV * 100)} %, PCF ${Math.round(d.parties_2027.shares_rest.PCF * 100)} % du reste), chaque part décalée de l'écart local de son·sa candidat·e à la présidentielle 2022 (Hidalgo, Jadot, Roussel ; France entière : ${Math.round(d.presidential.national.PS * 100)} / ${Math.round(d.presidential.national.EELV * 100)} / ${Math.round(d.presidential.national.PCF * 100)} % du vote des trois), bornée, renormalisée. « Mélenchon dans le vote de gauche » : part brute de Mélenchon parmi les candidat·es de gauche au 1<sup>er</sup> tour de la présidentielle 2022 ; France entière ${Math.round(d.presidential.national.LFI * 100)} %";
   const ns = d.params.nat_sigma, ls = d.params.local_sigma, m = d.scenario.means;
   $n("m-unc").innerHTML = `Scénario « ${esc(d.scenario.label)} », ancre sondages G ${f1(m.G)} · C+D ${f1(m.CD)} · ED ${f1(m.ED)} %, abstention ${f1(m.AB)} %. <b>${d.params.draws} tirages</b> Monte-Carlo : le niveau national de chaque bloc est tiré autour de l'ancre avec l'erreur historique des sondages législatifs (écart-type G ${f1(ns.G)}, C+D ${f1(ns.CD)}, ED ${f1(ns.ED)} points — validation croisée 2002→2022), puis chaque circonscription reçoit son erreur locale (G ${f1(ls.G)}, C+D ${f1(ls.CD)}, ED ${f1(ls.ED)} points, la même que la fourchette de la carte). Un classement fait à un seul réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne sur ce que les sondages peuvent se tromper. Le CSV donne aussi la chance avec l'erreur locale seule et sous « droites unies » (LR refuse le front républicain).`;
 }
@@ -146,7 +161,7 @@ function negVisible() {
 function negTable() {
   const rows = negVisible();
   const pb = (p, cls) => p == null ? "—" : `<span class="pb ${cls}"><span>${pct(p)}</span><i><b style="width:${Math.round(p * 100)}%"></b></i></span>`;
-  const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" tabindex="0" data-tip="${esc(POSTURE_TIP[r.posture])}">${POSTURE_LAB[r.posture]}</span>`
+  const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" tabindex="0" data-tip="${esc(postureTipRow(r))}">${POSTURE_LAB[r.posture]}</span>`
     : `<span class="grp g-${r.group}" tabindex="0" data-tip="${esc(GROUP_TIP[r.group])}"><i></i>${GROUP_LAB[r.group]}</span>`;
   const dep = (r) => r.depute ? `<span class="trunc" data-tip="${esc(r.depute)} (${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})">${esc(r.depute)}</span> <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span>` : "—";
   $n("rows").innerHTML = rows.map((r) => `<tr>
@@ -159,8 +174,8 @@ function negTable() {
     <td class="left args">${r.lab2024 ? esc(r.lab2024) : "—"} <span class="dim">${r.union_won_2024 == null ? "" : r.union_won_2024 ? "· gagné" : "· perdu"}</span></td>
     <td class="num args">${r.h2024_G == null ? "—" : f1(r.h2024_G) + " %"}${r.h2024_parts ? `<small class="parts">${parts24(r)}</small>` : ""}</td>
     <td class="num args">${r.h2017_LFI == null ? "—" : f1(r.h2017_LFI) + " %"}</td>
-    <td class="num args">${!r.rdev ? `<span class="dim" data-tip="Non calculable ici : communes à cheval sur plusieurs circonscriptions (Paris, Marseille, Lyon…) — la part nationale s'applique">—</span>` : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
-    <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %" + `<small class="parts">LFI ${f1(lfi27(r))} · PS-Écolos-PCF ${f1(Math.round((r.ext_plus_G - lfi27(r)) * 10) / 10)}</small>`}</td>
+    <td class="num args">${r.mel == null ? `<span class="dim" data-tip="Non calculable ici : communes à cheval sur plusieurs circonscriptions (Paris, Marseille, Lyon…)">—</span>` : Math.round(r.mel * 100) + " %"}</td>
+    <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %" + `<small class="parts">${(() => { const o = split27(r); return ["LFI", ...REST].map((p) => `${p === "LFI" ? "LFI" : REST_LAB[p]} ${f1(o[p])}`).join(" · "); })()}</small>`}</td>
   </tr>`).join("");
   document.querySelectorAll("th[data-key]").forEach((th) => {
     const on = th.dataset.key === NEG.sort;
@@ -205,14 +220,14 @@ function negExport() {
   const rows = negVisible(), d = NEG.data;
   const head = ["rang", "circo", "nom", "dept", "groupe", "posture", "chance_depute_lfi", "part_lfi_force_reelle", "lfi_seule_qualifiee_2nd_tour",
     "chance_lfi_incertitude_locale_seule", "chance_lfi_droites_unies", "pred_G", "pred_CD", "pred_ED", "depute", "groupe_depute", "parti_nfp_2024",
-    "siege_union_2024", "gauche_2024", "gauche_2022", "lfi_seule_2017", "gauche_2017", "melenchon_dans_la_gauche_ecart_pts",
-    "gauche_2024_plus_evolution_nationale", "lfi_2027_calcul_simple", "reste_gauche_2027_calcul_simple", "nfp_2024", "gauche_hors_nfp_2024", "gauche_2024_fois_evolution_nationale", "inscrits"];
+    "siege_union_2024", "gauche_2024", "gauche_2022", "lfi_seule_2017", "gauche_2017", "melenchon_part_du_vote_de_gauche_2022", "chance_gauche_unie_candidature_moyenne",
+    "gauche_2024_plus_evolution_nationale", "lfi_2027_calcul_simple", "ps_2027_calcul_simple", "eelv_2027_calcul_simple", "pcf_2027_calcul_simple", "nfp_2024", "gauche_hors_nfp_2024", "gauche_2024_fois_evolution_nationale", "inscrits"];
   const q = (v) => v == null ? "" : /[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const lines = [`# negotiation 2027 (LFI) — scenario ${d.scenario.key} ; tirages ${d.params.draws} ; part LFI ${NEG.share} ; tri ${NEG.sort} ${NEG.asc ? "asc" : "desc"} ; filtre groupe "${$n("group").value}" posture "${$n("posture").value}" texte "${$n("filter").value}"`,
     head.join(";")].concat(rows.map((r) => [r.rank, r.id, r.nm, r.dept, GROUP_LAB[r.group], r.posture ? POSTURE_LAB[r.posture] : "", r.p_lfi, NEG.share, r.q_lfi,
       r.p_lfi_local, r.p_lfi_ru, r.pred && r.pred.G, r.pred && r.pred.CD, r.pred && r.pred.ED, r.depute, r.depGroup, r.lab2024,
       r.union_won_2024 == null ? "" : (r.union_won_2024 ? 1 : 0), r.h2024_G, r.h2022_G, r.h2017_LFI, r.h2017_G,
-      r.rdev == null ? "" : Math.round(r.rdev * 1000) / 10, r.ext_plus_G, lfi27(r), r.ext_plus_G == null ? "" : Math.round((r.ext_plus_G - lfi27(r)) * 10) / 10,
+      r.mel, r.p_left, r.ext_plus_G, ...(split27(r) ? ["LFI", "PS", "EELV", "PCF"].map((p) => split27(r)[p]) : ["", "", "", ""]),
       r.h2024_parts ? (r.h2024_parts.UG ?? 0) : "", r.h2024_parts ? Math.round(Object.entries(r.h2024_parts).filter(([k]) => k !== "UG").reduce((a, [, v]) => a + v, 0) * 100) / 100 : "",
       r.ext_mult_G, r.ins].map(q).join(";")));
   const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });

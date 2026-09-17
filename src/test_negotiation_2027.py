@@ -71,7 +71,7 @@ def main() -> None:
             fails.append(f"{r['id']} sans enjeu mais chance ≥ P_MIN")
         if r["group"] == "en_jeu" and r["p_lfi"] < N.P_MIN:
             fails.append(f"{r['id']} en jeu mais chance < P_MIN")
-        if r["posture"] != N.posture(r["group"], r["q_lfi"]):
+        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["p_left"]):
             fails.append(f"{r['id']} posture non reproductible")
     if groups != d["groups"]:
         fails.append(f"comptes de groupes incohérents {groups} ≠ {d['groups']}")
@@ -103,6 +103,20 @@ def main() -> None:
         if r.get("h2024_parts"):
             if abs(sum(r["h2024_parts"].values()) - r["h2024_G"]) > 0.11:
                 fails.append(f"{r['id']} ventilation 2024 ≠ total gauche")
+    # ── Présidentielle : part brute de Mélenchon = moyenne nationale + écart servi ; parts du reste ──
+    nat = d["presidential"]["national"]
+    for r in rows:
+        if r["mel"] is not None and abs(r["mel"] - (nat["LFI"] + r["rdev"])) > 0.002:
+            fails.append(f"{r['id']} part Mélenchon ≠ nationale + écart")
+        if (r["mel"] is None) != (r["rdev"] == 0):
+            fails.append(f"{r['id']} disponibilité Mélenchon incohérente")
+    if abs(sum(d["parties_2027"]["shares_rest"].values()) - 1) > 0.002:
+        fails.append("parts PS/EELV/PCF du reste ≠ 1")
+    # ── Postures : monnaie ⇔ sans enjeu & gauche unie ≥ p_min ; p_left ≥ p_lfi presque partout ──
+    if not any(r["posture"] == "monnaie" for r in rows):
+        fails.append("aucune circo « monnaie d'échange »")
+    if sum(1 for r in rows if r["pub"] and r["p_left"] + 0.02 < r["p_lfi"]) > 5:
+        fails.append("p_left < p_lfi trop souvent (le report LFI est mesuré sous la moyenne)")
     if abs(float(d["split"]["near"]) - d["split"]["default_share"]) > 0.005:
         fails.append("la part sondages n'est pas le réglage par défaut")
     if "rad_gain" not in d["params"] or len(d["params"]["rad_clip"]) != 2:

@@ -96,6 +96,40 @@ def radical_deviation(target_date: float = TARGET_DATE) -> dict[str, float]:
     return {ci: float(rs - mean) for ci, rs in tab.rs.items()}
 
 
+# Lignée par parti, pour ventiler le RESTE de la gauche (hors pôle radical) : le·la candidat·e
+# présidentiel·le de chaque parti, à n'importe quelle présidentielle.
+PARTY_NAME = {"PS": {"HIDALGO", "HAMON", "HOLLANDE"}, "EELV": {"JADOT", "JOLY"}, "PCF": {"ROUSSEL", "BUFFET"}}
+
+
+def left_presidential_shares(target_date: float = TARGET_DATE) -> tuple[str, dict[str, dict[str, float]], dict[str, float]]:
+    """Par circo, à la présidentielle sélectionnée par la règle LOO : part de Mélenchon dans le
+    vote de gauche (« LFI », identique à `radical_deviation` + moyenne) et part de chaque parti
+    (PS, EELV, PCF) dans le vote des trois. Retourne (scrutin, {circo: {parti: part}},
+    {parti: part nationale pondérée})."""
+    c2c = _commune2circo(drop_split=True)
+    cand = pd.read_parquet(CAND, columns=["id_election", "code_commune", "nuance", "nom", "voix"])
+    src = select_source(target_date, cand)
+    d = cand[cand.id_election == src].copy()
+    d["circo"] = d.code_commune.astype(str).map(c2c)
+    d = d.dropna(subset=["circo"])
+    d = d[d.nuance.isin(LEFT_NUANCE) | d.nom.isin(LEFT_NAME)]
+    is_rad = d.nuance.isin(RAD_NUANCE) | d.nom.isin(RAD_NAME)
+    left = d.groupby("circo").voix.sum()
+    rad = d[is_rad].groupby("circo").voix.sum().reindex(left.index, fill_value=0)
+    out = {ci: {"LFI": float(rad[ci] / left[ci])} for ci in left.index if left[ci] > 0}
+    nat = {"LFI": float(rad.sum() / left.sum())}
+    three = {pt: d[d.nom.isin(names)].groupby("circo").voix.sum().reindex(left.index, fill_value=0) for pt, names in PARTY_NAME.items()}
+    tot3 = sum(three.values())
+    for pt, v in three.items():
+        if v.sum() == 0:
+            continue
+        nat[pt] = float(v.sum() / tot3.sum())
+        for ci in out:
+            if tot3[ci] > 0:
+                out[ci][pt] = float(v[ci] / tot3[ci])
+    return src, out, nat
+
+
 if __name__ == "__main__":
     src = select_source()
     d = radical_deviation()

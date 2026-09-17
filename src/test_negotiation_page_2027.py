@@ -55,7 +55,14 @@ def main() -> None:
             row = page.locator("#rows tr", has_text="93-01").first
             assert "NFP-" in row.locator("td").nth(6).inner_text()
             t27 = row.locator("td").nth(9).inner_text()
-            assert "LFI" in t27 and "PS-Écolos-PCF" in t27, t27
+            assert all(k in t27 for k in ("LFI", "PS", "Écolo.", "PCF")), t27
+            # Mélenchon : part brute, moyenne nationale affichée sous le titre.
+            mel_txt = row.locator("td").nth(8).inner_text()
+            assert mel_txt.strip() == f"{round(served_row_mel := next(r for r in served['rows'] if r['id'] == '93-01')['mel'] * 100)} %", mel_txt
+            assert page.locator("#mel-nat").inner_text().strip() == f"{round(served['presidential']['national']['LFI'] * 100)} %"
+            # Pastille : la règle puis les chiffres de la ligne.
+            tipm = page.locator("#rows .pos[data-tip]", has_text="Monnaie").first.get_attribute("data-tip")
+            assert "gauche unie" in tipm and "Ici :" in tipm, tipm
             # Le partage 2027 suit le filtre de part LFI et respecte la règle servie.
             served_row = next(r for r in served["rows"] if r["id"] == "93-01")
             def lfi27(share):
@@ -79,7 +86,7 @@ def main() -> None:
             # L'infobulle apparaît immédiatement au survol d'une pastille et d'un en-tête, puis disparaît.
             page.locator("#rows .pos[data-tip]").first.hover()
             assert page.locator(".tt").is_visible() and len(page.locator(".tt").text_content()) > 20
-            page.locator('th[data-key="rdev"] button').hover()
+            page.locator('th[data-key="mel"] button').hover()
             assert "Mélenchon" in page.locator(".tt").text_content()
             page.locator("h1").hover()
             assert not page.locator(".tt").is_visible()

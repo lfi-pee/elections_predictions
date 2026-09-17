@@ -58,7 +58,28 @@ async function negLoad() {
   $n("export").disabled = false;
   $n("export").addEventListener("click", negExport);
   negResizers();
+  negTooltips();
   negMethods(); negTable();
+}
+
+// Infobulle immédiate (le « title » natif du navigateur tarde une seconde et ne s'affiche pas
+// partout) : un seul élément flottant, alimenté par data-tip. Les title des en-têtes sont
+// convertis au chargement ; les pastilles du tableau sont rendues avec data-tip directement.
+function negTooltips() {
+  const tt = document.createElement("div"); tt.className = "tt"; tt.setAttribute("role", "tooltip"); document.body.appendChild(tt);
+  document.querySelectorAll("#neg-table thead button[title]").forEach((el) => { el.dataset.tip = el.getAttribute("title"); el.removeAttribute("title"); });
+  const show = (el) => {
+    tt.textContent = el.dataset.tip; tt.style.display = "block";
+    const r = el.getBoundingClientRect(), w = tt.offsetWidth;
+    let x = r.left + r.width / 2 - w / 2; x = Math.max(8, Math.min(window.innerWidth - w - 8, x));
+    const below = r.bottom + 8, above = r.top - tt.offsetHeight - 8;
+    tt.style.left = x + "px"; tt.style.top = (above > 8 ? above : below) + "px";
+  };
+  const hide = () => { tt.style.display = "none"; };
+  document.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-tip]"); if (el) show(el); else hide(); });
+  document.addEventListener("focusin", (e) => { const el = e.target.closest("[data-tip]"); if (el) show(el); });
+  document.addEventListener("focusout", hide);
+  document.addEventListener("scroll", hide, true);
 }
 
 // Posture = valeur (groupe) × force. Miroir de negotiation_2027.posture (Python) — même règle.
@@ -108,12 +129,12 @@ function negVisible() {
 function negTable() {
   const rows = negVisible();
   const pb = (p, cls) => p == null ? "—" : `<span class="pb ${cls}"><span>${pct(p)}</span><i><b style="width:${Math.round(p * 100)}%"></b></i></span>`;
-  const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" title="${esc(POSTURE_TIP[r.posture])}">${POSTURE_LAB[r.posture]}</span>`
-    : `<span class="grp g-${r.group}" title="${esc(GROUP_TIP[r.group])}"><i></i>${GROUP_LAB[r.group]}</span>`;
-  const dep = (r) => r.depute ? `<span class="trunc" title="${esc(r.depute)} (${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})">${esc(r.depute)}</span> <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span>` : "—";
+  const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" tabindex="0" data-tip="${esc(POSTURE_TIP[r.posture])}">${POSTURE_LAB[r.posture]}</span>`
+    : `<span class="grp g-${r.group}" tabindex="0" data-tip="${esc(GROUP_TIP[r.group])}"><i></i>${GROUP_LAB[r.group]}</span>`;
+  const dep = (r) => r.depute ? `<span class="trunc" data-tip="${esc(r.depute)} (${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})">${esc(r.depute)}</span> <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span>` : "—";
   $n("rows").innerHTML = rows.map((r) => `<tr>
     <td class="num dim">${r.rank ?? ""}</td>
-    <th scope="row" class="left"><span class="trunc" title="${esc(r.id)} ${esc(r.nm)}">${esc(r.id)} <span class="dim">${esc(r.nm)}</span></span></th>
+    <th scope="row" class="left"><span class="trunc" data-tip="${esc(r.id)} ${esc(r.nm)}">${esc(r.id)} <span class="dim">${esc(r.nm)}</span></span></th>
     <td class="left">${state(r)}</td>
     <td class="num">${pb(r.p_lfi, "")}</td>
     <td class="num">${pb(r.q_lfi, "q")}</td>
@@ -121,7 +142,7 @@ function negTable() {
     <td class="left args">${r.lab2024 ? esc(r.lab2024) : "—"} <span class="dim">${r.union_won_2024 == null ? "" : r.union_won_2024 ? "· gagné" : "· perdu"}</span></td>
     <td class="num args">${r.h2024_G == null ? "—" : f1(r.h2024_G) + " %"}</td>
     <td class="num args">${r.h2017_LFI == null ? "—" : f1(r.h2017_LFI) + " %"}</td>
-    <td class="num args">${!r.rdev ? `<span class="dim" title="Motif présidentiel indisponible : communes à cheval sur plusieurs circonscriptions (Paris, Marseille, Lyon…) — part nationale appliquée">—</span>` : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
+    <td class="num args">${!r.rdev ? `<span class="dim" data-tip="Non calculable ici : communes à cheval sur plusieurs circonscriptions (Paris, Marseille, Lyon…) — la part nationale s'applique">—</span>` : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
     <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %"}</td>
     <td class="num args">${r.pred ? f1(r.pred.G) + " %" : "—"}</td>
   </tr>`).join("");

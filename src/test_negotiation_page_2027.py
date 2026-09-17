@@ -47,8 +47,15 @@ def main() -> None:
             assert page.evaluate("NEG.share === NEG.data.split.near")
             served_postures = {r["id"]: r["posture"] for r in served["rows"]}
             assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == served_postures
-            assert page.locator("#rows .pos[title]").count() == sum(1 for v in served_postures.values() if v)
-            assert page.locator("#rows .grp[title]").count() == 577 - sum(1 for v in served_postures.values() if v)
+            assert page.locator("#rows .pos[data-tip]").count() == sum(1 for v in served_postures.values() if v)
+            assert page.locator("#rows .grp[data-tip]").count() == 577 - sum(1 for v in served_postures.values() if v)
+            # L'infobulle apparaît immédiatement au survol d'une pastille et d'un en-tête, puis disparaît.
+            page.locator("#rows .pos[data-tip]").first.hover()
+            assert page.locator(".tt").is_visible() and len(page.locator(".tt").text_content()) > 20
+            page.locator('th[data-key="rdev"] button').hover()
+            assert "Mélenchon" in page.locator(".tt").text_content()
+            page.locator("h1").hover()
+            assert not page.locator(".tt").is_visible()
             page.select_option("#share", served["split"]["shares"][-1])
             assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > served["postures"]["exiger"]
             page.select_option("#share", served["split"]["near"])

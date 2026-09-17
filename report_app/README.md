@@ -52,8 +52,9 @@ circonscription, la **chance d'élire un·e député·e LFI** si LFI porte la ca
 gauche, la **force réelle** (sans accord, LFI seule atteindrait-elle le 2nd tour ? selon la part
 nationale de LFI, réglable), la **force apparente** (écart du vote Mélenchon dans la gauche), une
 **posture** (exiger / obtenir / monnaie d'échange / rien), et à droite les chiffres à mettre sur
-la table (sortant·e, parti NFP et sort du siège 2024, gauche 2024, LFI seule 2017, extrapolation
-simple de 2024 ; aucune sortie du modèle). Colonnes redimensionnables, export CSV.
+la table (sortant·e, parti NFP et sort du siège 2024, gauche 2024 ventilée par nuance, LFI seule
+2017, extrapolation simple de 2024 partagée LFI / PS-Écologistes-PCF ; aucune sortie du modèle).
+Colonnes redimensionnables, export CSV.
 Le report vers une candidature LFI est mesuré sur le second tour 2024 (parti de chaque
 candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;
 les député·es en exercice viennent de l'open data de l'Assemblée (`data/nuance/deputes_2026.csv`).

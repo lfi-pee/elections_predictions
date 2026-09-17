@@ -49,6 +49,11 @@ def historical(year: int, sets: dict) -> tuple[dict, dict, dict]:
     shares = votes.div(expressed, axis=0) * 100
     rows = {cid: {b: round(float(row[b]), 6) for b in BLOCKS}
             for cid, row in shares.iterrows() if expressed[cid] > 0}
+    # Ventilation de la gauche par nuance (candidatures d'union et de gauche hors union), en %.
+    left = candidates[candidates.block == "G"].groupby(["circo", "nuance"]).voix.sum()
+    for (cid, nuance), v in left.items():
+        if cid in rows and v > 0:
+            rows[cid].setdefault("parts", {})[nuance] = round(float(100 * v / expressed[cid]), 2)
     national = {b: float(100 * votes[b].sum() / expressed.sum()) for b in BLOCKS}
     lfi_n = LFI_NUANCES.get(year, set())
     if lfi_n:
@@ -81,13 +86,17 @@ def build() -> None:
     table = attribution.table_by_key()
     for cid, candidates in attribution.load_results().items():
         attribution.classify(candidates, sets, table, cid)
-        shares, votes = dict.fromkeys(BLOCKS, 0.0), dict.fromkeys(BLOCKS, 0.0)
+        shares, votes, parts = dict.fromkeys(BLOCKS, 0.0), dict.fromkeys(BLOCKS, 0.0), {}
         for candidate in candidates:
             b = candidate["apres"] or "AU"
             shares[b] += candidate["pct"]
             votes[b] += candidate["voix"]
+            if b == "G" and candidate["voix"] > 0:
+                parts[candidate["nuance"]] = parts.get(candidate["nuance"], 0.0) + candidate["pct"]
         if sum(votes.values()) > 0:
             rows[cid] = {b: round(shares[b], 6) for b in BLOCKS}
+            if parts:
+                rows[cid]["parts"] = {k: round(v, 2) for k, v in parts.items()}
         for b in BLOCKS:
             national_votes[b] += votes[b]
     with attribution.RESULTS.open(encoding="utf-8") as f:
@@ -106,7 +115,9 @@ def build() -> None:
     for election in elections:
         assert set(election["rows"]) <= set(ids), "Unknown constituency identifiers"
         for shares in election["rows"].values():
-            assert all(-1e-6 <= v <= 100 for v in shares.values())
+            assert all(-1e-6 <= v <= 100 for k, v in shares.items() if k != "parts")
+            if "parts" in shares:  # la ventilation par nuance somme au bloc gauche
+                assert abs(sum(shares["parts"].values()) - shares["G"]) < 0.05, shares
             # Official 2024 candidate totals differ by 1–2 votes in four constituencies.
             # Preserve the official expressed-vote denominator rather than renormalizing.
             assert abs(sum(shares[b] for b in BLOCKS) - 100) < 0.01

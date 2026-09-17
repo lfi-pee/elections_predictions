@@ -38,11 +38,38 @@ def main() -> None:
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(url)
             page.wait_for_function("document.querySelectorAll('#rows tr').length > 0")
-            assert page.locator("#rows tr").count() == served["groups"]["en_jeu"], "vue par défaut = en jeu"
+            # Vue par défaut : toutes les circonscriptions (les postures « monnaie » et « rien »
+            # ne vivent que dans les sans-enjeu, elles doivent être visibles d'emblée).
+            assert page.locator("#rows tr").count() == 577, "vue par défaut = toutes"
+            assert page.locator("#rows .pos[data-tip]", has_text="Monnaie").count() == served["postures"]["monnaie"]
             # Rien au-dessus du tableau hormis l'explication et les filtres.
             assert page.locator(".tile, .chart, #n").count() == 0
+            page.select_option("#group", "en_jeu")
+            page.wait_for_function(f"document.querySelectorAll('#rows tr').length === {served['groups']['en_jeu']}")
             page.select_option("#group", "")
             page.wait_for_function("document.querySelectorAll('#rows tr').length === 577")
+            # Infobulles des postures : la règle de calcul (seuils) y figure.
+            tip = page.locator("#rows .pos[data-tip]", has_text="Exiger").first.get_attribute("data-tip")
+            assert "≥ 5 %" in tip and "≥ 50 %" in tip, tip
+            # Ventilations : gauche 2024 par nuance (NFP + hors NFP) ; 2027 partagé LFI / reste.
+            row = page.locator("#rows tr", has_text="93-01").first
+            assert "NFP-" in row.locator("td").nth(6).inner_text()
+            t27 = row.locator("td").nth(9).inner_text()
+            assert "LFI" in t27 and "PS-Écolos-PCF" in t27, t27
+            # Le partage 2027 suit le filtre de part LFI et respecte la règle servie.
+            served_row = next(r for r in served["rows"] if r["id"] == "93-01")
+            def lfi27(share):
+                lo, hi = served["params"]["rad_clip"]
+                rad = min(hi, max(lo, share + served["params"]["rad_gain"] * (served_row["rdev"] or 0)))
+                return round(served_row["ext_plus_G"] * rad, 1)
+            def shown_lfi():
+                import re as _re
+                m = _re.search(r"LFI\s+([\d,]+)", row.locator("td").nth(9).inner_text())
+                return float(m.group(1).replace(",", "."))
+            assert abs(shown_lfi() - lfi27(float(served["split"]["near"]))) < 0.11
+            page.select_option("#share", served["split"]["shares"][-1])
+            assert abs(shown_lfi() - lfi27(float(served["split"]["shares"][-1]))) < 0.11
+            page.select_option("#share", served["split"]["near"])
             # Postures : miroir Python, survolables (title), et le curseur de part LFI les recalcule.
             assert page.evaluate("NEG.share === NEG.data.split.near")
             served_postures = {r["id"]: r["posture"] for r in served["rows"]}

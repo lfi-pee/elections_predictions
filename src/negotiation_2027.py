@@ -54,6 +54,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src import radical_spatial
 from src import coverage_2027, deputes_an, label_effect_2024, scenarios_2027, winnability_2027 as W
 
 SERVED = Path("report_app/2027/data")
@@ -78,7 +79,9 @@ LEFT_NON_UNION_NUANCES = {"DVG", "SOC", "ECO", "RDG", "REG", "DIV", "DSV", "COM"
 SCENARIO = "union"
 # Grille de parts nationales LFI-dans-la-gauche pour le rapport de force (curseur de la page).
 SHARES = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55]
-LEVERAGE_Q = 0.5   # q_lfi ≥ 0,5 : LFI seule a plus d'une chance sur deux de se qualifier
+LEVERAGE_Q = 0.5
+# Bornes de la part locale de LFI dans la gauche (part nationale + écart Mélenchon).
+RAD_CLIP = (0.05, 0.95)   # q_lfi ≥ 0,5 : LFI seule a plus d'une chance sur deux de se qualifier
 
 
 def _load_served() -> tuple[dict, dict]:
@@ -157,7 +160,7 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
         ab = np.clip(m["AB"] + dAB, 0, 100)
         for s in shares:
             key = f"{s:.2f}"
-            rad = np.clip(s + radical_spatial.RAD_GAIN * rdev, 0.05, 0.95)
+            rad = np.clip(s + radical_spatial.RAD_GAIN * rdev, *RAD_CLIP)
             o = out[key]
             for i in range(n):
                 qual, pole = W.split_outcome(g[i], cd[i], ed[i], ab[i], rad[i], au=au[i])
@@ -217,10 +220,13 @@ def build() -> dict:
     p = simulate(arr, summary, deltas)
     p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
     p_loc = simulate(arr, summary, {"lfi": deltas["lfi"]}, national=False)["lfi"]
-    print(f"  rapport de force : gauche divisée × {len(SHARES)} parts LFI …")
-    split = simulate_split(arr, summary, SHARES)
     default_share = round(float(next(x for x in scenarios_2027.SCENARIOS if x["key"] == "split2")["radical_share"]), 3)
-    near = f"{min(SHARES, key=lambda x: abs(x - default_share)):.2f}"
+    # La part sondages elle-même est dans la grille (et sert de réglage par défaut) : la force
+    # réelle affichée par défaut est calculée à la part mesurée, pas au cran de grille voisin.
+    shares = sorted({f"{s:.2f}": s for s in list(SHARES) + [default_share]}.values())
+    near = f"{default_share:.2f}"
+    print(f"  rapport de force : gauche divisée × {len(shares)} parts LFI …")
+    split = simulate_split(arr, summary, shares)
 
     deputes = deputes_an.load()
     with REPARTITION.open() as f:
@@ -261,6 +267,8 @@ def build() -> dict:
             # scrutin où LFI concourait sous sa nuance) et extrapolations simples de 2024.
             "h2017_G": round(h17["G"], 1) if h17 else None, "h2017_LFI": round(h17["LFI"], 1) if h17 and "LFI" in h17 else None,
             "h2022_G": round(h22["G"], 1) if h22 else None, "h2024_G": round(h24["G"], 1) if h24 else None,
+            # Ventilation 2024 par nuance (UG = candidature NFP ; DVG/EXG/ECO… = gauche hors NFP).
+            "h2024_parts": h24.get("parts") if h24 else None,
             "ext_plus_G": ext_plus if pub else None, "ext_mult_G": ext_mult if pub else None,
             "pub": pub,
             "p_lfi": pl if pub else None,
@@ -313,11 +321,15 @@ def build() -> dict:
                    "label_effect_k": {"fi": eff["duels_vs_rn"]["k_fi"], "union": eff["duels_vs_rn"]["k_union"]},
                    "label_effect_n_fi": eff["sample"]["n_duels_fi"],
                    "label_effect_ci95": eff["duels_vs_rn"]["diff_ci95"],
-                   "label_effect_n": eff["sample"]["n_duels_vs_rn"], "lfi_group": LFI_GROUP},
+                   "label_effect_n": eff["sample"]["n_duels_vs_rn"], "lfi_group": LFI_GROUP,
+                   # Part locale de LFI dans la gauche = part nationale + RAD_GAIN × écart Mélenchon,
+                   # bornée : la même règle que la force réelle, réutilisée par la page pour
+                   # ventiler le « calcul simple » 2027 entre LFI et le reste de la gauche.
+                   "rad_gain": radical_spatial.RAD_GAIN, "rad_clip": list(RAD_CLIP)},
         "groups": groups,
         "postures": postures,
         # Option extérieure par part nationale LFI (clé = part, tableaux alignés sur `rows`).
-        "split": {"shares": [f"{s:.2f}" for s in SHARES], "default_share": default_share, "near": near,
+        "split": {"shares": [f"{s:.2f}" for s in shares], "default_share": default_share, "near": near,
                   "leverage_q": LEVERAGE_Q, "publishable": [r["pub"] for r in rows],
                   "by_share": {k: {kk: [round(float(x), 3) for x in vv] for kk, vv in v.items()}
                                for k, v in split.items()}},

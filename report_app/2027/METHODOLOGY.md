@@ -129,9 +129,15 @@ réelles** (réglables au curseur) :
   député·e. Aucun score composite : il cacherait le raisonnement.
 - **Deux groupes de colonnes, un seul tableau** : à gauche *notre lecture* (posture, p_lfi,
   q_lfi) ; à droite *les chiffres à mettre sur la table* : sortant·e, parti NFP et sort du siège
-  2024, gauche 2024, LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
-  évolution nationale » (4 blocs, plancher 0, renormalisation). Aucune sortie du modèle à
-  droite : le score de gauche prévu ne reste que dans le CSV. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
+  2024, gauche 2024 **ventilée par nuance** (UG = candidature NFP avec son parti ; DVG/EXG/ECO…
+  = gauche hors NFP), LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
+  évolution nationale » (4 blocs, plancher 0, renormalisation) **partagée LFI / reste de la
+  gauche** par la règle de la force réelle : part nationale de LFI dans la gauche (filtre,
+  sondages par défaut ~37 %) + RAD_GAIN × écart Mélenchon 2022, bornée [0,05 ; 0,95]. Les
+  sondages législatifs ne séparent pas PS, Écologistes et PCF (une seule enquête Ifop, juin
+  2025) : ils restent groupés. Aucune sortie du modèle à droite : le score de gauche prévu ne
+  reste que dans le CSV. Vue par défaut : toutes les circonscriptions (les postures « monnaie »
+  et « rien » ne vivent que dans les sans-enjeu). Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
   « sondages exacts » et « droites unies », gauche 2022/2017, extrapolation en %).
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, postures reproductibles
   depuis les valeurs servies, q_lfi croissant avec la part LFI, la courbe ne contient que les

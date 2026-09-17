@@ -131,3 +131,6 @@
 /* Infobulle immédiate */
 .negotiation .tt { position: fixed; z-index: 50; display: none; max-width: 360px; background: #202731; color: #fff; font-size: 12px; line-height: 1.45; padding: 8px 10px; border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.25); pointer-events: none; white-space: normal; }
 .negotiation .pos[data-tip], .negotiation .grp[data-tip], .negotiation thead button[data-tip] { cursor: help; }
+
+/* Ventilation sous un total (gauche 2024 par nuance ; 2027 LFI / reste). */
+#neg-table td small.parts{display:block;font-size:.72rem;line-height:1.15;opacity:.78;white-space:normal;text-align:right;font-variant-numeric:tabular-nums}

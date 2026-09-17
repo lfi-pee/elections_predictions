@@ -98,6 +98,15 @@ def main() -> None:
     if abs(c["cum_lfi"][-1] - sum(r["p_lfi"] for r in neg)) > 0.05:
         fails.append("cum_lfi final ≠ somme des p_lfi en jeu")
 
+    # ── Ventilation 2024 : les nuances de gauche somment au total ; UG = candidature NFP ──
+    for r in rows:
+        if r.get("h2024_parts"):
+            if abs(sum(r["h2024_parts"].values()) - r["h2024_G"]) > 0.11:
+                fails.append(f"{r['id']} ventilation 2024 ≠ total gauche")
+    if abs(float(d["split"]["near"]) - d["split"]["default_share"]) > 0.005:
+        fails.append("la part sondages n'est pas le réglage par défaut")
+    if "rad_gain" not in d["params"] or len(d["params"]["rad_clip"]) != 2:
+        fails.append("règle de part locale LFI (rad_gain, rad_clip) absente des paramètres")
     # ── Force réelle : grille de parts LFI, q servi = grille à near, monotone en moyenne ──
     sp = d["split"]
     if sp["near"] not in sp["shares"] or sp["near"] not in sp["by_share"]:

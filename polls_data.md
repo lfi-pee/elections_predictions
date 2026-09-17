@@ -194,6 +194,12 @@ Voting intention polls (sondages d'intentions de vote) for French presidential e
 - **Used by**: `scenarios_2027.anchor_from_polls` (national anchor of the 2027 site: bloc
   levels + LFI share of the left, discounted by `data/polls/lfi_pres_discount.json` from
   `src/lfi_pres_discount.py`). Skipped by the generic wiki-table parser in `load_polls`.
+- **Historical companions** (same schema, `src/scrape_pres_history.py`, git-tracked):
+  `presidentielle/2012/presidentielle_2012_t1_tidy.csv` (2007-11 → 2012-04, 124 polls) and
+  `presidentielle/2017/presidentielle_2017_t1_tidy.csv` (2012-10 → 2017-03, 84 polls). They
+  exist because the legacy 2012/2017 files only start in January of the election year; the
+  horizon-matched discount k(h) needs Mélenchon's share of the left 7–12 months out. Month and
+  year come from section headings (2012) or table captions (2017).
 - **Legacy files** `presidentielle_2027_sondages_0..13.csv` (scrape 2026-03-27, raw wiki tables,
   second-round matchups from `_5`): kept for reference, not used.
 - **Coverage**: 2023 → ongoing (refresh: `python3 -u -m src.scrape_pres_2027`).

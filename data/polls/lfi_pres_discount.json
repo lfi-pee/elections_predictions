@@ -1,48 +1,240 @@
 {
- "k_poll": 0.6306,
+ "k_poll": 0.9057,
  "k_poll_range": [
-  0.5309,
-  0.7824
+  0.7578,
+  1.0165
  ],
- "k_result": 0.5084,
+ "horizon_months": 7.0,
+ "latest_poll_2027": "2026-09-10",
+ "pres_t1_2027_assumed": "2027-04-11",
+ "x_2027": 0.4458,
  "loo_rmse": {
   "null": 0.1523,
-  "raw_poll_ratio": 0.1537,
-  "k_x_poll": 0.0729,
-  "k_x_result": 0.0615
+  "raw_ratio": 0.0545,
+  "k_x_ratio": 0.0519,
+  "errors_k": [
+   -0.0232,
+   -0.023,
+   0.0837
+  ]
  },
+ "k_result": 0.5084,
  "folds": [
   {
    "pres": "2012_pres_t1",
    "next": "2012_legi_t1",
-   "n_polls": 96,
-   "x_poll": 0.2671,
-   "x_result": 0.2538,
+   "h": 7.0,
+   "x": 0.1395,
+   "n_hyp": 63,
    "y": 0.1418,
-   "k_poll": 0.5309,
-   "k_result": 0.5587
+   "x_result": 0.2538,
+   "k": 1.0165
   },
   {
    "pres": "2017_pres_t1",
    "next": "2017_legi_t1",
-   "n_polls": 88,
-   "x_poll": 0.4976,
-   "x_result": 0.7075,
+   "h": 7.0,
+   "x": 0.4129,
+   "n_hyp": 91,
    "y": 0.3893,
-   "k_poll": 0.7824,
-   "k_result": 0.5502
+   "x_result": 0.7075,
+   "k": 0.9428
   },
   {
    "pres": "2022_pres_t1",
    "next": "2024_euro_t1",
-   "n_polls": 200,
-   "x_poll": 0.4945,
-   "x_result": 0.6871,
+   "h": 7.0,
+   "x": 0.3774,
+   "n_hyp": 108,
    "y": 0.286,
-   "k_poll": 0.5784,
-   "k_result": 0.4162
+   "x_result": 0.6871,
+   "k": 0.7578
   }
  ],
- "window_years": 0.25,
- "note": "k = moyenne des y/x_poll sur 3 plis (présidentielle → scrutin divisé suivant) ; LOO : chaque pli prédit avec le k des deux autres."
+ "curve": [
+  {
+   "h": 0,
+   "k": 0.7419,
+   "k_range": [
+    0.6747,
+    0.8569
+   ],
+   "loo_rmse": 0.0522,
+   "n_hyp": [
+    123,
+    199,
+    514
+   ]
+  },
+  {
+   "h": 1,
+   "k": 0.8031,
+   "k_range": [
+    0.7252,
+    0.855
+   ],
+   "loo_rmse": 0.0338,
+   "n_hyp": [
+    111,
+    203,
+    412
+   ]
+  },
+  {
+   "h": 2,
+   "k": 0.8454,
+   "k_range": [
+    0.7546,
+    0.9341
+   ],
+   "loo_rmse": 0.032,
+   "n_hyp": [
+    98,
+    183,
+    337
+   ]
+  },
+  {
+   "h": 3,
+   "k": 0.8805,
+   "k_range": [
+    0.7898,
+    0.984
+   ],
+   "loo_rmse": 0.0316,
+   "n_hyp": [
+    84,
+    162,
+    274
+   ]
+  },
+  {
+   "h": 4,
+   "k": 0.8984,
+   "k_range": [
+    0.8018,
+    1.0071
+   ],
+   "loo_rmse": 0.033,
+   "n_hyp": [
+    77,
+    137,
+    252
+   ]
+  },
+  {
+   "h": 5,
+   "k": 0.9167,
+   "k_range": [
+    0.802,
+    1.0335
+   ],
+   "loo_rmse": 0.0381,
+   "n_hyp": [
+    65,
+    131,
+    202
+   ]
+  },
+  {
+   "h": 6,
+   "k": 0.9127,
+   "k_range": [
+    0.7951,
+    1.0158
+   ],
+   "loo_rmse": 0.039,
+   "n_hyp": [
+    63,
+    128,
+    149
+   ]
+  },
+  {
+   "h": 7,
+   "k": 0.9057,
+   "k_range": [
+    0.7578,
+    1.0165
+   ],
+   "loo_rmse": 0.0519,
+   "n_hyp": [
+    63,
+    91,
+    108
+   ]
+  },
+  {
+   "h": 8,
+   "k": 0.8981,
+   "k_range": [
+    0.7209,
+    1.0238
+   ],
+   "loo_rmse": 0.0653,
+   "n_hyp": [
+    57,
+    91,
+    76
+   ]
+  },
+  {
+   "h": 9,
+   "k": 0.8999,
+   "k_range": [
+    0.7209,
+    1.0238
+   ],
+   "loo_rmse": 0.0662,
+   "n_hyp": [
+    57,
+    94,
+    75
+   ]
+  },
+  {
+   "h": 10,
+   "k": 0.89,
+   "k_range": [
+    0.6837,
+    1.0201
+   ],
+   "loo_rmse": 0.0809,
+   "n_hyp": [
+    52,
+    75,
+    62
+   ]
+  },
+  {
+   "h": 11,
+   "k": 0.9369,
+   "k_range": [
+    0.6907,
+    1.0874
+   ],
+   "loo_rmse": 0.0952,
+   "n_hyp": [
+    45,
+    59,
+    48
+   ]
+  },
+  {
+   "h": 12,
+   "k": 0.9678,
+   "k_range": [
+    0.6823,
+    1.1304
+   ],
+   "loo_rmse": 0.1153,
+   "n_hyp": [
+    35,
+    38,
+    40
+   ]
+  }
+ ],
+ "window_months": 12,
+ "note": "k = moyenne des y/x(h) sur 3 plis (présidentielle → scrutin divisé suivant), x(h) = Mélenchon/gauche par hypothèse sur 12 mois finissant h mois avant le 1er tour, h = horizon actuel de la prévision 2027. LOO : chaque pli prédit avec le k des deux autres."
 }

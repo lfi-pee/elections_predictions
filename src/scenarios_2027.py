@@ -6,8 +6,8 @@ curseur sur le site. On fournit des **présélections** (`SCENARIOS`) ancrées s
 intentions de vote 1er tour de la **présidentielle 2027** (Wikipédia, tous instituts, fenêtre
 d'un an — `src/scrape_pres_2027`), agrégées exactement comme l'estimateur validé du modèle
 (cf. `anchor_from_polls`). La part LFI dans la gauche en découle avec une décote « candidat →
-parti » mesurée en LOO (`src/lfi_pres_discount`). Le baromètre législatif 2025 (gelé) ne sert
-plus qu'au rappel comparatif.
+parti » mesurée en LOO à horizon égal (`src/lfi_pres_discount`). Le baromètre législatif 2025
+(gelé) ne sert plus qu'au rappel comparatif.
 
 Les moyennes par bloc sont **renormalisées à 100** sur les trois blocs (Gauche,
 Centre+Droite, Extrême Droite), comme les moyennes nationales historiques du modèle
@@ -97,8 +97,9 @@ def anchor_from_polls(rows: list[dict], k_discount: float, window: float = WINDO
     exponentielle ni d'effet maison : hors de l'ensemble validé.
 
     Part radicale = **k × (Mélenchon / gauche)** moyenné par hypothèse ; k = décote « candidat →
-    parti » mesurée en LOO (`lfi_pres_discount`, ≈0,63) : le rapport brut ferait aussi mal qu'une
-    moyenne plate.
+    parti » mesurée en LOO **à l'horizon actuel de la prévision** (`lfi_pres_discount` : k(h), h =
+    mois entre le dernier sondage et le 1er tour ; ≈0,9 à sept mois, ≈0,75 à la veille du vote,
+    la montée tardive de Mélenchon étant absorbée par les sondages au fil de la campagne).
 
     Renvoie {"G", "CD", "ED" (parts sur 100), "rad", "rad_raw", "n_polls", "n_hyp", "from", "to"}.
     """
@@ -159,7 +160,8 @@ try:
     _K = json.loads(_DISCOUNT_JSON.read_text())
     ANCHOR = anchor_from_polls(_read_pres_polls(), _K["k_poll"])
     ANCHOR.update({"source": "présidentielle 2027, 1er tour (Wikipédia)", "k_discount": _K["k_poll"],
-                   "k_range": _K["k_poll_range"], "legislative_polls_2025": legislative_polls_2025()})
+                   "k_range": _K["k_poll_range"], "horizon_months": _K["horizon_months"],
+                   "legislative_polls_2025": legislative_polls_2025()})
     _L, _CD, _ED, _RAD = ANCHOR["G"], ANCHOR["CD"], ANCHOR["ED"], ANCHOR["rad"]
 except Exception:  # données absentes / illisibles : ancre documentée de repli.
     ANCHOR = {"source": "repli (constantes)", "G": 27.0, "CD": 26.0, "ED": 35.0, "rad": 0.354}

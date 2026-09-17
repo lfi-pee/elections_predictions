@@ -320,6 +320,10 @@ for _c in [
     # Présidentielle 2027 : Ensemble pour la République, La France humaniste (Villepin)
     "EPR",
     "LFH",
+    # Présidentielles 2012 / 2017 (en-têtes Wikipédia) : Parti radical (Borloo), En marche, Résistons
+    "PR",
+    "EM",
+    "R!",
 ]:
     _CODE_TO_BLOCK[_c] = "Centre+Droite"
 for _c in [
@@ -336,6 +340,8 @@ for _c in [
     "LREC",
     "LEXD",
     "LUXD",
+    # Présidentielle 2012 : Debout la République (Dupont-Aignan)
+    "DLR",
 ]:
     _CODE_TO_BLOCK[_c] = "Extreme_Droite"
 

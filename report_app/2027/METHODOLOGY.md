@@ -37,11 +37,16 @@ réelles** (réglables au curseur) :
   divisée : PS/Front de Gauche/EELV) : régression 0,69–0,73 (`reunif_measure.py`).
 - **Partage gauche radicale (LFI) / soc-dém** — le niveau national de la part LFI du VOTE
   vient du curseur, initialisé à **k × part de Mélenchon dans le vote de gauche** aux sondages
-  présidentiels 2027. La décote k (« candidat → parti », `lfi_pres_discount`, ≈0,63) est mesurée
-  en validation croisée sur les trois présidentielles suivies d'un scrutin à gauche divisée
-  (2012→legi 2012, 2017→legi 2017, 2022→euro 2024) : le rapport brut Mélenchon/gauche ferait
-  aussi mal qu'une moyenne plate (RMSE LOO 0,15 contre 0,15), la décote divise l'erreur par deux
-  (0,07) — trois plis, donc une direction validée, une précision mince. Le **profil local vient du premier tour
+  présidentiels 2027 (douze derniers mois). La décote k (« candidat → parti », `lfi_pres_discount`)
+  est mesurée en validation croisée **à l'horizon de la prévision** : pour les trois
+  présidentielles suivies d'un scrutin à gauche divisée (2012→legi 2012, 2017→legi 2017,
+  2022→euro 2024), on lit Mélenchon/gauche dans les sondages des douze mois finissant h mois
+  avant le 1er tour (h = distance actuelle entre le dernier sondage 2027 et avril 2027, servie
+  dans `summary.anchor.horizon_months`) et on le rapporte à la part LFI/gauche du scrutin
+  suivant. Mélenchon montant tard dans chaque campagne, k dépend de h : ≈0,9 à sept mois
+  (plis 0,76–1,02 ; RMSE LOO 0,05 contre 0,15 pour une moyenne plate), ≈0,75 à la veille du
+  vote. La décote est recalculée à chaque reconstruction, donc glisse avec la campagne. Trois
+  plis : une direction validée, une précision mince. Le **profil local vient du premier tour
   de la présidentielle 2022**, dernière présidentielle disponible avant la cible 2027 dans
   les données (`radical_spatial.select_source`). Il mesure les voix de **Mélenchon parmi
   l'ensemble des voix de gauche**, puis leur écart à la moyenne pondérée par ces voix ; ce
@@ -188,7 +193,8 @@ réelles** (réglables au curseur) :
 - **Sources sondages** : `data/polls/presidentielle/2027/presidentielle_2027_t1_tidy.csv`
   (page Wikipédia des sondages présidentiels 2027, relevée par `src/scrape_pres_2027.py` ; la
   date du relevé est en tête du fichier), fenêtre et effectifs servis dans `summary.json`
-  (`anchor`). Le baromètre législatif 2025 n'est conservé qu'en rappel comparatif.
+  (`anchor`). Séries historiques 2012 et 2017 (mêmes pages Wikipédia, `src/scrape_pres_history.py`)
+  et nsppolls 2022 pour la décote k(h). Le baromètre législatif 2025 n'est conservé qu'en rappel.
 
 *Limites* : **19 circonscriptions hors nomenclature de blocs** (§3 bis — 11 après reconstruction) — aucune prévision par
 circo n'y est publiable ; géométrie outre-mer/étranger (encarts) moins validée ; part LFI en

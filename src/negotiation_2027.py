@@ -11,7 +11,8 @@ Trois nombres par circo, tous moyennés sur l'incertitude nationale ET locale :
 
     p_lfi   = P(siège gagné par une candidature LFI dans une gauche unie)   → la VALEUR
     q_lfi   = P(LFI seule se qualifie au 2nd tour si la gauche se divise)   → la FORCE réelle
-    rdev    = écart local du vote Mélenchon dans la gauche (présidentielle) → la force APPARENTE
+    rdev    = écart local du vote Mélenchon dans la gauche (présidentielle) → servi à DROITE
+              (argument visible par tous), jamais utilisé dans la posture
 
 D'où les groupes et les postures :
   • ACQUIS      — député·e LFI sortant·e : hors négociation, compté à part.
@@ -25,8 +26,8 @@ D'où les groupes et les postures :
                l'accord ici, la revendication est incontestable, la menace d'y aller seule crédible.
     obtenir  — en jeu mais LFI seule ne se qualifierait pas : la circo vaut cher, il faut l'obtenir
                par la négociation (l'argument : une candidature LFI y gagne le siège).
-    monnaie  — sans enjeu mais LFI y PARAÎT forte (vote Mélenchon au-dessus du national) : la
-               céder ne coûte rien et a l'air d'un sacrifice.
+    monnaie  — sans enjeu pour LFI, mais LFI seule se qualifierait quand même : son retrait a un
+              prix, la circo se cède contre autre chose
     rien     — sans enjeu, LFI faible : rien à jouer.
 Le classement est par p_lfi décroissant : ce qui se négocie est un NOMBRE de circos, et à nombre
 donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e. La courbe « sièges
@@ -169,15 +170,18 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
     return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
 
 
-def posture(group: str, q_lfi: float | None, rdev: float | None) -> str | None:
-    """Posture = valeur (groupe) × force. Miroir exact de `negPosture` (js/negotiation.js).
+def posture(group: str, q_lfi: float | None) -> str | None:
+    """Posture = valeur (groupe, depuis p_lfi) × force réelle (q_lfi). Deux quantités du modèle,
+    rien d'autre — jamais un chiffre de la partie droite du tableau. Miroir exact de
+    `negPosture` (js/negotiation.js).
     exiger : en jeu, LFI seule se qualifierait · obtenir : en jeu, pas seule · monnaie : sans
-    enjeu mais LFI y paraît forte (Mélenchon au-dessus du national) · rien."""
+    enjeu pour LFI, mais LFI seule se qualifierait quand même (son retrait a un prix) · rien :
+    sans enjeu, et LFI seule n'atteindrait pas le 2nd tour."""
     if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None:
         return None
     if group == "en_jeu":
         return "exiger" if q_lfi >= LEVERAGE_Q else "obtenir"
-    return "monnaie" if (rdev or 0.0) > 0 else "rien"
+    return "monnaie" if q_lfi >= LEVERAGE_Q else "rien"
 
 
 def _group(p_lfi: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
@@ -284,7 +288,7 @@ def build() -> dict:
         })
 
     for r in rows:
-        r["posture"] = posture(r["group"], r["q_lfi"], r["rdev"])
+        r["posture"] = posture(r["group"], r["q_lfi"])
     postures = {k: sum(1 for r in rows if r["posture"] == k) for k in ("exiger", "obtenir", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).

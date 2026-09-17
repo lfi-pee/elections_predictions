@@ -71,7 +71,7 @@ def main() -> None:
             fails.append(f"{r['id']} sans enjeu mais chance ≥ P_MIN")
         if r["group"] == "en_jeu" and r["p_lfi"] < N.P_MIN:
             fails.append(f"{r['id']} en jeu mais chance < P_MIN")
-        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["rdev"]):
+        if r["posture"] != N.posture(r["group"], r["q_lfi"]):
             fails.append(f"{r['id']} posture non reproductible")
     if groups != d["groups"]:
         fails.append(f"comptes de groupes incohérents {groups} ≠ {d['groups']}")

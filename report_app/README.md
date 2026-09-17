@@ -50,10 +50,11 @@ est en mémoire.
 `2027/negotiation.html`, accessible depuis la carte 2027 : un seul tableau, vu de LFI. Par
 circonscription, la **chance d'élire un·e député·e LFI** si LFI porte la candidature unique de la
 gauche, la **force réelle** (sans accord, LFI seule atteindrait-elle le 2nd tour ? selon la part
-nationale de LFI, réglable), la **force apparente** (écart du vote Mélenchon dans la gauche), une
-**posture** (exiger / obtenir / monnaie d'échange / rien), et à droite les chiffres à mettre sur
-la table (sortant·e, parti NFP et sort du siège 2024, gauche 2024 ventilée par nuance, LFI seule
-2017, extrapolation simple de 2024 partagée LFI / PS-Écologistes-PCF ; aucune sortie du modèle).
+nationale de LFI, réglable), et une **posture** (exiger / obtenir / monnaie d'échange / rien)
+calculée depuis ces deux seules prédictions ; à droite les chiffres à mettre sur la table
+(sortant·e, parti NFP et sort du siège 2024, gauche 2024 ventilée par nuance, LFI seule 2017,
+écart du vote Mélenchon dans la gauche, extrapolation simple de 2024 partagée LFI /
+PS-Écologistes-PCF ; aucune sortie du modèle). La posture n'utilise jamais un chiffre de droite.
 Colonnes redimensionnables, export CSV.
 Le report vers une candidature LFI est mesuré sur le second tour 2024 (parti de chaque
 candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;

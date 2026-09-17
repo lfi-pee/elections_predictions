@@ -92,10 +92,11 @@ réelles** (réglables au curseur) :
 - **La question** : dans une gauche unie (une candidature par circo), quelles circos LFI
   doit-elle demander pour élire le plus de député·es ? Le score de jouabilité (§2) dit où *la
   gauche* peut gagner, sans connaître l'étiquette. Tout est vu de LFI : aucun autre parti n'entre
-  dans un calcul. Trois nombres par circo (`negotiation_2027.py`, `data/negotiation.json`) :
-  **p_lfi** = P(siège avec une candidature LFI) — la valeur ; **q_lfi** = P(LFI seule se qualifie
-  au 2nd tour si la gauche se divise) — la force réelle ; **écart Mélenchon** dans la gauche
-  (présidentielle) — la force apparente.
+  dans un calcul. Deux prédictions du modèle par circo (`negotiation_2027.py`,
+  `data/negotiation.json`), et rien d'autre à gauche du tableau : **p_lfi** = P(siège avec une
+  candidature LFI) — la valeur ; **q_lfi** = P(LFI seule se qualifie au 2nd tour si la gauche se
+  divise) — la force réelle. L'**écart Mélenchon** dans la gauche (présidentielle) est servi à
+  DROITE, comme argument visible par tous : il n'entre dans aucune posture.
 - **Report vers une candidature LFI, MESURÉ** (`label_effect_2024.py`) : le parti de chaque
   candidat·e d'union 2024 est connu par la répartition des circos du NFP (data.gouv, 546 circos :
   FI 229, PS 175, écologistes 92, PCF 50). Dans les **142 duels** union–RN de 2024 (centre-droit
@@ -121,9 +122,11 @@ réelles** (réglables au curseur) :
   reste, motif Mélenchon, `split_outcome`) et sert q_lfi. Postures : *exiger* (en jeu et q_lfi ≥
   50 % : LFI n'a pas besoin de l'accord, la revendication est incontestable), *obtenir* (en jeu,
   pas seule : s'obtient par la négociation, l'argument étant qu'une candidature LFI y gagne),
-  *monnaie d'échange* (imprenable mais Mélenchon au-dessus du national : céder ne coûte rien et
-  passe pour un sacrifice), *rien*. À 37 % de la gauche, LFI seule se qualifie rarement — c'est
-  le chiffre honnête ; le curseur montre la bascule au-dessus de ~45 %.
+  *monnaie d'échange* (sans enjeu pour LFI mais q_lfi ≥ 50 % : LFI ne gagne pas, mais son
+  retrait a un prix), *rien* (sans enjeu et q_lfi < 50 %). Une grille 2×2 sur les deux seules
+  colonnes du modèle : la posture n'utilise JAMAIS un chiffre de la partie droite. À 37 % de la
+  gauche, LFI seule se qualifie rarement — c'est le chiffre honnête : *monnaie d'échange* est vide
+  au niveau des sondages et n'apparaît qu'en montant le curseur (~50 % et plus).
 - **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de
   circos et qu'à nombre donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e
   député·e. Aucun score composite : il cacherait le raisonnement.
@@ -137,7 +140,8 @@ réelles** (réglables au curseur) :
   sondages législatifs ne séparent pas PS, Écologistes et PCF (une seule enquête Ifop, juin
   2025) : ils restent groupés. Aucune sortie du modèle à droite : le score de gauche prévu ne
   reste que dans le CSV. Vue par défaut : toutes les circonscriptions (les postures « monnaie »
-  et « rien » ne vivent que dans les sans-enjeu). Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
+  et « rien » ne vivent que dans les sans-enjeu). Le partage LFI / reste du calcul simple est un
+  chiffre de DROITE (argument), pas une entrée du modèle ni de la posture. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
   « sondages exacts » et « droites unies », gauche 2022/2017, extrapolation en %).
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, postures reproductibles
   depuis les valeurs servies, q_lfi croissant avec la part LFI, la courbe ne contient que les

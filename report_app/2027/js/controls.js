@@ -206,9 +206,13 @@ function renderLfiShare() {
        <span class="info">i<span class="tip">Ce curseur = part de LFI dans le <b>VOTE</b> de
          gauche (moyenne nationale ; défaut ~37 %, ancrage sondages 2025). Le modèle prédit le bloc
          de gauche entier ; cette part le répartit entre pôle radical (LFI) et pôle
-         social-démocrate (PS·Place publique·EELV·PCF). Le motif par circonscription est le poids
-         réel de LFI dans la gauche mesuré aux <b>européennes 2024</b> (le scrutin divisé le plus
-         récent), recentré sur la moyenne du curseur (actuellement <b>${pct} %</b>). La part de
+         social-démocrate (PS·Place publique·EELV·PCF). Le profil local vient du <b>premier tour
+         de la présidentielle 2022</b> : part de Mélenchon parmi les voix de gauche, exprimée
+         en écart à leur moyenne pondérée. Cet écart est ajouté à la part nationale du curseur
+         (actuellement <b>${pct} %</b>), puis le résultat est borné entre 5 et 95 %.
+         Ce n'est pas une mesure directe du vote législatif LFI. Les communes à cheval sur
+         plusieurs circonscriptions sont exclues du calcul ; sans profil disponible,
+         l'écart local vaut zéro. La part de
          <b>SIÈGES</b> qui en résulte est INFÉRIEURE à la part de voix quand LFI est minoritaire :
          dans chaque circo, le pôle le plus fort emporte le siège (détail dans « détail pôles »).
          Sans effet en gauche unie.</span></span>

@@ -44,3 +44,29 @@ les 69 358 bureaux via `national.json`. La finesse au bureau n'est jamais un
 nuage national : on agrège en symboles par commune au dézoom, on dissout en
 polygones bureau au zoom, et on entre par recherche — seul le département actif
 est en mémoire.
+
+## Comparateur 2027
+
+`2027/comparison.html`, accessible depuis la carte 2027, compare les scores de premier
+tour des trois blocs : modèle de référence, variante de niveau national/abstention,
+législatives 2017/2022/2024, variation uniforme et proportionnelle depuis 2024.
+Les colonnes historiques utilisent les suffrages exprimés au dénominateur et les
+identifiants de circonscription du scrutin (2017/2022) ou le fichier officiel par
+circonscription (2024). Les nuances et attributions sont détaillées dans le JSON.
+La référence est le scénario par défaut des données servies. La variante utilise dès
+l'ouverture l'abstention nationale observée au premier tour de 2024 (33,29 %), avec
+les niveaux de vote de référence conservés avant couplage de participation. Le menu
+propose aussi la participation de 2022 (52,49 % d'abstention) et la référence identique.
+Les taux sont calculés depuis les totaux d'abstentions et d'inscrits des résultats,
+puis embarqués avec leur source dans le JSON ; ce sont des hypothèses de sensibilité.
+Modifier un curseur passe en réglage personnalisé ; réappliquer le préréglage restaure
+le dernier choix. Le libellé de colonne et le CSV identifient le préréglage actif. Les deux modèles simples utilisent le
+niveau national effectif de référence pour les trois blocs et le résidu Autre.
+Les projections non publiables selon la couverture du site restent vides.
+
+```bash
+python -m src.report_comparison_2027  # reconstruit comparison_history.json
+```
+
+L'export CSV conserve le filtre, le tri, le bloc observé, les paramètres et les
+sources. La reconstruction complète `rebuild_2027.sh` inclut cet export historique.

@@ -29,9 +29,17 @@ réelles** (réglables au curseur) :
   « union des droites »).
 - **Réunification d'une gauche divisée** (`reunif`, défaut 0,72) — mesurée sur 2012 (gauche
   divisée : PS/Front de Gauche/EELV) : régression 0,69–0,73 (`reunif_measure.py`).
-- **Partage gauche radicale (LFI) / soc-dém** — la part LFI du VOTE (curseur, ~37 % sondé) est
-  répartie par circo selon le **motif réel des européennes 2024** (le scrutin divisé le plus
-  récent ; `radical_spatial.py`), dispersion appliquée telle quelle (RAD_GAIN 1,0). La part de
+- **Partage gauche radicale (LFI) / soc-dém** — le niveau national de la part LFI du VOTE
+  vient du curseur (initialisé depuis les sondages). Le **profil local vient du premier tour
+  de la présidentielle 2022**, dernière présidentielle disponible avant la cible 2027 dans
+  les données (`radical_spatial.select_source`). Il mesure les voix de **Mélenchon parmi
+  l'ensemble des voix de gauche**, puis leur écart à la moyenne pondérée par ces voix ; ce
+  n'est pas une mesure directe du vote législatif LFI. Les européennes 2024 ne sont pas la
+  source de ce profil. Les communes à cheval sur plusieurs circonscriptions sont exclues
+  de son calcul. Le profil couvre 537 des 577 circonscriptions servies ; les 40 autres
+  utilisent un écart local nul (repli sur la part nationale, pas une observation locale).
+  Formule : `part locale = borne(part nationale + RAD_GAIN × écart local, 0,05, 0,95)` ;
+  dispersion appliquée telle quelle (RAD_GAIN 1,0). La part de
   SIÈGES en diffère (~27 % des sièges de gauche à LFI en divisé — le pôle le plus fort rafle le
   siège).
 

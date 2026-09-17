@@ -35,11 +35,13 @@ function covApplied(summary) { return !!(summary && summary.attribution_applied)
 function covCompute(a, coverage, summary) {
   const after = covApplied(summary);
   const cov = (coverage && coverage[after ? "cov_apres" : "cov_avant"]) || {};
-  // Le bloc « Autre » est-il MODÉLISÉ (4e bloc servi, colonne dAU) ? Si oui, on ne déclare PAS ces
-  // circos couvertes à 100 % : là où l'Autre pèse lourd (bastions), la prédiction d'axe ne porte
-  // que sur une fraction de l'électorat et l'Autre est faiblement prédit. La fiabilité se mesure
-  // à la part HORS-AXE servie — mesurée 2024 (r24AU), à défaut prédite (national Autre + dAU) ;
-  // couverture d'axe = 100 − hors-axe. Miroir de src/coverage_2027.py.
+  // DÉCISION (révision externe) : quand la table d'attribution est passée dans la chaîne, la
+  // couverture APRÈS attribution FAIT FOI. Une voix régionaliste nommément rattachée à un bloc (sur
+  // preuve) EST couverte, même si le 4e bloc « Autre » modélisé reste large. On publie donc sur
+  // cov_apres, et non plus sur la part hors-axe servie (100 − r24AU). Cela assume qu'on publie la
+  // prévision 2027 des bastions à fort Autre (NC, Polynésie, Mayotte) une fois leur 2024 bien classé.
+  // Repli, pour une circo absente de la table : part hors-axe servie (r24AU mesurée, sinon prédite).
+  // Miroir de src/coverage_2027.py.
   const autreModeled = Array.isArray(a.dAU);
   let auNat = 1.8;
   const scn = (summary && summary.scenarios) || [];
@@ -50,13 +52,16 @@ function covCompute(a, coverage, summary) {
   for (let i = 0; i < a.id.length; i++) {
     const base = cov[a.id[i]];
     const hasR24 = Array.isArray(a.r24AU) && a.r24AU[i] != null;
-    if (autreModeled && (base != null || hasR24)) {
+    if (base != null) {
+      val.push(r3(Number(base)));
+      src.push(lab);
+    } else if (autreModeled && (hasR24 || Array.isArray(a.dAU))) {
       const off = hasR24 ? a.r24AU[i] : Math.max(0, auNat + (a.dAU ? a.dAU[i] : 0));
       val.push(r3(100 - off));
       src.push(hasR24 ? "part hors-axe 2024" : "part hors-axe prédite");
     } else {
-      val.push(base == null ? null : r3(Number(base)));
-      src.push(base == null ? null : lab);
+      val.push(null);
+      src.push(null);
     }
   }
   return { val, src };
@@ -97,7 +102,7 @@ function covWarning(id) {
   if (c.flag === COV_UNKNOWN)
     return `Aucun résultat 2024 exploitable sur ce territoire : la prévision n'y est pas
       vérifiable. <b>Chiffre non publiable.</b>`;
-  return `Seuls <b>${fmt1(c.cov)} %</b> du vote exprimé de 2024 de cette circonscription sont
+  return `Seuls <b>${c.cov.toFixed(1).replace(".", ",")} %</b> du vote exprimé de 2024 de cette circonscription sont
     rattachés à l'un des trois blocs du modèle. Le reste va à des candidatures
     <b>régionalistes, autonomistes ou diverses</b> dont l'alignement n'est pas établi — la
     mouvance corse, par exemple, siège au groupe LIOT, ni à gauche ni au centre-droit. Le modèle

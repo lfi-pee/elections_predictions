@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2027 · Comparer les circonscriptions</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="comparison.css?v=1">
+</head>
+<body class="comparison">
+<header id="top"><a href="index.html">← Carte 2027</a><span>Législatives <b>2027</b></span><a href="METHODOLOGY.md">Méthode</a></header>
+<main>
+  <p class="eyebrow">Les circonscriptions, plusieurs lectures</p>
+  <h1>Comparer les résultats et les modèles</h1>
+  <p class="lede">Une ligne par circonscription. Le modèle de référence, une variante réglable et trois scrutins historiques, côte à côte.</p>
+  <section class="toolbar" aria-label="Choix des données">
+    <label>Bloc observé<select id="bloc"><option value="G">Gauche</option><option value="CD">Centre + Droite</option><option value="ED">Extrême droite</option></select></label>
+    <label>Circonscription<input id="filter" type="search" placeholder="Code, ville ou département…"></label>
+    <button id="export" disabled>Exporter le CSV</button>
+  </section>
+  <details class="settings" open>
+    <summary>Paramètres de la variante</summary>
+    <div class="knobs">
+      <label>Préréglage<select id="preset" disabled><option value="turnout2024">Participation des législatives 2024</option><option value="turnout2022">Participation des législatives 2022</option><option value="reference">Identique à la référence</option><option value="custom" disabled>Réglage personnalisé</option></select></label>
+      <label>Niveau national du bloc observé <output id="level-value"></output><input id="level" type="range" min="0" max="100" step="0.1" disabled></label>
+      <label>Abstention nationale <output id="ab-value"></output><input id="ab" type="range" min="5" max="85" step="0.5" disabled></label>
+      <button id="reset-variant" disabled>Réappliquer le préréglage</button>
+    </div>
+    <p id="preset-description"></p>
+    <p id="parameters"></p>
+    <p>La variante démarre avec la participation de 2024 et utilise le même modèle. Modifier un bloc redistribue le reste entre les deux autres au prorata ; l’abstention agit via le couplage de participation existant. Les références historiques et les deux modèles simples restent fixes.</p>
+  </details>
+  <p id="status" role="status">Chargement des données…</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Comparaison des circonscriptions">
+    <table id="comparison-table">
+      <caption id="caption">Scores de premier tour, en % des suffrages exprimés. Cliquez sur un en-tête pour trier.</caption>
+      <thead>
+        <tr><th rowspan="2" scope="col" data-key="id" aria-sort="ascending"><button data-sort="id">Circonscription ↑</button></th><th colspan="2" scope="colgroup" class="reference">Modèle de référence</th><th colspan="5" scope="colgroup" class="alternatives">Résultats historiques et modèles alternatifs</th></tr>
+        <tr>
+          <th scope="col" data-key="reference"><button data-sort="reference">Référence 2027</button></th>
+          <th scope="col" data-key="variant"><button data-sort="variant">Variante 2027</button></th>
+          <th scope="col" data-key="h2017"><button data-sort="h2017">Législatives 2017</button></th>
+          <th scope="col" data-key="h2022"><button data-sort="h2022">Législatives 2022</button></th>
+          <th scope="col" data-key="h2024"><button data-sort="h2024">Législatives 2024</button></th>
+          <th scope="col" data-key="uniform"><button data-sort="uniform">Variation uniforme</button></th>
+          <th scope="col" data-key="proportional"><button data-sort="proportional">Variation proportionnelle</button></th>
+        </tr>
+      </thead><tbody id="rows"></tbody>
+    </table>
+  </div>
+  <details class="methods">
+    <summary>Lire les colonnes et retrouver les sources</summary>
+    <dl>
+      <dt>Référence et variante 2027</dt><dd>Calcul de premier tour du modèle actuel, avec les paramètres nationaux du scénario par défaut pour la référence. Par défaut, la variante applique l’abstention nationale observée au premier tour de 2024 ; un second préréglage utilise celle de 2022. Les niveaux nationaux de vote de référence restent inchangés avant le couplage de participation. Ces scénarios isolent la sensibilité à la participation, sans prétendre prévoir la participation de 2027. Les réglages manuels restent disponibles. Les paramètres de second tour ne changent pas ces scores de bloc. Une candidature commune ne permet pas d’isoler les voix de chaque parti.</dd>
+      <dt>Résultats historiques</dt><dd>Trois premiers tours législatifs distincts. Somme des voix des candidats du bloc divisée par les suffrages exprimés, sans retirer les autres candidats du dénominateur. Regroupements selon les nuances du projet ; en 2024, la table documentée d’attribution régionaliste est également appliquée. Les coalitions et les candidatures diffèrent selon le scrutin.</dd>
+      <dt>Variation uniforme depuis 2024</dt><dd>Pour chaque bloc : score local 2024 + (niveau national de référence − score national 2024). Les valeurs négatives sont ramenées à zéro, puis l’ensemble est normalisé à 100 %. Le résidu des autres candidats est conservé comme quatrième catégorie dans ce calcul.</dd>
+      <dt>Variation proportionnelle depuis 2024</dt><dd>Pour chaque bloc : score local 2024 × niveau national de référence / score national 2024, puis normalisation à 100 %. Cette hypothèse conserve les rapports de forces relatifs ; un score local nul reste nul. Le résidu est traité comme quatrième catégorie.</dd>
+      <dt>Valeurs absentes</dt><dd>« — » signifie résultat indisponible ou projection non publiée par les règles de couverture du site. Les modèles alternatifs sont des points de comparaison, sans validation prédictive revendiquée.</dd>
+    </dl>
+    <ul id="sources"></ul>
+    <a href="data/comparison_history.json">Données historiques et nomenclature des blocs (JSON)</a>
+  </details>
+</main>
+<script src="js/config.js?v=1" defer></script>
+<script src="js/compute.js?v=1" defer></script>
+<script src="js/coverage.js?v=1" defer></script>
+<script src="js/comparison.js?v=2" defer></script>
+</body>
+</html>

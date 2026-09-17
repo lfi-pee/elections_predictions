@@ -88,7 +88,10 @@ function renderInputs() {
         selon la courbe γ (résultat 2024), ce qui relève les parts <i>effectives</i> de gauche.`)}
     ${li(`<b>Part de la gauche radicale (LFI)</b> : <b>réglable au curseur</b>. Défaut = dernier
         test « gauche divisée » disponible (2025 : LFI ~35 % du bloc de gauche) ; aucun sondage
-        législatif 2026 ne la scinde. Sans effet en « gauche unie ».`)}
+        législatif 2026 ne la scinde. Le profil local utilise le <b>premier tour de la
+        présidentielle 2022</b> : part de Mélenchon parmi les voix de gauche, en écart à la
+        moyenne pondérée ; écart nul sans profil disponible. Ce n'est pas une mesure directe
+        du vote législatif LFI. Sans effet en « gauche unie ».`)}
     ${li(`<b>Fourchette d'incertitude</b> (prédiction conforme, erreur locale) — demi-largeur à
         90 %, par bloc : G ±${cv.G}, C+D ±${cv.CD}, ED ±${cv.ED}, Abst. ±${cv.AB} pts.`)}
     ${li(`<b>Second tour</b> (jouabilité &amp; sièges) : qualification à <b>12,5 % des inscrits</b> ;

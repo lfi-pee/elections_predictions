@@ -85,14 +85,21 @@ def coverage(arr: dict, summary: dict | None = None) -> tuple[list[float | None]
     raw = json.loads(COVERAGE.read_text()) if COVERAGE.exists() else {}
     after = applied(summary or {})
     cov = raw.get("cov_apres" if after else "cov_avant", {})
-    # Le bloc « Autre » est-il MODÉLISÉ (4e bloc servi) ? Si oui, on ne peut PAS déclarer ces
-    # circos couvertes à 100 % : l'audit montre que là où l'Autre pèse lourd (bastions corses /
-    # ultramarins), la prédiction sur l'axe G/CD/ED ne porte que sur une fraction de l'électorat,
-    # et l'Autre lui-même est faiblement prédit (R² LOO ~0,19 ; ex. Cayenne prédite gauche 47,7 %
-    # pour 1,2 % réel). La fiabilité se mesure alors à la part HORS-AXE réellement servie — mesurée
-    # sur 2024 (r24AU, indépendante du scénario), à défaut prédite (niveau national Autre + dAU).
-    # `couverture d'axe = 100 − part hors-axe` ; le seuil habituel (100 − plus large demi-largeur)
-    # re-marque exactement les circos où le hors-axe dépasse l'incertitude que le modèle s'accorde.
+    # DÉCISION (révision externe, cf. table d'attribution) : quand la table est passée dans la
+    # chaîne (`applied`), la couverture APRÈS attribution FAIT FOI. Une voix régionaliste/autonomiste
+    # nommément rattachée à un bloc — sur preuve (groupe parlementaire, investiture de coalition) —
+    # EST couverte, même si le 4e bloc « Autre » modélisé reste large sur la circo. On publie donc
+    # sur `cov_apres`, et non plus sur la part hors-axe servie (100 − r24AU).
+    #
+    # CE QUE CELA ASSUME, explicitement : sur les bastions à fort Autre (Nouvelle-Calédonie,
+    # Polynésie, Mayotte), le 2024 est désormais bien classé, mais la PRÉVISION 2027 y repose
+    # toujours sur un bloc Autre faiblement prédit (R² LOO ~0,19 ; ex. Cayenne prédite gauche 47,7 %
+    # pour 1,2 % réel). Ce garde-fou ne les protège plus : le choix est de publier là où
+    # l'attribution rend la couverture 2024 suffisante, seuil inchangé. Restent marquées les circos
+    # qu'aucune attribution ne relève au-dessus du seuil (Corse LIOT, Cayenne).
+    #
+    # Repli, pour une circo ABSENTE de la table (rare : `coverage.json` couvre les 577) : à défaut
+    # de `base`, on retombe sur la part hors-axe servie — mesurée 2024 (r24AU), sinon prédite.
     autre_modeled = "dAU" in arr
     au_nat = 1.8
     for s in (summary or {}).get("scenarios", []):
@@ -105,13 +112,16 @@ def coverage(arr: dict, summary: dict | None = None) -> tuple[list[float | None]
     for i, cid in enumerate(arr["id"]):
         base = cov.get(cid)
         has_r24 = r24au is not None and r24au[i] is not None
-        if autre_modeled and (base is not None or has_r24):
+        if base is not None:
+            v = base
+            src = "mesure" if after else "mesure (avant reconstruction)"
+        elif autre_modeled and (has_r24 or dau is not None):
             off = r24au[i] if has_r24 else max(0.0, au_nat + (dau[i] if dau else 0.0))
             v = 100.0 - off
             src = "part hors-axe 2024" if has_r24 else "part hors-axe prédite"
         else:
-            v = base  # Autre non modélisé, ou aucune référence (reste None → inconnue)
-            src = ("mesure" if after else "mesure (avant reconstruction)") if base is not None else None
+            v = None  # aucune référence → inconnue
+            src = None
         vals.append(round(float(v), 3) if v is not None else None)
         srcs.append(src)
     return vals, srcs

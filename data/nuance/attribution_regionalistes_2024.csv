@@ -48,3 +48,22 @@ ZP-03,Mereana REID ABERLOT,REG,Tavini Huiraatira,G,groupe GDR 17e législature,o
 2B-02,Jean-Félix ACQUAVIVA,REG,Femu a Corsica,NA,mouvance autonomiste corse (LIOT jusqu'en 2024) — hors axe,france3-regions.franceinfo.fr
 ZC-01,Yvane GOUA,REG,sans étiquette,NA,candidate sans étiquette ; aucune consigne de vote au second tour,la1ere.franceinfo.fr
 ZB-01,Philippe EDMOND-MARIETTE,REG,Bâtir le Pays Martinique,NA,alignement de bloc non établi — non attribué faute de preuve,
+#
+# RÉVISION EXTERNE (2024). Onze candidats codés DIV/REG que le modèle laisse dans « Autre »,
+# classés par une réviseuse à partir de leur positionnement politique. Preuve plus FAIBLE que
+# les lignes ci-dessus (groupe parlementaire / investiture) : ce sont des appréciations, pas des
+# faits de rattachement. Deux enseignements marquants — (a) TOLASSY (Guadeloupe) est à l'extrême
+# DROITE (proche RN), ce qui contredit l'a priori « REG d'outre-mer = gauche » ; (b) les
+# nationalistes corses DE GAUCHE (Cucchi, Carli) sont un courant distinct des autonomistes
+# PNC/Femu (LIOT) laissés NA plus haut. BENOIT (gilets jaunes / anti-vax) reste NA, hors axe.
+ZD-02,Erick FONTAINE,DIV,divers gauche réunionnais,G,divers gauche — ancré à gauche à La Réunion (révision externe),révision externe 2024
+06-05,Patrice BENOIT,DIV,mouvance gilets jaunes / anti-pass,NA,mouvance gilets jaunes et anti-vaccin — protestataire hors axe G/CD/ED (révision externe),révision externe 2024
+50-03,Stéphanie MAUBÉ,DIV,Résistons ! (mouvance Lassalle),CD,centriste ruraliste — parrainage de Jean Lassalle (révision externe),révision externe 2024
+ZA-02,Priscilla SYLVESTRE,DIV,divers centre,CD,positionnement centriste (révision externe),révision externe 2024
+ZA-02,Ludovic TOLASSY,REG,proche RN,ED,rattaché à l'extrême droite — proche RN (révision externe),révision externe 2024
+ZA-02,Steve SALIM,DIV,écologiste,G,mouvance Verts / écologiste (révision externe),révision externe 2024
+ZX-01,Ricardo BETHEL,DIV,divers gauche,G,divers gauche (révision externe),révision externe 2024
+ZB-03,Nathalie JOS,REG,Péyi-A,G,Péyi-A / proche LFI — bloc de gauche (révision externe),révision externe 2024
+ZB-04,Aude GOUSSARD,REG,divers gauche,G,divers gauche (révision externe),révision externe 2024
+2A-02,Jean-Baptiste CUCCHI,REG,nationaliste corse de gauche,G,courant nationaliste corse de GAUCHE — distinct des autonomistes PNC/Femu LIOT classés NA (révision externe),révision externe 2024
+2B-02,Antò CARLI,REG,nationaliste corse de gauche,G,courant nationaliste corse de GAUCHE — distinct des autonomistes Femu LIOT classés NA (révision externe),révision externe 2024

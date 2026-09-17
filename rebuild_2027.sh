@@ -39,6 +39,7 @@ python3 -u -m src.test_no_hardcoded_2027
 echo "══ 5/6  Attribution des voix régionalistes (Guyane, Antilles, Pacifique) → couverture"
 python3 -u -m src.attribution_2027
 python3 -u -m src.test_attribution_2027
+python3 -u -m src.report_comparison_2027
 
 echo "══ 6/6  Garde-fou : aucun score publié là où la nomenclature ne couvre TOUJOURS pas"
 echo "         l'électorat (Corse : mouvance LIOT, hors axe G/CD/ED)"

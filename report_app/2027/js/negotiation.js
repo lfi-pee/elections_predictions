@@ -7,7 +7,10 @@
 const NEG = { data: null, rows: [], sort: "rank", asc: true, n: 0, share: null };
 const POSTURE_LAB = { exiger: "Exiger", disputer: "Disputer", obtenir: "Obtenir", difficile: "Difficile",
   monnaie: "Monnaie d'échange", rien: "Rien à jouer" };
-const POSTURE_ORDER = { exiger: 0, disputer: 1, obtenir: 2, difficile: 3, monnaie: 4, rien: 5 };
+const POSTURE_ORDER = { exiger: 0, disputer: 1, obtenir: 2, difficile: 3, monnaie: 4, rien: 5, acquis: 6, hors_union: 7, non_mesure: 8 };
+// Une seule colonne d'état : la posture, ou le groupe quand il n'y a pas de posture (acquis,
+// gauche hors union, non mesurée).
+const stateKey = (r) => r.posture || r.group;
 const POSTURE_TIP = {
   exiger: "LFI seule se qualifierait, pas l'autre gauche : terrain LFI, revendication incontestable.",
   disputer: "Les deux se qualifieraient seuls : cœur de la négociation, à trancher au prix et au nombre.",
@@ -165,7 +168,7 @@ function negVisible() {
     && (!dep || r.depGroup === dep)
     && (!term || fold(`${r.id} ${r.nm} ${r.dept} ${r.depute} ${r.lab2024 || ""}`).includes(term)));
   const k = NEG.sort, s = NEG.asc ? 1 : -1;
-  const val = (r) => k === "group" ? GROUP_ORDER[r.group] : k === "posture" ? (r.posture ? POSTURE_ORDER[r.posture] : null) : k === "pred" ? (r.pred ? r.pred.G : null)
+  const val = (r) => k === "group" ? GROUP_ORDER[r.group] : k === "posture" ? POSTURE_ORDER[stateKey(r)] : k === "pred" ? (r.pred ? r.pred.G : null)
     : k === "lab2024" ? (r.lab2024 || "") : k === "rank" ? (r.rank ?? 1e9) : r[k];
   rows.sort((a, b) => {
     const va = val(a), vb = val(b);
@@ -180,29 +183,24 @@ function negVisible() {
 function negTable() {
   const rows = negVisible(), inSlate = new Set(NEG.data.curve.ids.slice(0, NEG.n));
   const pb = (p, cls) => p == null ? "—" : `<span class="pb ${cls}"><span>${pct(p)}</span><i><b style="width:${Math.round(p * 100)}%"></b></i></span>`;
+  const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" title="${esc(POSTURE_TIP[r.posture])}">${POSTURE_LAB[r.posture]}</span>`
+    : `<span class="grp g-${r.group}"><i></i>${GROUP_LAB[r.group]}</span>`;
+  const dep = (r) => r.depute ? `<span class="trunc" title="${esc(r.depute)} (${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})">${esc(r.depute)}</span> <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span>` : "—";
   $n("rows").innerHTML = rows.map((r) => `<tr class="${inSlate.has(r.id) ? "in-slate" : ""}">
     <td class="num dim">${r.rank ?? ""}</td>
-    <th scope="row" class="left">${esc(r.id)} <span class="dim">${esc(r.nm)}</span></th>
-    <td class="left"><span class="grp g-${r.group}"><i></i>${GROUP_LAB[r.group]}</span></td>
-    <td class="left">${r.posture ? `<span class="pos pos-${r.posture}" title="${esc(POSTURE_TIP[r.posture])}">${POSTURE_LAB[r.posture]}</span>` : "—"}</td>
+    <th scope="row" class="left"><span class="trunc" title="${esc(r.id)} ${esc(r.nm)}">${esc(r.id)} <span class="dim">${esc(r.nm)}</span></span></th>
+    <td class="left">${state(r)}</td>
     <td class="num">${pb(r.p_lfi, "")}</td>
     <td class="num">${pb(r.p_other, "oth")}</td>
     <td class="num">${f2(r.price)}</td>
-    <td class="num">${r.rate == null ? "—" : f2(r.rate)}</td>
-    <td class="num">${pb(r.q_lfi, "q")}</td>
-    <td class="num">${pb(r.q_other, "q")}</td>
-    <td class="num dim">${r.pred ? `${f1(r.pred.G)} · ${f1(r.pred.CD)} · ${f1(r.pred.ED)}` : "—"}</td>
-    <td class="num dim">${pct(r.p_lfi_local)}</td>
-    <td class="num dim">${pct(r.p_lfi_ru)}</td>
-    <td class="left args first">${esc(r.depute)} <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span></td>
-    <td class="left args">${r.lab2024 ? esc(r.lab2024) : "—"} <span class="dim">${r.union_won_2024 == null ? "" : r.union_won_2024 ? "· siège gagné" : "· perdu"}</span></td>
+    <td class="num">${r.q_lfi == null ? "—" : `${pct(r.q_lfi)} <span class="dim">·</span> ${pct(r.q_other)}`}</td>
+    <td class="num">${r.pred ? f1(r.pred.G) + " %" : "—"}</td>
+    <td class="left args first">${dep(r)}</td>
+    <td class="left args">${r.lab2024 ? esc(r.lab2024) : "—"} <span class="dim">${r.union_won_2024 == null ? "" : r.union_won_2024 ? "· gagné" : "· perdu"}</span></td>
     <td class="num args">${r.h2024_G == null ? "—" : f1(r.h2024_G) + " %"}</td>
-    <td class="num args">${r.h2022_G == null ? "—" : f1(r.h2022_G) + " %"}</td>
     <td class="num args">${r.h2017_LFI == null ? "—" : f1(r.h2017_LFI) + " %"}</td>
-    <td class="num args">${r.h2017_G == null ? "—" : f1(r.h2017_G) + " %"}</td>
     <td class="num args">${r.rdev == null ? "—" : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
     <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %"}</td>
-    <td class="num args">${r.ext_mult_G == null ? "—" : f1(r.ext_mult_G) + " %"}</td>
   </tr>`).join("");
   document.querySelectorAll("th[data-key]").forEach((th) => {
     const on = th.dataset.key === NEG.sort;

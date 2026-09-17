@@ -47,36 +47,28 @@
   <p id="status" role="status">Chargement…</p>
   <div class="table-scroll" tabindex="0" role="region" aria-label="Circonscriptions">
     <table id="neg-table">
-      <caption id="caption">Chaque paire de colonnes «&nbsp;si…&nbsp;» compare deux hypothèses pour la <b>même</b> circonscription, pas deux concurrents&nbsp;: dans un bastion, LFI comme l'autre gauche gagnent à coup sûr — les deux affichent >99&nbsp;% et le prix est nul. Probabilités moyennées sur l'incertitude nationale et locale. Les lignes surlignées sont dans la demande courante. Cliquez un en-tête pour trier.</caption>
+      <caption id="caption">«&nbsp;Si la candidature est LFI&nbsp;» et «&nbsp;si elle est PS · écolo · PCF&nbsp;» sont deux hypothèses pour la <b>même</b> circonscription, pas deux concurrents&nbsp;: dans un bastion les deux affichent >99&nbsp;% et le prix est nul. Lignes surlignées = demande courante. Le CSV exporté contient aussi les colonnes détaillées (taux d'échange, sensibilités, gauche 2022 et 2017, extrapolation en %).</caption>
       <thead>
         <tr class="grp-row">
-          <th colspan="3" scope="colgroup" class="cg-id"></th>
-          <th colspan="10" scope="colgroup" class="cg-ours">Notre lecture — le modèle, et ce qu'il implique pour la négociation</th>
-          <th colspan="9" scope="colgroup" class="cg-args">Les arguments à mettre sur la table — vérifiables par tous</th>
+          <th colspan="2" scope="colgroup" class="cg-id"></th>
+          <th colspan="6" scope="colgroup" class="cg-ours">Notre lecture — le modèle et ce qu'il implique</th>
+          <th colspan="6" scope="colgroup" class="cg-args">Les arguments à mettre sur la table — vérifiables par tous</th>
         </tr>
         <tr>
         <th scope="col" data-key="rank"><button data-sort="rank">#</button></th>
         <th scope="col" data-key="id" class="left"><button data-sort="id">Circonscription</button></th>
-        <th scope="col" data-key="group" class="left"><button data-sort="group">Groupe</button></th>
         <th scope="col" data-key="posture" class="left ours"><button data-sort="posture">Posture</button><small>valeur × rapport de force</small></th>
         <th scope="col" data-key="p_lfi" class="ours"><button data-sort="p_lfi">Si la candidature est LFI</button><small>chance de gagner le siège</small></th>
-        <th scope="col" data-key="p_other" class="ours"><button data-sort="p_other">Si la candidature est PS · écolo · PCF</button><small>chance de gagner le siège</small></th>
-        <th scope="col" data-key="price" class="ours"><button data-sort="price">Prix pour l'union</button><small>sièges espérés</small></th>
-        <th scope="col" data-key="rate" class="ours"><button data-sort="rate">Taux d'échange</button><small>prix / chance LFI</small></th>
-        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Si LFI y allait seule</button><small>chance d'être au 2nd tour</small></th>
-        <th scope="col" data-key="q_other" class="ours"><button data-sort="q_other">Si l'autre gauche y allait seule</button><small>chance d'être au 2nd tour</small></th>
-        <th scope="col" data-key="pred" class="ours"><button data-sort="pred">1<sup>er</sup> tour prévu</button><small>G · C+D · ED</small></th>
-        <th scope="col" data-key="p_lfi_local" class="ours"><button data-sort="p_lfi_local">Si LFI, sondages exacts</button><small>incertitude locale seule</small></th>
-        <th scope="col" data-key="p_lfi_ru" class="ours"><button data-sort="p_lfi_ru">Si LFI, droites unies</button><small>LR refuse le front républicain</small></th>
+        <th scope="col" data-key="p_other" class="ours"><button data-sort="p_other">Si elle est PS · écolo · PCF</button><small>chance de gagner le siège</small></th>
+        <th scope="col" data-key="price" class="ours"><button data-sort="price">Prix pour l'union</button><small>sièges espérés perdus</small></th>
+        <th scope="col" data-key="q_lfi" class="ours"><button data-sort="q_lfi">Seul·e au 2<sup>nd</sup> tour</button><small>LFI · autre gauche</small></th>
+        <th scope="col" data-key="pred" class="ours"><button data-sort="pred">Gauche prévue 2027</button><small>1<sup>er</sup> tour, % exprimés</small></th>
         <th scope="col" data-key="depute" class="left args"><button data-sort="depute">Député·e sortant·e</button></th>
         <th scope="col" data-key="lab2024" class="left args"><button data-sort="lab2024">2024 : parti NFP</button><small>et sort du siège</small></th>
-        <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G">Gauche 2024</button><small>1<sup>er</sup> tour, % exprimés</small></th>
-        <th scope="col" data-key="h2022_G" class="args"><button data-sort="h2022_G">Gauche 2022</button><small>1<sup>er</sup> tour</small></th>
-        <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI">LFI seule 2017</button><small>dernier scrutin sous sa nuance</small></th>
-        <th scope="col" data-key="h2017_G" class="args"><button data-sort="h2017_G">Gauche 2017</button><small>1<sup>er</sup> tour</small></th>
-        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>présidentielle, écart au national</small></th>
-        <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G">Gauche : 2024 + évolution nationale</button><small>même nombre de points partout</small></th>
-        <th scope="col" data-key="ext_mult_G" class="args"><button data-sort="ext_mult_G">Gauche : 2024 × évolution nationale</button><small>même pourcentage partout</small></th>
+        <th scope="col" data-key="h2024_G" class="args"><button data-sort="h2024_G">Gauche 2024</button><small>1<sup>er</sup> tour</small></th>
+        <th scope="col" data-key="h2017_LFI" class="args"><button data-sort="h2017_LFI">LFI seule 2017</button><small>sous sa nuance</small></th>
+        <th scope="col" data-key="rdev" class="args"><button data-sort="rdev">Mélenchon dans la gauche</button><small>écart au national</small></th>
+        <th scope="col" data-key="ext_plus_G" class="args"><button data-sort="ext_plus_G">2024 + évolution nationale</button><small>gauche, même écart partout</small></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>

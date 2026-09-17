@@ -70,7 +70,7 @@ def main() -> None:
             assert f"{expected:.1f}".replace(".", ",") in txt, txt
             # Tri par prix décroissant.
             page.click('th button[data-sort="price"]')
-            prices = page.evaluate("[...document.querySelectorAll('#rows tr td:nth-child(7)')].slice(0,5).map(t=>t.textContent)")
+            prices = page.evaluate("[...document.querySelectorAll('#rows tr td:nth-child(6)')].slice(0,5).map(t=>t.textContent)")
             vals = [float(p.replace(",", ".")) for p in prices if p != "—"]
             assert vals == sorted(vals, reverse=True), vals
             # Export CSV : autant de lignes que le tableau, entête stable.
@@ -81,6 +81,8 @@ def main() -> None:
             rows = list(csv.reader(io.StringIO("\n".join(body)), delimiter=";"))
             assert rows[0][:3] == ["rang", "circo", "nom"]
             assert len(rows) - 1 == 577
+            # Tient sur une largeur : aucun défilement horizontal du tableau à 1440 px.
+            assert page.evaluate("(() => { const t = document.querySelector('.table-scroll'); return t.scrollWidth <= t.clientWidth + 1; })()"), "le tableau déborde en largeur"
             (ROOT / "screenshots").mkdir(exist_ok=True)
             page.screenshot(path=str(ROOT / "screenshots/negotiation_2027.png"), full_page=False)
             browser.close()

@@ -23,9 +23,12 @@ const POSTURE_TIP = {
   get exiger() { return `Calcul : chance d'élire un·e député·e LFI ≥ ${pctInt(P().p_min)} ET, sans accord, chance que LFI seule atteigne le 2nd tour ≥ ${pctInt(SP().leverage_q)}. Sens : la revendication est incontestable, la menace d'y aller seule crédible.`; },
   get obtenir() { return `Calcul : chance d'élire un·e député·e LFI ≥ ${pctInt(P().p_min)} ET chance que LFI seule atteigne le 2nd tour < ${pctInt(SP().leverage_q)}. Sens : la circonscription vaut cher mais s'obtient par la négociation (l'argument : une candidature LFI y gagne le siège).`; },
   get monnaie() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que la gauche unie gagne le siège avec une candidature d'union moyenne (étiquette quelconque) ≥ ${pctInt(P().p_min)}. Sens : LFI ne gagne pas ici, mais le siège a de la valeur pour l'union : le céder s'échange contre autre chose.`; },
-  get rien() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que la gauche unie gagne le siège < ${pctInt(P().p_min)}. Sens : personne à gauche ne gagne ici, rien à jouer.`; } };
+  get rien() { return `Calcul : chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} ET chance que la gauche unie gagne le siège avec une candidature d'union moyenne (étiquette quelconque) < ${pctInt(P().p_min)}. Sens : personne à gauche ne gagne ici, rien à jouer.`; } };
 // Infobulle d'une pastille : la règle, puis les chiffres de la ligne qui la déclenchent.
-const postureTipRow = (r) => `${POSTURE_TIP[r.posture]} Ici : chance d'élire LFI ${pct(r.p_lfi)} · LFI seule au 2nd tour ${pct(r.q_lfi)} · gauche unie ${pct(r.p_left)}.`;
+// Les trois chiffres portent le nom exact de leur colonne ; le troisième (valeur du siège pour
+// l'union, candidature d'union MOYENNE, toute étiquette) n'a pas de colonne et diffère de la
+// chance d'élire LFI (candidature LFI) : on le nomme en entier pour ne pas les confondre.
+const postureTipRow = (r) => `${POSTURE_TIP[r.posture]} Ici : chance d'élire un·e député·e LFI (colonne 1, LFI candidature unique de la gauche) ${pct(r.p_lfi)} · sans accord, LFI seule au 2nd tour (colonne 2) ${pct(r.q_lfi)} · chance que la gauche unie gagne le siège avec une candidature d'union moyenne, toute étiquette (pas de colonne) ${pct(r.p_left)}.`;
 const GROUP_LAB_DEP = { "LFI-NFP": "LFI", SOC: "PS", ECOS: "Écologistes", GDR: "GDR (PCF & outre-mer)",
   EPR: "Ensemble", DEM: "MoDem", HOR: "Horizons", DR: "LR", UDDPLR: "UDR (Ciotti)", RN: "RN",
   LIOT: "LIOT", NI: "Non inscrit" };

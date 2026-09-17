@@ -188,8 +188,14 @@ def score_circo(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
 
 def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
                 right_union: bool = False, desist: float = DESIST_TO_STRONG,
-                cd_lr: float = CD_LR_DEFAULT, au: float = 0.0) -> str:
-    """Bloc vainqueur du siège (G/CD/ED/AU), même modèle de 2nd tour que `score_circo`."""
+                cd_lr: float = CD_LR_DEFAULT, au: float = 0.0, cd2l_delta: float = 0.0) -> str:
+    """Bloc vainqueur du siège (G/CD/ED/AU), même modèle de 2nd tour que `score_circo`.
+
+    `cd2l_delta` : décalage du TAUX de report centre-droit → gauche (barrage en duel ET
+    désistement en triangulaire) selon l'ÉTIQUETTE du candidat de gauche — mesuré sur 2024
+    (`label_effect_2024` : part des voix libérées récupérée, ≈ −0,05 pour un candidat LFI,
+    ≈ +0,03 pour PS/écologistes/PCF, par rapport au candidat moyen de l'union). 0 = candidat
+    « moyen » : le modèle servi par la carte, qui ne connaît pas l'étiquette."""
     g, cd, ed, au = _norm4(g, cd, ed, au)
     turnout = max(0.05, 1 - ab / 100.0)
     thr = 12.5 / turnout
@@ -217,7 +223,7 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
             sE += 0.10 * g
     if not qC:
         if qL:
-            sL += cd2l * cd
+            sL += max(0.0, cd2l + cd2l_delta) * cd
         if qE:
             sE += cd2e * cd
     if not qE:
@@ -231,7 +237,7 @@ def seat_winner(g: float, cd: float, ed: float, ab: float, cfg: str, rad: float,
     if qL and qC and qE:
         if sL >= sC:  # gauche = pôle anti-RN le plus fort → le centre-droit se désiste
             if not right_union:
-                sL += desist * sC
+                sL += max(0.0, desist + cd2l_delta) * sC
                 sE += DESIST_TO_ED * sC
                 qC = False
         else:  # centre-droit le plus fort → la gauche se désiste (elle fait toujours barrage)

@@ -45,6 +45,24 @@ nuage national : on agrège en symboles par commune au dézoom, on dissout en
 polygones bureau au zoom, et on entre par recherche — seul le département actif
 est en mémoire.
 
+## Négocier les circonscriptions (LFI) — 2027
+
+`2027/negotiation.html`, accessible depuis la carte 2027 : pour une gauche unie, la chance de
+siège de chaque circonscription **avec une étiquette LFI** et **avec une autre étiquette de
+gauche**, leur différence (le prix pour l'union), un classement, une courbe « combien en
+demander » et l'export CSV. L'effet d'étiquette est mesuré sur le second tour 2024 (parti de
+chaque candidat·e d'union connu par la répartition du NFP, `data/nuance/nfp_repartition_2024.csv`) ;
+les député·es en exercice viennent de l'open data de l'Assemblée (`data/nuance/deputes_2026.csv`).
+
+```bash
+python3 -m src.label_effect_2024     # mesure → 2027/data/label_effect_2024.json
+python3 -m src.deputes_an            # sortant·es → data/nuance/deputes_2026.csv
+python3 -m src.negotiation_2027      # Monte-Carlo (~20 s) → 2027/data/negotiation.json
+python3 -m src.test_negotiation_2027 && python3 -m src.test_negotiation_page_2027
+```
+
+Méthode détaillée : `2027/METHODOLOGY.md` §3 ter. `rebuild_2027.sh` enchaîne ces étapes.
+
 ## Comparateur 2027
 
 `2027/comparison.html`, accessible depuis la carte 2027, compare les scores de premier

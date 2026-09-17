@@ -1,0 +1,174 @@
+{
+ "source": {
+  "repartition": "data/nuance/nfp_repartition_2024.csv",
+  "n_repartition": 546,
+  "note": "Répartition des circonscriptions entre partis du NFP (data.gouv.fr, D. Libeau, CC0) ; résultats T1/T2 2024 du ministère agrégés par circonscription."
+ },
+ "sample": {
+  "n_ug_second_round": 284,
+  "n_duels_vs_rn": 142,
+  "n_duels_fi": 51,
+  "n_duels_other": 91
+ },
+ "duels_vs_rn": {
+  "by_label": {
+   "FI": {
+    "n": 51,
+    "k_weighted": 0.5309,
+    "k_mean": 0.5326,
+    "k_median": 0.5247,
+    "k_to_rn": 0.1952,
+    "win_rate": 0.51,
+    "t1_margin_mean": -5.0,
+    "left_t1_mean": 20.11
+   },
+   "PCF": {
+    "n": 10,
+    "k_weighted": 0.6099,
+    "k_mean": 0.6273,
+    "k_median": 0.6131,
+    "k_to_rn": 0.2055,
+    "win_rate": 0.5,
+    "t1_margin_mean": -6.22,
+    "left_t1_mean": 21.06
+   },
+   "PE": {
+    "n": 21,
+    "k_weighted": 0.5868,
+    "k_mean": 0.5885,
+    "k_median": 0.5887,
+    "k_to_rn": 0.2076,
+    "win_rate": 0.619,
+    "t1_margin_mean": -4.16,
+    "left_t1_mean": 20.93
+   },
+   "PS": {
+    "n": 60,
+    "k_weighted": 0.6259,
+    "k_mean": 0.6302,
+    "k_median": 0.624,
+    "k_to_rn": 0.1942,
+    "win_rate": 0.633,
+    "t1_margin_mean": -3.8,
+    "left_t1_mean": 22.06
+   }
+  },
+  "label_names": {
+   "FI": "La France insoumise",
+   "PS": "Parti socialiste",
+   "PE": "Pôle écologiste",
+   "PCF": "Parti communiste"
+  },
+  "k_fi": 0.5309,
+  "k_other": 0.6144,
+  "k_union": 0.5837,
+  "diff_fi_minus_other": -0.0835,
+  "diff_ci95": [
+   -0.1069,
+   -0.0602
+  ],
+  "bootstrap": 4000,
+  "seed": 0,
+  "margin_regression": {
+   "const": {
+    "coef": 5.43,
+    "se": 0.911
+   },
+   "t1_margin": {
+    "coef": 1.141,
+    "se": 0.023
+   },
+   "CD1": {
+    "coef": 0.187,
+    "se": 0.049
+   },
+   "AU1": {
+    "coef": 0.179,
+    "se": 0.113
+   },
+   "FI": {
+    "coef": -1.385,
+    "se": 0.439
+   },
+   "PE": {
+    "coef": -0.569,
+    "se": 0.598
+   },
+   "PCF": {
+    "coef": -0.776,
+    "se": 0.789
+   }
+  },
+  "by_left_strength": {
+   "faible": {
+    "n_fi": 19,
+    "n_other": 29,
+    "k_fi": 0.4965,
+    "k_other": 0.5812
+   },
+   "moyen": {
+    "n_fi": 20,
+    "n_other": 27,
+    "k_fi": 0.542,
+    "k_other": 0.6167
+   },
+   "fort": {
+    "n_fi": 12,
+    "n_other": 35,
+    "k_fi": 0.5683,
+    "k_other": 0.6414
+   }
+  }
+ },
+ "triangulaires_vs_rn": {
+  "FI": {
+   "n": 49,
+   "win_rate": 0.51,
+   "left_t1_mean": 23.28
+  },
+  "PCF": {
+   "n": 4,
+   "win_rate": 0.25,
+   "left_t1_mean": 19.81
+  },
+  "PE": {
+   "n": 18,
+   "win_rate": 0.5,
+   "left_t1_mean": 24.84
+  },
+  "PS": {
+   "n": 25,
+   "win_rate": 0.64,
+   "left_t1_mean": 23.76
+  }
+ },
+ "duels_vs_cd": {
+  "FI": {
+   "n": 8,
+   "k_weighted": 0.2516,
+   "win_rate": 0.125
+  },
+  "PCF": {
+   "n": 1,
+   "k_weighted": 0.0605,
+   "win_rate": 0.0
+  },
+  "PE": {
+   "n": 13,
+   "k_weighted": 0.2859,
+   "win_rate": 0.385
+  },
+  "PS": {
+   "n": 12,
+   "k_weighted": 0.2269,
+   "win_rate": 0.083
+  }
+ },
+ "model": {
+  "cd2l_delta_lfi": -0.0528,
+  "cd2l_delta_other": 0.0307,
+  "margin_effect_lfi_pts_inscrits": -1.385,
+  "significant": true,
+  "sign": "penalty"
+ }
+}

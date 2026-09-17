@@ -41,6 +41,12 @@ python3 -u -m src.attribution_2027
 python3 -u -m src.test_attribution_2027
 python3 -u -m src.report_comparison_2027
 
+echo "══ 5 bis  Négociation LFI : effet d'étiquette 2024 → probabilités de siège par étiquette"
+python3 -u -m src.label_effect_2024
+python3 -u -m src.deputes_an
+python3 -u -m src.negotiation_2027
+python3 -u -m src.test_negotiation_2027
+
 echo "══ 6/6  Garde-fou : aucun score publié là où la nomenclature ne couvre TOUJOURS pas"
 echo "         l'électorat (Corse : mouvance LIOT, hors axe G/CD/ED)"
 python3 -u -m src.coverage_2027

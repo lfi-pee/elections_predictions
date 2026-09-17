@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2027 · Négocier les circonscriptions</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="comparison.css?v=1">
+<link rel="stylesheet" href="negotiation.css?v=1">
+</head>
+<body class="comparison negotiation">
+<header id="top"><a href="index.html">← Carte 2027</a><span>Législatives <b>2027</b></span><a href="comparison.html">Tableau comparatif</a><a href="METHODOLOGY.md">Méthode</a></header>
+<main>
+  <p class="eyebrow">Union de la gauche · une candidature par circonscription</p>
+  <h1>Quelles circonscriptions demander pour élire le plus de député·es LFI&nbsp;?</h1>
+  <p class="lede">Le score de jouabilité de la carte dit où <em>la gauche</em> peut gagner. Une négociation demande deux chiffres de plus par circonscription&nbsp;: la chance de gagner <b>avec une étiquette LFI</b>, et ce que l'union <b>perd</b> à la donner à LFI plutôt qu'à un·e candidat·e PS, écologiste ou communiste. Ce tableau les calcule, à partir de l'effet d'étiquette <b>mesuré sur le second tour de 2024</b>.</p>
+
+  <section class="tiles" id="tiles" aria-label="Chiffres clés"></section>
+
+  <section class="slate" aria-label="Combien de circonscriptions demander">
+    <div class="slate-head">
+      <h2>Combien en demander&nbsp;?</h2>
+      <p>Les circonscriptions négociables sont prises dans l'ordre de la chance LFI. Déplacez le curseur pour lire ce que rapporte — et coûte — la <span id="n-label">n</span><sup>e</sup> circonscription.</p>
+    </div>
+    <div class="slate-ctl">
+      <label>Circonscriptions demandées <small>(en plus des sortant·es LFI)</small> <output id="n-value"></output>
+        <input id="n" type="range" min="0" max="500" step="1"></label>
+      <div class="slate-read" id="slate-read"></div>
+    </div>
+    <div class="charts">
+      <figure><figcaption>Sièges LFI espérés selon le nombre de circonscriptions demandées</figcaption><div class="chart" id="chart-lfi"></div></figure>
+      <figure><figcaption>Coût cumulé pour l'union (sièges espérés perdus par l'étiquette)</figcaption><div class="chart" id="chart-cost"></div></figure>
+    </div>
+  </section>
+
+  <section class="toolbar" aria-label="Filtres">
+    <label>Groupe<select id="group"><option value="">Tous</option><option value="negociables" selected>Négociables (libres + à négocier)</option><option value="libre">Libres</option><option value="a_negocier">À négocier</option><option value="acquis">Acquis (sortant·es LFI)</option><option value="sans_enjeu">Sans enjeu</option><option value="non_mesure">Non mesurées</option></select></label>
+    <label>Circonscription<input id="filter" type="search" placeholder="Code, ville, département, député·e…"></label>
+    <label>Député·e sortant·e<select id="dep"><option value="">Tous groupes</option></select></label>
+    <button id="export" disabled>Exporter le CSV</button>
+  </section>
+  <p id="status" role="status">Chargement…</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Circonscriptions">
+    <table id="neg-table">
+      <caption id="caption">Probabilités de siège moyennées sur l'incertitude nationale et locale. Les lignes surlignées sont dans la demande courante. Cliquez un en-tête pour trier.</caption>
+      <thead><tr>
+        <th scope="col" data-key="rank"><button data-sort="rank">#</button></th>
+        <th scope="col" data-key="id" class="left"><button data-sort="id">Circonscription</button></th>
+        <th scope="col" data-key="group" class="left"><button data-sort="group">Groupe</button></th>
+        <th scope="col" data-key="p_lfi"><button data-sort="p_lfi">Chance LFI</button><small>P(siège, étiquette LFI)</small></th>
+        <th scope="col" data-key="p_other"><button data-sort="p_other">Chance autre gauche</button><small>PS / écolo / PCF</small></th>
+        <th scope="col" data-key="price"><button data-sort="price">Prix pour l'union</button><small>sièges espérés</small></th>
+        <th scope="col" data-key="rate"><button data-sort="rate">Taux d'échange</button><small>prix / chance LFI</small></th>
+        <th scope="col" data-key="p_lfi_local"><button data-sort="p_lfi_local">Chance LFI, sondages exacts</button><small>incertitude locale seule</small></th>
+        <th scope="col" data-key="p_lfi_ru"><button data-sort="p_lfi_ru">Chance LFI, droites unies</button></th>
+        <th scope="col" data-key="depute" class="left"><button data-sort="depute">Député·e sortant·e</button></th>
+        <th scope="col" data-key="lab2024" class="left"><button data-sort="lab2024">2024</button><small>parti NFP · siège</small></th>
+        <th scope="col" data-key="pred"><button data-sort="pred">1<sup>er</sup> tour prévu</button><small>G · C+D · ED</small></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <details class="methods" open>
+    <summary>Comment lire ce tableau, et d'où viennent les chiffres</summary>
+    <dl>
+      <dt>La question</dt><dd>Dans une gauche unie, les partis se répartissent les 577 circonscriptions. LFI veut celles qui élisent des député·es LFI. Une négociation est un échange&nbsp;: un partenaire cède une circonscription si elle lui coûte peu. Chaque ligne porte donc ce que la circonscription <b>vaut</b> pour LFI (chance LFI) et ce qu'elle <b>coûte</b> à l'union (prix). Le classement suit la chance LFI — ce que LFI maximise — et le prix est affiché à côté.</dd>
+      <dt>Effet d'étiquette, mesuré</dt><dd id="m-label"></dd>
+      <dt>Groupes</dt><dd id="m-groups"></dd>
+      <dt>Taux d'échange</dt><dd>Prix divisé par la chance LFI&nbsp;: ce que l'union perd par siège que LFI espère gagner dans cette circonscription. Les circonscriptions <em>à négocier</em> au taux le plus bas sont les moins chères à réclamer&nbsp;; celles au taux le plus élevé sont celles à offrir en échange. Il n'y a pas de groupe «&nbsp;à céder&nbsp;» tranché&nbsp;: l'effet d'étiquette mesuré est un décalage modéré et presque uniforme, aucune circonscription ne voit l'autre étiquette doubler sa chance&nbsp;; le taux ordonne ce continuum sans frontière arbitraire.</dd>
+      <dt>Incertitude</dt><dd id="m-unc"></dd>
+      <dt>Ce que le tableau ne dit pas</dt><dd>Il ne connaît ni les accords locaux, ni les candidat·es réel·les, ni les dissidences. Le prix est un coût en sièges espérés pour l'union, pas la valeur politique qu'un parti attache à un siège. Les circonscriptions <em>non mesurées</em> sont celles où la nomenclature de blocs ne couvre pas l'électorat (Corse, Guyane)&nbsp;: aucune probabilité n'y est publiable. Le repère «&nbsp;carte 2024&nbsp;» rejoue les circonscriptions attribuées à LFI en 2024 avec le modèle 2027&nbsp;: il mesure la carte, pas la campagne.</dd>
+    </dl>
+    <ul class="src">
+      <li><a href="data/negotiation.json">Données servies (JSON)</a> — une ligne par circonscription, paramètres et courbe.</li>
+      <li><a href="data/label_effect_2024.json">Mesure de l'effet d'étiquette 2024 (JSON)</a> — échantillon, reports par parti, intervalle bootstrap, régression, hétérogénéité.</li>
+      <li>Répartition des circonscriptions du Nouveau Front populaire 2024&nbsp;: <a href="https://www.data.gouv.fr/datasets/repartition-des-circonscriptions-front-populaire-legislatives-2024" target="_blank" rel="noopener">data.gouv.fr</a> (David Libeau, CC0). Député·es en exercice&nbsp;: <a href="https://data.assemblee-nationale.fr/" target="_blank" rel="noopener">open data de l'Assemblée nationale</a>.</li>
+    </ul>
+  </details>
+</main>
+<script src="js/negotiation.js?v=1" defer></script>
+</body>
+</html>

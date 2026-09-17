@@ -88,6 +88,46 @@ réelles** (réglables au curseur) :
   `REG` sortaient **silencieusement** du backtest — la justesse était calculée sur 501 circos.
   La table y est désormais branchée ; le chiffre se met à jour à la prochaine reconstruction.
 
+## 3 ter. Négociation des circonscriptions (page « Négocier », LFI)
+- **La question** : dans une gauche unie (une candidature par circo), quelles circos LFI
+  doit-elle demander pour élire le plus de député·es ? Le score de jouabilité (§2) dit où *la
+  gauche* peut gagner, sans connaître l'étiquette. Une négociation est un échange : chaque circo
+  reçoit **p_lfi** = P(siège avec une étiquette LFI), **p_autre** = P(siège avec PS/écolo/PCF),
+  **prix** = p_autre − p_lfi (sièges espérés que l'union perd à donner la circo à LFI), et le
+  **taux d'échange** prix / p_lfi. Classement par p_lfi ; prix affiché à côté (`negotiation_2027.py`,
+  `data/negotiation.json`).
+- **Effet d'étiquette, MESURÉ** (`label_effect_2024.py`) : le parti de chaque candidat·e d'union
+  2024 est connu par la répartition des circos du NFP (data.gouv, 546 circos : FI 229, PS 175,
+  écologistes 92, PCF 50). Dans les **142 duels** union–RN de 2024 (centre-droit éliminé), la
+  part des voix libérées récupérée au 2nd tour est de **53 %** pour un·e candidat·e LFI contre
+  **61 %** pour les autres (écart −0,08, IC 95 % bootstrap [−0,11 ; −0,06] ; −1,4 pt d'inscrits
+  de marge à marge de 1er tour égale ; pénalité présente dans les trois terciles de force de la
+  gauche — pas compensée dans les bastions). Un **taux** de report, donc insensible au fait que
+  LFI ait reçu des circos plus dures. Injecté dans `seat_winner` comme décalage additif du taux
+  centre-droit → gauche (`cd2l_delta` : −0,05 LFI, +0,03 autres), centré pour laisser inchangé le
+  modèle moyen calibré sur les 109 sièges RN de 2024.
+- **Incertitude** : 600 tirages Monte-Carlo, niveau national tiré autour de l'ancre sondages avec
+  l'erreur historique des sondages législatifs (RMSE LOO 2002→2022 de `bayesian_polls` : G 6,3 ·
+  C+D 6,3 · ED 7,5 pts), puis bruit local par circo (σ = demi-largeur circo 90 % / 1,645, comme
+  la fourchette du site). Abstention fixée à la référence (γ = identité). Un classement à un seul
+  réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne sur l'erreur des sondages.
+  Colonnes de sensibilité : incertitude locale seule ; « droites unies ».
+- **Groupes** : *acquis* = député·e sortant·e LFI (71, hors négociation ; `deputes_an.py`, open
+  data AN) ; *sans enjeu* = aucune étiquette n'atteint 5 % (207) ; *libre* = prix ≤ 0,02 siège
+  (177 — à réclamer toutes, l'étiquette n'y coûte rien de mesurable) ; *à négocier* = prix > 0,02
+  (116) ; *non mesurée* (6, §3 bis). Pas de groupe « à céder » : l'effet mesuré est un décalage
+  modéré et quasi uniforme (prix max ≈ 0,08 siège), aucune circo ne voit l'autre étiquette doubler
+  sa chance ; le taux d'échange ordonne ce continuum (taux élevé = à offrir en échange).
+- **Combien en demander** : courbe des sièges LFI espérés selon le nombre de circos prises dans
+  l'ordre (+ coût cumulé pour l'union). Repère : la carte 2024 (229 circos FI) rejouée avec ce
+  modèle donne ~70 sièges LFI espérés ; le même nombre pris dans l'ordre du tableau ~148 — mais
+  cet ordre inclut des sièges tenus par des sortant·es PS/écologistes, dont le tableau n'affiche
+  que le coût *en sièges pour l'union*, pas le prix politique.
+- **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, prix = p_autre − p_lfi,
+  p_lfi ≤ p_autre partout, courbe triée et monotone, la pénalité fait basculer des cas-grille,
+  la page ne fige aucun chiffre) ; `test_negotiation_page_2027.py` (rendu réel, 577 lignes, tri,
+  export CSV, 0 erreur JS).
+
 ## 4. Validation sur 2024
 - **À l'aveugle (chaîne complète)** : 2024 **retiré de l'entraînement**, prévision du 1er tour →
   modèle de sièges → vrais sièges → **~78 %** des circos disputées (`backtest_2024_endtoend.py`).
@@ -113,5 +153,6 @@ réelles** (réglables au curseur) :
 
 *Limites* : **19 circonscriptions hors nomenclature de blocs** (§3 bis — 11 après reconstruction) — aucune prévision par
 circo n'y est publiable ; géométrie outre-mer/étranger (encarts) moins validée ; part LFI en
-sièges bornée par l'arithmétique d'une compétition divisée (≠ répartition d'union négociée) ;
+sièges bornée par l'arithmétique d'une compétition divisée (la répartition d'union négociée se lit
+sur la page « Négocier », §3 ter) ; effet d'étiquette mesuré sur une seule élection (2024) ;
 sondages non rafraîchis depuis fin 2025.

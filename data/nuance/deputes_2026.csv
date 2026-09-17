@@ -1,0 +1,578 @@
+circo,nom,prenom,groupe,groupe_libelle,qualite,bloc,debut_mandat,cause_mandat
+01-01,Breton,Xavier,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+01-02,Daubié,Romain,DEM,Les Démocrates,Membre apparenté,CD,2024-07-07,élections générales
+01-03,Givernet,Olga,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+01-04,Buisson,Jérôme,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+01-05,Chavent,Marc,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+02-01,Dragon,Nicolas,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+02-02,Dive,Julien,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+02-03,Casterman,Eddy,RN,Rassemblement National,Membre apparenté,ED,2024-06-30,élections générales
+02-04,Beaurain,José,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+02-05,Dessigny,Jocelyn,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+03-01,Monnet,Yannick,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+03-02,Bovet,Jorys,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+03-03,Ray,Nicolas,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+04-01,Girard,Christian,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+04-02,Ricourt Vaginay,Sophie,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+05-01,Allemand,Marie-José,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+05-02,Rossi,Valérie,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+06-01,Ciotti,Éric,UDDPLR,Union des droites pour la République,Président,ED,2024-07-07,élections générales
+06-02,Tivoli,Lionel,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+06-03,Chaix,Bernard,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+06-04,Tomatis,Gabriel,RN,Rassemblement National,Membre,ED,2024-06-30,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+06-05,D'Intorni,Christelle,UDDPLR,Union des droites pour la République,Membre,ED,2024-06-30,élections générales
+06-06,Tribuiani,Cyril,RN,Rassemblement National,Membre,ED,2024-06-30,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+06-07,Pauget,Éric,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+06-08,Martin (Alpes-Maritimes),Alexandra,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+06-09,Tabarot,Michèle,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+07-01,Saulignac,Hervé,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+07-02,Trébuchet,Vincent,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+07-03,Brun,Fabrice,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,élections générales
+08-01,Vuibert,Lionel,NI,Non inscrit,Député non-inscrit,,2024-12-08,"élection partielle, remplacement d'un député démissionnaire"
+08-02,Cordier,Pierre,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,élections générales
+08-03,Warsmann,Jean-Luc,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+09-01,Froger,Martine,SOC,Socialistes et apparentés,Membre apparenté,G,2024-06-30,élections générales
+09-02,Abadie-Amiel,Audrey,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,remplacement d'un député nommé au Gouvernement
+10-01,Guitton,Jordan,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+10-02,Bazin-Malgras,Valérie,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+10-03,Ranc,Angélique,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+11-01,Jordan,Édouard,RN,Rassemblement National,Membre,ED,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+11-02,Falcon,Frédéric,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+11-03,Rancoule,Julien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+12-01,Cestrières,Pauline,EPR,Ensemble pour la République,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+12-02,Alexandre,Laurent,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+12-03,Rousset,Jean-François,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+13-01,Griseti,Monique,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-02,Lhardit,Laurent,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+13-03,Lelouis,Gisèle,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-04,Bompard,Manuel,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+13-05,Davi,Hendrik,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+13-06,Fayssat,Olivier,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+13-07,Delogu,Sébastien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+13-08,Tonussi,Romain,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-09,Mélin,Joëlle,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-10,Gonzalez,José,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-11,Pena,Marc,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+13-12,Allisio,Franck,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+13-13,Fouquart,Emmanuel,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-14,Verny,Gérault,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+13-15,Baubry,Romain,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+13-16,Taché,Emmanuel,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+14-01,Bruneau,Joël,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+14-02,Delaporte,Arthur,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+14-03,Patrier-Leitus,Jérémie,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+14-04,Blanchet,Christophe,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+14-05,Bouyx,Bertrand,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+14-06,Borne,Élisabeth,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+15-01,Descoeur,Vincent,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,élections générales
+15-02,Bony,Jean-Yves,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+16-01,Pilato,René,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+16-02,Marsaud,Sandra,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+16-03,Colombier,Caroline,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+17-01,Gervais,Sabine,DEM,Les Démocrates,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+17-02,Biteau,Benoît,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+17-03,Barusseau,Fabrice,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+17-04,Markowsky,Pascal,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+17-05,Plassard,Christophe,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+18-01,Cormier-Bouligeon,François,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+18-02,Sansu,Nicolas,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+18-03,Kervran,Loïc,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+19-01,Hollande,François,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+19-02,Meunier,Frédérique,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+21-01,Godard,Océane,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+21-02,Hervieu,Catherine,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+21-03,Pribetich,Pierre,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+21-04,Brigand,Hubert,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+21-05,Lioret,René,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+22-01,Cosson,Mickaël,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+22-02,Bouloux,Chantal,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député en mission au-delà de 6 mois
+22-03,Le Fur,Corentin,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+22-04,Lepvraud,Murielle,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+22-05,Bothorel,Éric,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+23-01,Lenoir,Bartolomé,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+24-01,Lechon,Nadine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+24-02,Muller,Serge,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+24-03,Joubert,Florence,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+24-04,Peytavie,Sébastien,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+25-01,Croizier,Laurent,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+25-02,Voynet,Dominique,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+25-03,Bloch,Matthieu,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+25-04,Grangier,Géraldine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+25-05,Liégeon,Eric,DR,Droite Républicaine,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+26-01,Christophle,Paul,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+26-02,Pollet,Lisette,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+26-03,Pochon,Marie,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+26-04,Monnier,Thibaut,RN,Rassemblement National,Membre apparenté,ED,2024-07-07,élections générales
+27-01,Loir,Christine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+27-02,Levavasseur,Katiana,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+27-03,Mauvieux,Kévin,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+27-04,Brun,Philippe,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+27-05,Houssin,Timothée,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+28-01,Kasbarian,Guillaume,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+28-02,Minard,Christelle,DR,Droite Républicaine,Membre,CD,2024-07-07,remplacement d'un député décédé
+28-03,Gerard,Eric,NI,Non inscrit,Député non-inscrit,,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+28-04,Vigier,Philippe,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+29-01,Le Meur,Annaïg,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+29-02,Cadalen,Pierre-Yves,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+29-03,Le Gac,Didier,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+29-04,Le Feur,Sandrine,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+29-05,Melchior,Graziella,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+29-06,Thomin,Mélanie,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+29-07,Tanguy,Liliana,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+29-08,Balanant,Erwan,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+2A-01,Marcangeli,Laurent,HOR,Horizons & Indépendants,Président,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+2A-02,Colombani,Paul-André,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+2B-01,Castellani,Michel,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+2B-02,Ceccoli,François-Xavier,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+30-01,Gillet,Yoann,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+30-02,Meizonnet,Nicolas,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+30-03,Dellong Meng,Catherine,RN,Rassemblement National,Membre,ED,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+30-04,Meurin,Pierre,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+30-05,Allegret-Pilot,Alexandre,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+30-06,Josserand,Sylvie,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+31-01,Clouet,Hadrien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+31-02,Stambach-Terrenoir,Anne,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+31-03,Vignon,Corinne,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+31-04,Piquemal,François,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+31-05,Portarrieu,Jean-François,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,élections générales
+31-06,Simion,Arnaud,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+31-07,Bex,Christophe,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+31-08,Aviragnet,Joël,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+31-09,Arrighi,Christine,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+31-10,Oberti,Jacques,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+32-01,Cazeneuve,Jean-René,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+32-02,Taupiac,David,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+33-01,Martin (Gironde),Alexandra,EPR,Ensemble pour la République,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+33-02,Thierry,Nicolas,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+33-03,Prud'homme,Loïc,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre apparenté,G,2024-07-07,élections générales
+33-04,David,Alain,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+33-05,Got,Pascale,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+33-06,Récalde,Marie,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+33-07,Saint-Pasteur,Sébastien,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+33-08,Panonacle,Sophie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+33-09,Mette,Sophie,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+33-10,Bernadeau,Marie-Sophie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député en mission au-delà de 6 mois
+33-11,Diaz,Edwige,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+33-12,Feld,Mathilde,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+34-01,Roumégas,Jean-Louis,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+34-02,Oziol,Nathalie,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+34-03,Dombre Coste,Fanny,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+34-04,Bouquin,Manon,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+34-05,Galzy,Stéphanie,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+34-06,Gabarron,Julien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+34-07,Chaumeil,Bernard,RN,Rassemblement National,Membre,ED,2024-06-30,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+34-08,Carrière,Sylvain,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+34-09,Alloncle,Charles,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+35-01,Mesmeur,Marie,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+35-02,Lahais,Tristan,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+35-03,Rouaux,Claudia,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+35-04,Hignet,Mathilde,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+35-05,Le Nabour,Christine,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+35-06,Benoit,Thierry,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,élections générales
+35-07,Bourgeaux,Jean-Luc,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,élections générales
+35-08,Bouloux,Mickaël,SOC,Socialistes et apparentés,Membre,G,2024-06-30,élections générales
+36-01,Jolivet,François,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+36-02,Fruchon,Alix,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+37-01,Fournier,Charles,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+37-02,Labaronne,Daniel,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+37-03,Alfandari,Henri,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+37-04,Baumel,Laurent,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+37-05,Thillaye,Sabine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+38-01,Latrèche,Alim,EPR,Ensemble pour la République,Membre,CD,2025-01-19,remplacement d'un député nommé au Gouvernement
+38-02,Chatelain,Cyrielle,ECOS,Écologiste et Social,Président,G,2024-07-07,élections générales
+38-03,Martin,Élisa,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+38-04,Battistel,Marie-Noëlle,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+38-05,Iordanoff,Jérémie,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+38-06,Jolly,Alexis,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+38-07,Neuder,Yannick,DR,Droite Républicaine,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+38-08,Mansouri,Hanane,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+38-09,Nosbé,Sandrine,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+38-10,Perez,Thierry,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+39-01,Brulebois,Danielle,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+39-02,Dalloz,Marie-Christine,DR,Droite Républicaine,Membre,CD,2025-04-06,"élection partielle, suite à l'annulation de l'élection d'un député"
+39-03,Gruet,Justine,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+40-01,Darrieussecq,Geneviève,DEM,Les Démocrates,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+40-02,Causse,Lionel,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+40-03,Vallaud,Boris,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+41-01,Fesneau,Marc,DEM,Les Démocrates,Président,CD,2024-07-07,élections générales
+41-02,Chudeau,Roger,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+41-03,Marion,Christophe,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+42-01,Courbon,Pierrick,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+42-02,Taurinya,Andrée,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+42-03,Mandon,Emmanuel,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+42-04,Bonnet,Sylvie,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+42-05,Vermorel,Antoine,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+42-06,Bonnefoy,Jean-Yves,DR,Droite Républicaine,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+43-01,Wauquiez,Laurent,DR,Droite Républicaine,Président,CD,2024-07-07,élections générales
+43-02,Vigier,Jean-Pierre,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+44-01,Benbrahim,Karim,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+44-02,Kerbrat,Andy,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+44-03,Amiot,Ségolène,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+44-04,Laernoes,Julie,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+44-05,Roussel,Fabrice,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+44-06,Raux,Jean-Claude,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+44-07,Josso,Sandrine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+44-08,Tavel,Matthias,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+44-09,Brard,Jean-Michel,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,élections générales
+44-10,Errante,Sophie,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+45-01,Lubet,Marie-Philippe,EPR,Ensemble pour la République,Membre apparenté,CD,2026-01-25,remplacement d'un député nommé au Gouvernement
+45-02,Duplessy,Emmanuel,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+45-03,de Pélichy,Constance,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+45-04,Ménagé,Thomas,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+45-05,Brosse,Anthony,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+45-06,Ramos,Richard,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+46-01,Pradié,Aurélien,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+46-02,Proença,Christophe,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+47-01,Lauzzana,Michel,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+47-02,Laporte,Hélène,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+47-03,Rey-Rinchet,Emeline,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+48-01,Pantel,Sophie,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+49-01,Gernigon,François,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+49-02,Dupont,Stella,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+49-03,Blin,Anne-Laure,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+49-04,Saint-Paul,Laetitia,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+49-05,Masséglia,Denis,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+49-06,Dubré-Chirat,Nicole,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+49-07,Maussion,Patricia,DEM,Les Démocrates,Membre apparenté,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+50-01,Gosselin,Philippe,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+50-02,Sorre,Bertrand,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+50-03,Travert,Stéphane,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+50-04,Pic,Anna,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+51-01,Albertini,Xavier,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+51-02,Miller,Laure,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+51-03,Michelet,Maxime,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+51-04,Magnier,Lise,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+51-05,de Courson,Charles,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+52-01,Bentz,Christophe,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+52-02,Robert-Dehault,Laurence,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+53-01,Garot,Guillaume,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+53-02,Bannier,Géraldine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+53-03,Favennec-Bécot,Yannick,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+54-01,Mercier,Estelle,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+54-02,Hablot,Stéphane,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+54-03,Weber,Frédéric,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+54-04,Bazin,Thibault,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+54-05,Potier,Dominique,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+54-06,Boulogne,Anthony,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+55-01,Amblard,Maxime,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+55-02,Goulet,Florence,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+56-01,Criaud,Michel,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+56-02,Pahun,Jimmy,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+56-03,Le Peih,Nicole,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+56-04,Molac,Paul,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+56-05,Girard,Damien,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+56-06,Jacques,Jean-Michel,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+57-01,Belhaddad,Belkhir,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+57-02,Mendes,Ludovic,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+57-03,Colin-Oesterlé,Nathalie,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,élections générales
+57-04,End,Jérôme,DR,Droite Républicaine,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+57-05,Jenft,Pascal,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+57-06,Pfeffer,Kévin,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+57-07,Loubet,Alexandre,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+57-08,Jacobelli,Laurent,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+57-09,Rauch,Isabelle,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+58-01,Goulet,Perrine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+58-02,Guibert,Julien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+59-01,Le Coq,Aurélien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+59-02,Bernalicis,Ugo,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+59-03,Delannoy,Sandra,NI,Non inscrit,Député non-inscrit,,2024-06-30,élections générales
+59-04,Liso,Brigitte,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+59-05,Huyghe,Sébastien,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+59-06,Parmentier-Lecocq,Charlotte,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+59-07,Gérard,Félicie,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+59-08,Bentorki,Shéhérazade,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+59-09,Spillebout,Violette,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+59-10,Ledoux,Vincent,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+59-11,Vicot,Roger,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+59-12,Taverne,Michaël,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+59-13,Bodart,Jean,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+59-14,Marle,Pierre,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+59-15,Bataille,Jean-Pierre,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+59-16,Marchio,Matthieu,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+59-17,Tesson,Thierry,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+59-18,Dufosset,Alexandre,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+59-19,Chenu,Sébastien,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+59-20,Florquin,Guillaume,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+59-21,Létard,Valérie,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+60-01,Marais-Beuil,Claire,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+60-02,Ballard,Philippe,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+60-03,Sabatou,Alexandre,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+60-04,Ludmann,Véronique,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,remplacement d'un député en mission au-delà de 6 mois
+60-05,Vos,Frédéric-Pierre,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+60-06,Guiniot,Michel,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+60-07,Magnier,David,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+61-01,Jourdan,Chantal,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+61-02,Liger,Thierry,DR,Droite Républicaine,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+61-03,Chazé,Cendrine,DR,Droite Républicaine,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+62-01,Blairy,Emmanuel,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+62-02,Pannier-Runacher,Agnès,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+62-03,Clavet,Bruno,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+62-04,Fait,Philippe,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+62-05,Golliot,Antoine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+62-06,Engrand,Christine,NI,Non inscrit,Député non-inscrit,,2024-06-30,élections générales
+62-07,de Fleurian,Marc,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+62-08,Evrard,Auguste,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+62-09,Parmentier,Caroline,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+62-10,Frappé,Thierry,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+62-11,Le Pen,Marine,RN,Rassemblement National,Président,ED,2024-06-30,élections générales
+62-12,Bilde,Bruno,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+63-01,Maximi,Marianne,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+63-02,Pirès Beaune,Christine,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+63-03,Bonnet,Nicolas,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+63-04,Lingemann,Delphine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+63-05,Brugerolles,Julien,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+64-01,Poueyto,Josy,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+64-02,Mattei,Jean-Paul,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+64-03,Habib,David,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+64-04,Echaniz,Iñaki,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+64-05,Capdevielle,Colette,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+64-06,Dufau,Peio,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+65-01,Ferrer,Sylvie,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+65-02,Fégné,Denis,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+66-01,Blanc,Sophie,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+66-02,Sabatini,Anaïs,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+66-03,Dogor-Such,Sandrine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+66-04,Martinez,Michèle,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+67-01,Regol,Sandra,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+67-02,Fernandes,Emmanuel,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+67-03,Sother,Thierry,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+67-04,Buffet,Françoise,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+67-05,Sitzenstuhl,Charles,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+67-06,Morel,Louise,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+67-07,Hetzel,Patrick,DR,Droite Républicaine,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+67-08,Bernhardt,Théo,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+67-09,Thiébaut,Vincent,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+68-01,Klinkert,Brigitte,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+68-02,Ott,Hubert,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+68-03,Lemaire,Didier,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+68-04,Schellenberger,Raphaël,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+68-05,Becht,Olivier,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+68-06,Fuchs,Bruno,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+69-01,Belouassa-Cherifi,Anaïs,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+69-02,Tavernier,Boris,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+69-03,Garin,Marie-Charlotte,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+69-04,Runel,Sandrine,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+69-05,Brocard,Blandine,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+69-06,Amard,Gabriel,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+69-07,Lahmar,Abdelkader,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+69-08,Gery,Jonathan,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+69-09,Portier,Alexandre,DR,Droite Républicaine,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+69-10,Gassilloud,Thomas,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+69-11,Fugit,Jean-Luc,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+69-12,Isaac-Sibille,Cyrille,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+69-13,Joncour,Tiffany,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+69-14,Boumertit,Idir,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+70-01,Villedieu,Antoine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+70-02,Salmon,Emeric,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+71-01,Dirx,Benjamin,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+71-02,Corneloup,Josiane,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+71-03,Dutremble,Aurélien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+71-04,Michoux,Éric,UDDPLR,Union des droites pour la République,Membre,ED,2024-07-07,élections générales
+71-05,Duparay,Lionel,DR,Droite Républicaine,Membre,CD,2025-05-25,remplacement d'un député nommé au Gouvernement
+72-01,Delpech,Julie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+72-02,Karamanli,Marietta,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+72-03,Martineau,Éric,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+72-04,Leboucher,Élise,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+72-05,Grelier,Jean-Carles,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+73-01,Padey,Didier,DEM,Les Démocrates,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+73-02,Rolland,Vincent,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+73-03,Bonnivard,Émilie,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+73-04,Coulomme,Jean-François,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+74-01,Riotton,Véronique,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+74-02,Carteron,Danièle,EPR,Ensemble pour la République,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+74-03,Valentin,Antoine,UDDPLR,Union des droites pour la République,Membre,ED,2026-02-01,"élection partielle, remplacement d'un député démissionnaire"
+74-04,Duby-Muller,Virginie,DR,Droite Républicaine,Membre apparenté,CD,2024-07-07,élections générales
+74-05,Violland,Anne-Cécile,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+74-06,Roseren,Xavier,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+75-01,Maillard,Sylvain,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+75-02,Barnier,Michel,DR,Droite Républicaine,Membre,CD,2025-09-28,"élection partielle, remplacement d'un député démissionnaire d'office"
+75-03,Balage El Mariky,Léa,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+75-04,Hoffman,Emmanuelle,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député en mission au-delà de 6 mois
+75-05,Amirshahi,Pouria,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+75-06,Chikirou,Sophia,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+75-07,Bregman,Dorine,SOC,Socialistes et apparentés,Membre,G,2024-06-30,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+75-08,Sas,Eva,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+75-09,Rousseau,Sandrine,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+75-10,Arenas,Rodrigo,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+75-11,Hervieu,Céline,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+75-12,Grégoire,Olivia,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+75-13,Ibled,Catherine,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+75-14,Missoffe,Joséphine,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+75-15,Simonnet,Danielle,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+75-16,Legrain,Sarah,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+75-17,Obono,Danièle,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+75-18,Caron,Aymeric,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre apparenté,G,2024-06-30,élections générales
+76-01,Herouin-Léautey,Florence,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+76-02,Vidal,Annie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+76-03,Bénard,Édouard,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+76-04,Dufour,Alma,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+76-05,Leseul,Gérard,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+76-06,Martin,Patrice,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+76-07,Firmin Le Bodo,Agnès,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+76-08,Lecoq,Jean-Paul,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+76-09,Poussier-Winsback,Marie-Agnès,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+76-10,Le Bourgeois,Robert,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+77-01,Saint-Martin,Arnaud,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+77-02,Valletoux,Frédéric,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+77-03,Thiériot,Jean-Louis,DR,Droite Républicaine,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+77-04,Limongi,Julien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+77-05,Lemoine,Patricia,EPR,Ensemble pour la République,Membre,CD,2024-07-07,"remplacement d'un député ayant démissionné pour cause d’incompatibilité prévue aux articles LO 137, LO 137-1, LO 141 ou LO 141-1 du code électoral"
+77-06,Roullaud,Béatrice,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+77-07,Soudais,Ersilia,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+77-08,Bonnet,Arnaud,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+77-09,Thiébault-Martinez,Céline,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+77-10,Laisney,Maxime,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+77-11,Faure,Olivier,SOC,Socialistes et apparentés,Membre,G,2024-06-30,élections générales
+78-01,Rodwell,Charles,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+78-02,Bergantz,Anne,DEM,Les Démocrates,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+78-03,Piron,Béatrice,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+78-04,Lebec,Marie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+78-05,Braun-Pivet,Yaël,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+78-06,Pouzyreff,Natalia,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+78-07,Rousseau,Aurélien,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+78-08,Lucas-Lundy,Benjamin,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+78-09,Diop,Dieynaba,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+78-10,Ronceret,Anne-Sophie,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+78-11,Mazaury,Laurent,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+78-12,Olive,Karl,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+79-01,Marchive,Bastien,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+79-02,Batho,Delphine,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+79-03,Fiévet,Jean-Marie,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+80-01,Ruffin,François,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+80-02,Hamdane,Zahia,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+80-03,Renault,Matthias,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+80-04,Tanguy,Jean-Philippe,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+80-05,Ménaché,Yaël,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+81-01,Bonnecarrère,Philippe,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+81-02,Erodi,Karen,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+81-03,Terlier,Jean,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+82-01,Carbonnel,Pierre-Henri,UDDPLR,Union des droites pour la République,Membre,ED,2025-10-12,"élection partielle, remplacement d'un député démissionnaire d'office"
+82-02,Hamelet,Marine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+83-01,Chenevard,Yannick,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+83-02,Lavalette,Laure,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+83-03,Rambaud,Stéphane,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+83-04,Lottiaux,Philippe,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+83-05,Lechanteux,Julie,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+83-06,Giletti,Frank,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+83-07,Boccaletti,Frédéric,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+83-08,Schreck,Philippe,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+84-01,Arnault,Raphaël,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+84-02,Auzanot,Bénédicte,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+84-03,de Lépinau,Hervé,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+84-04,Lorho,Marie-France,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+84-05,Rimbert,Catherine,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+85-01,Latombe,Philippe,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+85-02,Paillat,Dominique,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,remplacement d'un député décédé
+85-03,Buchou,Stéphane,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+85-04,Besse,Véronique,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+85-05,Henriet,Pierre,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+86-01,Belluco,Lisa,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+86-02,Houlié,Sacha,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+86-03,Lecamp,Pascal,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+86-04,Turquois,Nicolas,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+87-01,Maudet,Damien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+87-02,Delautrette,Stéphane,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+87-03,Meunier,Manon,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+88-01,Viry,Stéphane,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+88-02,Dussausaye,Gaëtan,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+88-03,Naegelen,Christophe,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Président,,2024-07-07,élections générales
+88-04,Humbert,Sébastien,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+89-01,Grenon,Daniel,NI,Non inscrit,Député non-inscrit,,2024-07-07,élections générales
+89-02,Roy,Sophie-Laurence,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+89-03,Odoul,Julien,RN,Rassemblement National,Membre,ED,2024-06-30,élections générales
+90-01,Boucard,Ian,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+90-02,Bigot,Guillaume,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+91-01,Amrani,Farida,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+91-02,Da Conceicao Carvalho,Nathalie,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+91-03,Gustave,Steevy,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+91-04,Rixain,Marie-Pierre,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+91-05,Midy,Paul,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+91-06,Guedj,Jérôme,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+91-07,Lejeune,Claire,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+91-08,Cernon,Bérenger,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+91-09,Ozenne,Julie,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+91-10,Léaument,Antoine,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+92-01,Faucillon,Elsa,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-06-30,élections générales
+92-02,Lam,Thomas,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,élections générales
+92-03,Juvin,Philippe,DR,Droite Républicaine,Membre,CD,2024-06-30,élections générales
+92-04,Sebaihi,Sabrina,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+92-05,Calvez,Céline,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+92-06,Le Grip,Constance,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+92-07,Cazeneuve,Pierre,EPR,Ensemble pour la République,Membre,CD,2024-06-30,élections générales
+92-08,Thevenot,Prisca,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+92-09,de Maistre,Élisabeth,DR,Droite Républicaine,Membre,CD,2025-02-09,"élection partielle, remplacement d'un député élu au Parlement européen"
+92-10,Attal,Gabriel,EPR,Ensemble pour la République,Président,CD,2024-07-07,élections générales
+92-11,Saintoul,Aurélien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+92-12,Guillerm,Carole,DEM,Les Démocrates,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+92-13,Mongardien,Christophe,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+93-01,Coquerel,Éric,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+93-02,Peu,Stéphane,GDR,Gauche Démocrate et Républicaine,Président,G,2024-06-30,élections générales
+93-03,Portes,Thomas,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+93-04,Bourouaha,Soumya,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+93-05,Diouara,Aly,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+93-06,Lachaud,Bastien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+93-07,Corbière,Alexis,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+93-08,Keloua Hachi,Fatiha,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+93-09,Trouvé,Aurélie,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+93-10,Abomangoli,Nadège,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+93-11,Autain,Clémentine,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+93-12,Legavre,Jérôme,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+94-01,Berrios,Sylvain,HOR,Horizons & Indépendants,Membre apparenté,CD,2024-07-07,élections générales
+94-02,Guetté,Clémence,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+94-03,Boyard,Louis,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+94-04,Petit,Maud,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+94-05,Lalanne,Sandrine,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+94-06,Gouffier Valente,Guillaume,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+94-07,Tryzna,Nicolas,DR,Droite Républicaine,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+94-08,Herbillon,Michel,DR,Droite Républicaine,Membre,CD,2024-07-07,élections générales
+94-09,Santiago,Isabelle,SOC,Socialistes et apparentés,Membre,G,2024-06-30,élections générales
+94-10,Panot,Mathilde,LFI-NFP,La France insoumise - Nouveau Front Populaire,Président,G,2024-06-30,élections générales
+94-11,Taillé-Polian,Sophie,ECOS,Écologiste et Social,Membre,G,2024-06-30,élections générales
+95-01,Sicard,Anne,RN,Rassemblement National,Membre apparenté,ED,2024-07-07,élections générales
+95-02,Hadizadeh,Ayda,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+95-03,Maurel,Emmanuel,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+95-04,Blanchard,Benoît,HOR,Horizons & Indépendants,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+95-05,Vannier,Paul,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+95-06,Cathala,Gabrielle,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+95-07,Eskenazi,Romain,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+95-08,Bilongo,Carlos Martens,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-06-30,élections générales
+95-09,Le Gall,Arnaud,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+95-10,Taché,Aurélien,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+ZA-01,Serva,Olivier,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+ZA-02,Baptiste,Christian,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+ZA-03,Mathiasin,Max,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+ZA-04,Califer,Elie,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+ZB-01,William,Jiovanny,SOC,Socialistes et apparentés,Membre apparenté,G,2024-07-07,élections générales
+ZB-02,Nadeau,Marcellin,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZB-03,Bellay,Béatrice,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+ZB-04,Nilor,Jean-Philippe,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+ZC-01,Castor,Jean-Victor,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZC-02,Rimane,Davy,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZD-01,Naillet,Philippe,SOC,Socialistes et apparentés,Membre,G,2024-07-07,élections générales
+ZD-02,Lebon,Karine,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZD-03,Rivière,Joseph,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+ZD-04,K/Bidi,Émeline,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZD-05,Ratenon,Jean-Hugues,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+ZD-06,Maillot,Frédéric,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZD-07,Gaillard,Perceval,LFI-NFP,La France insoumise - Nouveau Front Populaire,Membre,G,2024-07-07,élections générales
+ZM-01,Youssouffa,Estelle,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-06-30,élections générales
+ZM-02,Bamana,Anchya,RN,Rassemblement National,Membre,ED,2024-07-07,élections générales
+ZN-01,Metzdorf,Nicolas,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+ZN-02,Tjibaou,Emmanuel,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZP-01,Frébault,Moerani,EPR,Ensemble pour la République,Membre,CD,2024-06-30,élections générales
+ZP-02,Sanquer,Nicole,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+ZP-03,Reid Arbelot,Mereana,GDR,Gauche Démocrate et Républicaine,Membre,G,2024-07-07,élections générales
+ZS-01,Lenormand,Stéphane,LIOT,"Libertés, Indépendants, Outre-mer et Territoires",Membre,,2024-07-07,élections générales
+ZW-01,Seo,Mikaele,EPR,Ensemble pour la République,Membre,CD,2024-06-30,élections générales
+ZX-01,Gumbs,Frantz,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+ZZ-01,Weissberg,Christopher,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+ZZ-02,Larrouquis,Benoît,EPR,Ensemble pour la République,Membre,CD,2024-07-07,remplacement d'un député nommé au Gouvernement
+ZZ-03,Caure,Vincent,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+ZZ-04,Anglade,Pieyre-Alexandre,EPR,Ensemble pour la République,Membre,CD,2024-07-07,élections générales
+ZZ-05,Coggia,Nathalie,EPR,Ensemble pour la République,Membre,CD,2025-10-12,"élection partielle, remplacement d'un député démissionnaire d'office"
+ZZ-06,Ferracci,Marc,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement
+ZZ-07,Petit,Frédéric,DEM,Les Démocrates,Membre,CD,2024-07-07,élections générales
+ZZ-08,Yadan,Caroline,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+ZZ-09,Ben Cheikh,Karim,ECOS,Écologiste et Social,Membre,G,2024-07-07,élections générales
+ZZ-10,Lakrafi,Amélia,EPR,Ensemble pour la République,Membre apparenté,CD,2024-07-07,élections générales
+ZZ-11,Genetet,Anne,EPR,Ensemble pour la République,Membre,CD,2024-07-07,reprise de l'exercice du mandat d'un ancien membre du Gouvernement

@@ -1,0 +1,52 @@
+.negotiation h2 { font-size: 18px; letter-spacing: -.02em; margin: 0 0 6px; }
+.negotiation .lede b { color: #202731; }
+.negotiation th.left, .negotiation td.left { text-align: left; }
+.negotiation tbody td:nth-child(2), .negotiation tbody td:nth-child(3) { background: inherit; }
+.negotiation tbody tr.in-slate td { background: #fbf1e6; }
+.negotiation tbody tr.in-slate:hover td { background: #f4e6d4; }
+.negotiation td.num { font-variant-numeric: tabular-nums; }
+.negotiation td.dim { color: #8a919b; }
+/* Groupes : identité par couleur + libellé (jamais couleur seule). */
+.negotiation .grp { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11.5px; white-space: nowrap; }
+.negotiation .grp i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.negotiation .g-acquis i { background: #a01722; } .negotiation .g-libre i { background: #1a9850; }
+.negotiation .g-a_negocier i { background: #2f6fd0; } .negotiation .g-sans_enjeu i { background: #8a919b; }
+.negotiation .g-non_mesure i { background: #c2c6cd; }
+/* Barres de probabilité dans les cellules : fond neutre, remplissage discret, chiffre en encre. */
+.negotiation .pb { display: inline-grid; grid-template-columns: 44px 56px; align-items: center; gap: 8px; }
+.negotiation .pb span { text-align: right; }
+.negotiation .pb i { display: block; height: 6px; background: #e8eaeb; border-radius: 3px; overflow: hidden; }
+.negotiation .pb i b { display: block; height: 100%; background: #a01722; border-radius: 3px; }
+.negotiation .pb.oth i b { background: #ef7a5a; }
+/* Tuiles de chiffres clés */
+.negotiation .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 26px 0; }
+.negotiation .tile { background: white; border: 1px solid #d8dcdd; border-radius: 9px; padding: 14px 16px; }
+.negotiation .tile .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6a7380; font-weight: 700; }
+.negotiation .tile .v { font-size: 26px; font-weight: 700; letter-spacing: -.03em; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.negotiation .tile .s { font-size: 12px; color: #616b75; line-height: 1.45; }
+.negotiation .tile.warn .v { color: #a01722; }
+/* Section « combien » */
+.negotiation .slate { background: white; border: 1px solid #d8dcdd; border-radius: 9px; padding: 18px 20px; margin-bottom: 22px; }
+.negotiation .slate-head p { font-size: 13px; color: #555f69; line-height: 1.55; margin: 0 0 14px; max-width: 900px; }
+.negotiation .slate-ctl { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 22px; align-items: start; }
+.negotiation .slate-ctl label small { font-weight: 400; color: #6a7380; }
+.negotiation .slate-ctl output { font-size: 22px; font-weight: 700; display: block; }
+.negotiation .slate-read { font-size: 13px; line-height: 1.6; color: #333c47; }
+.negotiation .slate-read b { font-variant-numeric: tabular-nums; }
+.negotiation .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 18px; }
+.negotiation figure { margin: 0; }
+.negotiation figcaption { font-size: 12px; font-weight: 600; color: #3a4450; margin-bottom: 6px; }
+.negotiation .chart { position: relative; height: 220px; }
+.negotiation .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.negotiation .chart .grid line { stroke: #e8eaeb; stroke-width: 1; }
+.negotiation .chart .axis text { font-size: 10.5px; fill: #6a7380; }
+.negotiation .chart .axis line, .negotiation .chart .axis path { stroke: #cdd2d4; }
+.negotiation .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.negotiation .chart .line.lfi { stroke: #a01722; } .negotiation .chart .line.cost { stroke: #4A90D9; }
+.negotiation .chart .ref { stroke: #8a919b; stroke-dasharray: 3 3; stroke-width: 1; }
+.negotiation .chart .ref-lab { font-size: 10.5px; fill: #6a7380; }
+.negotiation .chart .cursor { stroke: #202731; stroke-width: 1; }
+.negotiation .chart .dot { fill: #202731; stroke: white; stroke-width: 2; }
+.negotiation .tip { position: absolute; pointer-events: none; background: #202731; color: white; font-size: 11.5px; padding: 6px 9px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -10px; display: none; }
+.negotiation .methods .src { font-size: 12px; margin: 14px 0 0; padding-left: 18px; line-height: 1.7; }
+@media (max-width: 900px) { .negotiation .slate-ctl, .negotiation .charts { grid-template-columns: 1fr; } }

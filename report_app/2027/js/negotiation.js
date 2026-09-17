@@ -192,15 +192,15 @@ function negTable() {
     <td class="left">${state(r)}</td>
     <td class="num">${pb(r.p_lfi, "")}</td>
     <td class="num">${pb(r.p_other, "oth")}</td>
-    <td class="num">${f2(r.price)}</td>
-    <td class="num">${r.q_lfi == null ? "—" : `${pct(r.q_lfi)} <span class="dim">·</span> ${pct(r.q_other)}`}</td>
-    <td class="num">${r.pred ? f1(r.pred.G) + " %" : "—"}</td>
+    <td class="num">${r.price == null ? "—" : (r.price > 0.0005 ? "−" : "") + Math.round(r.price * 100) + " pt" + (Math.round(r.price * 100) > 1 ? "s" : "")}</td>
+    <td class="num">${r.q_lfi == null ? "—" : `<span class="dim">LFI</span> ${pct(r.q_lfi)} <span class="dim">· autre</span> ${pct(r.q_other)}`}</td>
     <td class="left args first">${dep(r)}</td>
     <td class="left args">${r.lab2024 ? esc(r.lab2024) : "—"} <span class="dim">${r.union_won_2024 == null ? "" : r.union_won_2024 ? "· gagné" : "· perdu"}</span></td>
     <td class="num args">${r.h2024_G == null ? "—" : f1(r.h2024_G) + " %"}</td>
     <td class="num args">${r.h2017_LFI == null ? "—" : f1(r.h2017_LFI) + " %"}</td>
     <td class="num args">${r.rdev == null ? "—" : (r.rdev > 0 ? "+" : "") + f1(r.rdev * 100) + " pt"}</td>
     <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %"}</td>
+    <td class="num args">${r.pred ? f1(r.pred.G) + " %" : "—"}</td>
   </tr>`).join("");
   document.querySelectorAll("th[data-key]").forEach((th) => {
     const on = th.dataset.key === NEG.sort;

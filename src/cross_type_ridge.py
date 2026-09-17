@@ -277,6 +277,10 @@ for _c in [
     "LUC",
     "LFG",
     "GAUCHE",
+    # Présidentielle 2027 (en-têtes Wikipédia) : Les Écologistes, Place publique, Debout ! (Ruffin)
+    "LE",
+    "PP",
+    "D!",
 ]:
     _CODE_TO_BLOCK[_c] = "Gauche"
 for _c in [
@@ -313,6 +317,9 @@ for _c in [
     "LUD",
     "LMAJ",
     "LDVC",
+    # Présidentielle 2027 : Ensemble pour la République, La France humaniste (Villepin)
+    "EPR",
+    "LFH",
 ]:
     _CODE_TO_BLOCK[_c] = "Centre+Droite"
 for _c in [
@@ -381,6 +388,21 @@ _CANDIDATE_NAME_TO_BLOCK: dict[str, str] = {
     "MAMÈRE": "Gauche",
     "BOVÉ": "Gauche",
     "SCHIVARDI": "Gauche",
+    # Présidentielle 2027 (en-têtes et cellules des tableaux Wikipédia)
+    "TONDELIER": "Gauche",
+    "GLUCKSMANN": "Gauche",
+    "FAURE": "Gauche",
+    "RUFFIN": "Gauche",
+    "AUTAIN": "Gauche",
+    "ATTAL": "Centre+Droite",
+    "PHILIPPE": "Centre+Droite",
+    "VILLEPIN": "Centre+Droite",
+    "RETAILLEAU": "Centre+Droite",
+    "WAUQUIEZ": "Centre+Droite",
+    "LISNARD": "Centre+Droite",
+    "BARDELLA": "Extreme_Droite",
+    "KNAFO": "Extreme_Droite",
+    "MARÉCHAL": "Extreme_Droite",
     "MACRON": "Centre+Droite",
     "FILLON": "Centre+Droite",
     "PÉCRESSE": "Centre+Droite",

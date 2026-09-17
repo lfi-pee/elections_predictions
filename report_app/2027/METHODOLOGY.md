@@ -11,8 +11,14 @@ applique le niveau national que vous posez au curseur.
 - **Modèle** : Ridge + PCA, un réglage par bloc, entraîné sur les législatives **2002→2024**.
   Prédicteurs : surtout l'héritage de vote local (déviations 2024 puis 2022) + 52 indicateurs
   INSEE. Sortie servie : la déviation par bureau (le *motif spatial*), pas un score figé.
-- **Niveau national** : posé par l'utilisateur (curseurs), présélections = sondages publiés
-  agrégés (2025-2026). `score = national(curseur) + déviation(modèle)`.
+- **Niveau national** : posé par l'utilisateur (curseurs), présélections = **sondages publiés du
+  1er tour de la présidentielle 2027** (Wikipédia, tous instituts, douze derniers mois, moyenne
+  simple des sondages ramenés à 100 sur trois blocs — `scenarios_2027.anchor_from_polls`). C'est
+  l'estimateur validé du modèle : pour toutes les législatives d'apprentissage (2007→2022), la
+  fenêtre d'un an de l'Étape 1 ne contenait que des sondages présidentiels (la législative suit
+  la présidentielle de six semaines) ; son erreur LOO par bloc est celle citée en §4. Le
+  baromètre législatif « hypothèse dissolution » est gelé depuis octobre 2025 et ne sert plus.
+  `score = national(curseur) + déviation(modèle)`.
 - **Couplage participation (γ)** : baisser l'abstention réaffecte les revenants selon la courbe
   γ mesurée en 2024 (l'électeur de retour penche à gauche) → relève les parts *effectives* de
   gauche. Effet FORT sur les sièges de gauche, dans toutes les configurations.
@@ -30,7 +36,12 @@ réelles** (réglables au curseur) :
 - **Réunification d'une gauche divisée** (`reunif`, défaut 0,72) — mesurée sur 2012 (gauche
   divisée : PS/Front de Gauche/EELV) : régression 0,69–0,73 (`reunif_measure.py`).
 - **Partage gauche radicale (LFI) / soc-dém** — le niveau national de la part LFI du VOTE
-  vient du curseur (initialisé depuis les sondages). Le **profil local vient du premier tour
+  vient du curseur, initialisé à **k × part de Mélenchon dans le vote de gauche** aux sondages
+  présidentiels 2027. La décote k (« candidat → parti », `lfi_pres_discount`, ≈0,63) est mesurée
+  en validation croisée sur les trois présidentielles suivies d'un scrutin à gauche divisée
+  (2012→legi 2012, 2017→legi 2017, 2022→euro 2024) : le rapport brut Mélenchon/gauche ferait
+  aussi mal qu'une moyenne plate (RMSE LOO 0,15 contre 0,15), la décote divise l'erreur par deux
+  (0,07) — trois plis, donc une direction validée, une précision mince. Le **profil local vient du premier tour
   de la présidentielle 2022**, dernière présidentielle disponible avant la cible 2027 dans
   les données (`radical_spatial.select_source`). Il mesure les voix de **Mélenchon parmi
   l'ensemble des voix de gauche**, puis leur écart à la moyenne pondérée par ces voix ; ce
@@ -120,7 +131,7 @@ réelles** (réglables au curseur) :
   reporteraient pas sur une candidature d'union → sorti du classement, signalé (7) ; *sans
   enjeu* = p_lfi < 5 % ; *en jeu* = le reste, classé par p_lfi décroissant ; *non mesurée* (§3 bis).
 - **Force réelle et postures** : pour une grille de parts nationales LFI-dans-la-gauche (25→55 %,
-  sondages ~37 %, curseur de la page), le modèle rejoue une gauche DIVISÉE (LFI seule contre le
+  ancre sondages présidentiels décotée, curseur de la page), le modèle rejoue une gauche DIVISÉE (LFI seule contre le
   reste, motif Mélenchon, `split_outcome`) et sert q_lfi. Postures : *exiger* (en jeu et q_lfi ≥
   50 % : LFI n'a pas besoin de l'accord, la revendication est incontestable), *obtenir* (en jeu,
   pas seule : s'obtient par la négociation, l'argument étant qu'une candidature LFI y gagne),
@@ -138,7 +149,7 @@ réelles** (réglables au curseur) :
   = gauche hors NFP), LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
   évolution nationale » (4 blocs, plancher 0, renormalisation) **répartie entre LFI, PS,
   Écologistes et PCF** : LFI par la règle de la force réelle (part nationale de LFI dans la
-  gauche, filtre, sondages par défaut ~37 %, + RAD_GAIN × écart Mélenchon 2022, bornée
+  gauche, filtre, ancre sondages par défaut, + RAD_GAIN × écart Mélenchon 2022, bornée
   [0,05 ; 0,95]) ; le reste selon la seule enquête législative qui sépare PS/EELV/PCF (Ifop
   3-4 juin 2025 : 12/5/3, `data/polls/legislatives/legislatives_2027_partis_gauche.csv`, hors
   ancre du modèle), chaque part décalée de l'écart local de son·sa candidat·e présidentiel·le 2022
@@ -174,12 +185,15 @@ réelles** (réglables au curseur) :
 - **Garde-fou de publication** : `test_coverage_2027.py` exécute le vrai JS du site et vérifie
   que les circos hors nomenclature sont bien grisées, sans score ni siège annoncés ; la parité
   du marquage Python ↔ JS est couverte par `test_parity_2027.py`.
-- **Sources sondages** : liens en pied de page du site. Baromètre législatif gelé depuis
-  oct. 2025 (suivi reporté sur la présidentielle) — présélections = tendance agrégée
-  PolitPro / Toute l'Europe (2026).
+- **Sources sondages** : `data/polls/presidentielle/2027/presidentielle_2027_t1_tidy.csv`
+  (page Wikipédia des sondages présidentiels 2027, relevée par `src/scrape_pres_2027.py` ; la
+  date du relevé est en tête du fichier), fenêtre et effectifs servis dans `summary.json`
+  (`anchor`). Le baromètre législatif 2025 n'est conservé qu'en rappel comparatif.
 
 *Limites* : **19 circonscriptions hors nomenclature de blocs** (§3 bis — 11 après reconstruction) — aucune prévision par
 circo n'y est publiable ; géométrie outre-mer/étranger (encarts) moins validée ; part LFI en
 sièges bornée par l'arithmétique d'une compétition divisée (la répartition d'union négociée se lit
 sur la page « Négocier », §3 ter) ; report LFI mesuré sur une seule élection (2024) ;
-sondages non rafraîchis depuis fin 2025.
+l'ancre présidentielle hérite du biais connu des sondages présidentiels sur une législative
+(extrême droite surestimée dans les cinq plis historiques, +2,7 à +11,6 pts) — l'erreur servie
+au Monte-Carlo le couvre, aucune correction de biais n'est appliquée (hors ensemble validé).

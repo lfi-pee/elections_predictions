@@ -23,6 +23,11 @@ else
   python3 -u -m src.forecast_2027
 fi
 
+echo "══ 1 bis  Décote candidat → parti (LOO) pour la part LFI de l'ancre présidentielle"
+echo "         (les sondages présidentiels 2027 eux-mêmes se rafraîchissent à la demande :"
+echo "          python3 -u -m src.scrape_pres_2027 — accès réseau, relevé daté en tête du CSV)"
+python3 -u -m src.lfi_pres_discount
+
 echo "══ 2/6  Données servies (summary / circo / communes) + backtests + motif radical + γ"
 python3 -u -m src.report_data_2027
 

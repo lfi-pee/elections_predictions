@@ -65,9 +65,17 @@ def main() -> None:
                              (a["first_round"]["accuracy"], 80, 100), (e["actual"]["ED"], 90, 130)]:
             if not (lo <= path <= hi):
                 fails.append(f"summary : valeur hors plage attendue ({path} ∉ [{lo},{hi}])")
+    # La part LFI servie est celle que le module d'ancre calcule depuis les sondages (pas un
+    # littéral recopié) : k × Mélenchon/gauche (présidentielle 2027), cf. scenarios_2027.ANCHOR.
+    from src import scenarios_2027
     scn = next((x for x in s["scenarios"] if x["key"] == s["default_scenario"]), None)
-    if scn and not (0.30 <= scn.get("radical_share", 0) <= 0.45):
-        fails.append(f"radical_share servi {scn['radical_share']} hors plage sondages ~0,37")
+    exp = next(x for x in scenarios_2027.SCENARIOS if x["key"] == s["default_scenario"])["radical_share"]
+    if scn and abs(scn.get("radical_share", 0) - exp) > 1e-6:
+        fails.append(f"radical_share servi {scn['radical_share']} ≠ ancre calculée {exp}")
+    if scn and not (0.10 <= scn.get("radical_share", 0) <= 0.60):
+        fails.append(f"radical_share servi {scn['radical_share']} implausible")
+    if s.get("anchor", {}).get("source", "").startswith("repli"):
+        fails.append("ancre nationale en REPLI (constantes) : sondages présidentiels / décote absents")
 
     if fails:
         print("ÉCHEC — chiffres figés ou rendu débranché des données :")

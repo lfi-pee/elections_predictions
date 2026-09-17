@@ -50,8 +50,9 @@ const APP = {
   // (circo.rdev = part Mélenchon-dans-la-gauche à la PRÉSIDENTIELLE la plus récente — source
   // sélectionnée par validation croisée, cf. src/lfi_geo_loo.py), borné [0,05 ; 0,95]. RAD_GAIN
   // = 1,0 : dispersion appliquée TELLE QUELLE, sans calage.
-  // À ~37 % sondé, LFI obtient ~27 % des sièges de gauche en gauche divisée (pôle minoritaire →
-  // moins de sièges que de voix). Cf. src/radical_spatial.py.
+  // Le niveau national du curseur vient de summary.anchor (sondages présidentiels 2027, part de
+  // Mélenchon dans la gauche décotée candidat → parti). Pôle minoritaire → moins de sièges que
+  // de voix. Cf. src/radical_spatial.py, src/scenarios_2027.py.
   RAD_GAIN: 1.0,
   // Mode « Rejouer 2024 » : quand actif, les barres et la carte évaluent le modèle de 2nd tour
   // sur les parts de 1er tour RÉELLES 2024 par circo (circoArr.r24*, gauche unie) — reproduit

@@ -204,7 +204,8 @@ function renderLfiShare() {
   el.innerHTML =
     `<div class="ctl-h sub">Part de la gauche radicale (LFI)
        <span class="info">i<span class="tip">Ce curseur = part de LFI dans le <b>VOTE</b> de
-         gauche (moyenne nationale ; défaut ~37 %, ancrage sondages 2025). Le modèle prédit le bloc
+         gauche (moyenne nationale ; défaut = part de Mélenchon dans le vote de gauche aux sondages
+         présidentiels 2027, décotée du rapport candidat → parti mesuré en 2012, 2017 et 2022). Le modèle prédit le bloc
          de gauche entier ; cette part le répartit entre pôle radical (LFI) et pôle
          social-démocrate (PS·Place publique·EELV·PCF). Le profil local vient du <b>premier tour
          de la présidentielle 2022</b> : part de Mélenchon parmi les voix de gauche, exprimée

@@ -182,17 +182,21 @@ Voting intention polls (sondages d'intentions de vote) for French presidential e
 
 ## Présidentielle 2027 Polls (`data/polls/presidentielle/2027/`)
 
-### Présidentielle 2027 — Source: Wikipedia FR (scraped 2026-03-27)
+### Présidentielle 2027 — Source: Wikipedia FR (re-scraped by `src/scrape_pres_2027.py`)
 
 - **Source page**: https://fr.wikipedia.org/wiki/Liste_de_sondages_sur_l%27élection_présidentielle_française_de_2027
-- **Key files**:
-  - `presidentielle_2027_sondages_0.csv` — Hypothesis 1 first round (13 rows, 14 cols: Arthaud, Mélenchon, Roussel, Tondelier, PS, etc.)
-  - `presidentielle_2027_sondages_1.csv` — Hypothesis 2 first round (65 rows, 17 cols, most data)
-  - `presidentielle_2027_sondages_2.csv` — Hypothesis 3 first round (34 rows, 16 cols)
-  - `presidentielle_2027_sondages_3.csv` — Hypothesis 4 first round (24 rows, 15 cols)
-  - `presidentielle_2027_sondages_4.csv` — Hypothesis 5 first round (8 rows)
-  - `presidentielle_2027_sondages_5.csv` to `_12.csv` — Second round matchups (Attal-Bardella, Mélenchon-Bardella, Philippe-Bardella, Philippe-Le Pen, etc.)
-- **Coverage**: 2024–ongoing
+- **Served file** (git-tracked, scrape date in its header): `presidentielle_2027_t1_tidy.csv` —
+  one row per (institute, fieldwork end date, hypothesis, candidate): `institut, date_fin,
+  echantillon, hypothese, candidat, parti, bloc, valeur`. `bloc` is the model nomenclature
+  (G / CD / ED / AU) via `cross_type_ridge._poll_token_to_block`. First round only; the year of
+  each row comes from the Wikipedia section heading (cells carry no year). Union hypotheses
+  (one candidate spanning several party columns) are counted once.
+- **Used by**: `scenarios_2027.anchor_from_polls` (national anchor of the 2027 site: bloc
+  levels + LFI share of the left, discounted by `data/polls/lfi_pres_discount.json` from
+  `src/lfi_pres_discount.py`). Skipped by the generic wiki-table parser in `load_polls`.
+- **Legacy files** `presidentielle_2027_sondages_0..13.csv` (scrape 2026-03-27, raw wiki tables,
+  second-round matchups from `_5`): kept for reference, not used.
+- **Coverage**: 2023 → ongoing (refresh: `python3 -u -m src.scrape_pres_2027`).
 
 ## Départementales Polls (`data/polls/departementales/`)
 

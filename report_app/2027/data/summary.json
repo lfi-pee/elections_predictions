@@ -9,9 +9,9 @@
    "label": "Union de la gauche large",
    "desc": "À soutien de gauche égal, une seule candidature par circonscription (type NFP/Front populaire) capte tout le bloc. C'est la configuration qui convertit le mieux le soutien en sièges.",
    "means": {
-    "G": 29.9,
-    "CD": 29.1,
-    "ED": 39.2,
+    "G": 31.8,
+    "CD": 26.6,
+    "ED": 39.8,
     "AU": 1.8,
     "AB": 48.0
    },
@@ -24,14 +24,14 @@
    "label": "Gauche radicale vs néolibérale",
    "desc": "Scénario de référence : même soutien de gauche, mais scindé en un pôle radical (LFI) et un pôle social-démocrate (PS-Place publique-EELV-PCF) qui concourent séparément — deux candidatures, qualification au 2nd tour plus dure.",
    "means": {
-    "G": 29.9,
-    "CD": 29.1,
-    "ED": 39.2,
+    "G": 31.8,
+    "CD": 26.6,
+    "ED": 39.8,
     "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "split2",
-   "radical_share": 0.369,
+   "radical_share": 0.281,
    "right_union": false
   },
   {
@@ -39,14 +39,14 @@
    "label": "Fragmentation (statu quo)",
    "desc": "« Autre » : même soutien, mais éclaté en trois (LFI / PS-PP / éco-PCF) sans pôle fédérateur — dispersion maximale, presque aucune qualification.",
    "means": {
-    "G": 29.9,
-    "CD": 29.1,
-    "ED": 39.2,
+    "G": 31.8,
+    "CD": 26.6,
+    "ED": 39.8,
     "AU": 1.8,
     "AB": 48.0
    },
    "left_config": "split3",
-   "radical_share": 0.369,
+   "radical_share": 0.281,
    "right_union": false
   },
   {
@@ -54,9 +54,9 @@
    "label": "Droites unies en face",
    "desc": "Gauche unie, mais union des droites : au 2nd tour, l'électorat LR se reporte sur le RN plutôt que de faire barrage — le « front républicain » s'effondre, la barre à franchir monte. (Le niveau national reste celui des curseurs.)",
    "means": {
-    "G": 29.9,
-    "CD": 29.1,
-    "ED": 39.2,
+    "G": 31.8,
+    "CD": 26.6,
+    "ED": 39.8,
     "AU": 1.8,
     "AB": 48.0
    },
@@ -65,6 +65,27 @@
    "right_union": true
   }
  ],
+ "anchor": {
+  "G": 32.4,
+  "CD": 27.1,
+  "ED": 40.5,
+  "rad_raw": 0.446,
+  "rad": 0.281,
+  "n_polls": 32,
+  "n_hyp": 142,
+  "from": "2025-09-25",
+  "to": "2026-09-10",
+  "source": "présidentielle 2027, 1er tour (Wikipédia)",
+  "k_discount": 0.6306,
+  "k_range": [
+   0.5309,
+   0.7824
+  ],
+  "legislative_polls_2025": {
+   "rad": 0.369,
+   "n": 2
+  }
+ },
  "default_scenario": "split2",
  "slider_ranges": {
   "G": [
@@ -87,95 +108,95 @@
  "winnability": {
   "union": {
    "counts": {
-    "1": 111,
-    "2": 54,
-    "3": 84,
-    "4": 135,
-    "5": 193
+    "1": 124,
+    "2": 58,
+    "3": 93,
+    "4": 156,
+    "5": 146
    },
    "inscrits": {
-    "1": 8322363,
-    "2": 4622917,
-    "3": 7095176,
-    "4": 12372388,
-    "5": 16232896
+    "1": 9367027,
+    "2": 5031436,
+    "3": 7897368,
+    "4": 14144112,
+    "5": 12205797
    },
    "seats": {
-    "G": 176,
-    "CD": 172,
-    "ED": 228,
+    "G": 191,
+    "CD": 139,
+    "ED": 246,
     "AU": 1
    },
-   "playable": 249
+   "playable": 275
   },
   "split2": {
    "counts": {
-    "1": 60,
-    "2": 64,
-    "3": 23,
-    "4": 50,
-    "5": 380
+    "1": 69,
+    "2": 89,
+    "3": 41,
+    "4": 98,
+    "5": 280
    },
    "inscrits": {
-    "1": 4457364,
-    "2": 5094260,
-    "3": 1898649,
-    "4": 4589484,
-    "5": 32605983
+    "1": 5216537,
+    "2": 7134623,
+    "3": 3431904,
+    "4": 8852724,
+    "5": 24009952
    },
    "seats": {
-    "G": 131,
-    "CD": 220,
-    "ED": 224,
+    "G": 168,
+    "CD": 163,
+    "ED": 244,
     "AU": 2
    },
-   "playable": 147
+   "playable": 199
   },
   "frag": {
    "counts": {
-    "1": 33,
-    "2": 29,
-    "3": 5,
-    "4": 12,
-    "5": 498
+    "1": 31,
+    "2": 51,
+    "3": 10,
+    "4": 25,
+    "5": 460
    },
    "inscrits": {
-    "1": 2430863,
-    "2": 2037796,
-    "3": 361299,
-    "4": 1030836,
-    "5": 42784946
+    "1": 2312569,
+    "2": 3726452,
+    "3": 830616,
+    "4": 2304432,
+    "5": 39471671
    },
    "seats": {
-    "G": 62,
-    "CD": 282,
-    "ED": 231,
-    "AU": 2
+    "G": 84,
+    "CD": 239,
+    "ED": 251,
+    "AU": 3
    },
-   "playable": 67
+   "playable": 92
   },
   "droite_unie": {
    "counts": {
-    "1": 91,
+    "1": 103,
     "2": 37,
-    "3": 57,
-    "4": 199,
-    "5": 193
+    "3": 64,
+    "4": 227,
+    "5": 146
    },
    "inscrits": {
-    "1": 6717115,
-    "2": 2946743,
-    "3": 4850062,
-    "4": 17898924,
-    "5": 16232896
+    "1": 7600059,
+    "2": 3108467,
+    "3": 5560673,
+    "4": 20170744,
+    "5": 12205797
    },
    "seats": {
-    "G": 139,
-    "CD": 172,
-    "ED": 265,
+    "G": 149,
+    "CD": 139,
+    "ED": 288,
     "AU": 1
    },
-   "playable": 185
+   "playable": 204
   }
  },
  "proof_2024": {

@@ -272,6 +272,8 @@ def build() -> None:
         "n_circo": int(len(cir)),
         "total_inscrits": int(df.inscrits.sum()),
         "scenarios": scen_out,
+        # Provenance de l'ancre nationale (sondages présidentiels 2027, fenêtre, décote LFI).
+        "anchor": scenarios_2027.ANCHOR,
         "default_scenario": scenarios_2027.DEFAULT_SCENARIO,
         "slider_ranges": scenarios_2027.SLIDER_RANGES,
         "winnability": per_scn,

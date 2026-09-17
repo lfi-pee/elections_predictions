@@ -1,0 +1,48 @@
+{
+ "k_poll": 0.6306,
+ "k_poll_range": [
+  0.5309,
+  0.7824
+ ],
+ "k_result": 0.5084,
+ "loo_rmse": {
+  "null": 0.1523,
+  "raw_poll_ratio": 0.1537,
+  "k_x_poll": 0.0729,
+  "k_x_result": 0.0615
+ },
+ "folds": [
+  {
+   "pres": "2012_pres_t1",
+   "next": "2012_legi_t1",
+   "n_polls": 96,
+   "x_poll": 0.2671,
+   "x_result": 0.2538,
+   "y": 0.1418,
+   "k_poll": 0.5309,
+   "k_result": 0.5587
+  },
+  {
+   "pres": "2017_pres_t1",
+   "next": "2017_legi_t1",
+   "n_polls": 88,
+   "x_poll": 0.4976,
+   "x_result": 0.7075,
+   "y": 0.3893,
+   "k_poll": 0.7824,
+   "k_result": 0.5502
+  },
+  {
+   "pres": "2022_pres_t1",
+   "next": "2024_euro_t1",
+   "n_polls": 200,
+   "x_poll": 0.4945,
+   "x_result": 0.6871,
+   "y": 0.286,
+   "k_poll": 0.5784,
+   "k_result": 0.4162
+  }
+ ],
+ "window_years": 0.25,
+ "note": "k = moyenne des y/x_poll sur 3 plis (présidentielle → scrutin divisé suivant) ; LOO : chaque pli prédit avec le k des deux autres."
+}

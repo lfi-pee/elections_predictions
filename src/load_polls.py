@@ -78,6 +78,10 @@ def _load_all_wiki_polls(data_dir: Path) -> pd.DataFrame:
     for csv_path in sorted(polls_dir.rglob("*.csv")):
         if csv_path.name.startswith("nsppolls_"):
             continue
+        # Fichiers « tidy » (une ligne par candidat, produits par src/scrape_pres_2027) : format
+        # long, lus par leur propre module — pas par ce parseur de tableaux Wikipédia.
+        if csv_path.name.endswith("_tidy.csv"):
+            continue
 
         lower_path = str(csv_path).lower()
         if "presidentielle" in lower_path:

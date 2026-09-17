@@ -15,8 +15,13 @@ screenshots/
 # Idem pour le site 2027 (carte des circonscriptions).
 !report_app/2027/data/
 !report_app/2027/data/**
-# Ancrage documenté des scénarios 2027 (malgré la règle `data`).
+# Ancrage documenté des scénarios 2027 (malgré la règle `data` — le dossier parent étant
+# exclu, ces fichiers doivent être ajoutés avec `git add -f`).
 !data/polls/legislatives/legislatives_2027_hypotheses.csv
+!data/polls/presidentielle/
+!data/polls/presidentielle/2027/
+!data/polls/presidentielle/2027/presidentielle_2027_t1_tidy.csv
+!data/polls/lfi_pres_discount.json
 # Attribution des voix régionalistes : décision documentée, pas une donnée dérivée.
 # (comme le CSV de sondages ci-dessus : la règle `data` de la 1re ligne empêche une
 #  ré-inclusion par motif — le fichier est suivi explicitement, `git add -f`.)

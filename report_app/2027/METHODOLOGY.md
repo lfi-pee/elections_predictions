@@ -135,21 +135,34 @@ réelles** (réglables au curseur) :
   Orthez/Habib, Les Abymes/Serva…) : le bloc de gauche prédit inclut ses voix, qui ne se
   reporteraient pas sur une candidature d'union → sorti du classement, signalé (7) ; *sans
   enjeu* = p_lfi < 5 % ; *en jeu* = le reste, classé par p_lfi décroissant ; *non mesurée* (§3 bis).
-- **Force réelle et postures** : pour une grille de parts nationales LFI-dans-la-gauche (25→55 %,
-  ancre sondages présidentiels décotée, curseur de la page), le modèle rejoue une gauche DIVISÉE (LFI seule contre le
-  reste, motif Mélenchon, `split_outcome`) et sert q_lfi. Postures : *exiger* (en jeu et q_lfi ≥
-  50 % : LFI n'a pas besoin de l'accord, la revendication est incontestable), *obtenir* (en jeu,
-  pas seule : s'obtient par la négociation, l'argument étant qu'une candidature LFI y gagne),
-  *monnaie d'échange* (sans enjeu pour LFI mais p_left ≥ 5 % : LFI ne gagne pas, la gauche unie
-  si — céder s'échange), *rien* (p_left < 5 % : personne à gauche ne gagne). Trois prédictions du
-  modèle, jamais un chiffre de la partie droite ; le survol d'une pastille donne les trois
-  chiffres de la ligne. À 37 % de la gauche, LFI seule se qualifie rarement — c'est le chiffre
-  honnête ; le curseur montre la bascule au-dessus de ~45 %.
+- **Valeur, options extérieures, postures** : pour une grille de parts nationales
+  LFI-dans-la-gauche (25→55 %, ancre sondages présidentiels décotée, curseur de la page), le
+  modèle rejoue une gauche DIVISÉE (LFI d'un côté, PS·PP·Écologistes·PCF de l'autre, motif
+  Mélenchon, `split_outcome`) et sert **deux options extérieures mesurées à l'identique sur les
+  deux pôles** : `q_lfi` (LFI seule atteint le 2nd tour) et `q_oth` (le reste de la gauche seul
+  l'atteint). Avec `p_left` (la gauche unie gagne le siège, candidature d'union moyenne), ce sont
+  les **trois probabilités du même Monte-Carlo** dont se déduisent les postures, et rien d'autre :
+  *rien à jouer* (p_left < 5 % : la gauche ne gagne pas le siège, rien à demander ni à céder) ;
+  *exiger* (p_left ≥ 5 % et q_lfi ≥ 50 % : LFI tient le siège sans l'accord) ; *monnaie
+  d'échange* (p_left ≥ 5 %, q_lfi < 50 % ≤ q_oth : l'option extérieure est du côté du partenaire,
+  LFI ne peut pas exiger ce siège et devra le céder — c'est un vrai siège, donc la concession a
+  un prix) ; *obtenir* (p_left ≥ 5 % et aucun des deux pôles ne tient le siège seul : personne ne
+  peut se passer de l'accord, il se gagne à la table). Aucun seuil nouveau : 5 % et 50 % sont
+  ceux déjà posés. Le survol d'une pastille redonne les quatre chiffres de la ligne, tous
+  présents en colonne.
+  *Correction (2026-09-18).* La règle précédente opposait `p_lfi` (candidature LFI) à `p_left`
+  (candidature d'union moyenne). L'effet d'étiquette mesuré sur 2024 étant faible, ces deux
+  quantités ne se séparent que de 0,5 pt en médiane et 3,8 pts au maximum : « monnaie d'échange »
+  n'y capturait que 8 circonscriptions à cheval sur le seuil de 5 %, toutes ingagnables (gauche
+  23-26 % contre RN 44-51 %) — un artefact d'arrondi, pas une catégorie politique. Les deux
+  options extérieures, elles, se séparent vraiment. Un test interdit le retour en arrière.
+  Vérification externe : les 113 circonscriptions « monnaie d'échange » portent très
+  majoritairement une investiture NFP 2024 du partenaire (58 PS, 27 Écologistes, 8 PCF, 18 LFI).
 - **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de
   circos et qu'à nombre donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e
   député·e. Aucun score composite : il cacherait le raisonnement.
 - **Deux groupes de colonnes, un seul tableau** : à gauche *notre lecture* (posture, p_lfi,
-  q_lfi) ; à droite *les chiffres à mettre sur la table* : sortant·e, parti NFP et sort du siège
+  p_left, q_lfi, q_oth — que des probabilités simulées) ; à droite *les chiffres à mettre sur la table* : sortant·e, parti NFP et sort du siège
   2024, gauche 2024 **ventilée par nuance** (UG = candidature NFP avec son parti ; DVG/EXG/ECO…
   = gauche hors NFP), LFI seule 2017 (nuance FI), écart Mélenchon, extrapolation « 2024 +
   évolution nationale » (4 blocs, plancher 0, renormalisation) **répartie entre LFI, PS,

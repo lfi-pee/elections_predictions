@@ -60,7 +60,7 @@ def main() -> None:
             if r["group"] != "non_mesure" or r["p_lfi"] is not None:
                 fails.append(f"{r['id']} non publiable mais chiffré")
             continue
-        for key in ("p_lfi", "p_lfi_local", "p_lfi_ru", "q_lfi"):
+        for key in ("p_lfi", "p_lfi_local", "p_lfi_ru", "q_lfi", "q_oth", "p_left"):
             if not (0.0 <= r[key] <= 1.0):
                 fails.append(f"{r['id']} {key} hors [0,1]")
         if r["group"] == "hors_union" and r["depute"]["groupe"] in N.LEFT_GROUPS:
@@ -71,7 +71,7 @@ def main() -> None:
             fails.append(f"{r['id']} sans enjeu mais chance ≥ P_MIN")
         if r["group"] == "en_jeu" and r["p_lfi"] < N.P_MIN:
             fails.append(f"{r['id']} en jeu mais chance < P_MIN")
-        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["p_left"]):
+        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["q_oth"], r["p_left"]):
             fails.append(f"{r['id']} posture non reproductible")
     if groups != d["groups"]:
         fails.append(f"comptes de groupes incohérents {groups} ≠ {d['groups']}")
@@ -112,9 +112,26 @@ def main() -> None:
             fails.append(f"{r['id']} disponibilité Mélenchon incohérente")
     if abs(sum(d["parties_2027"]["shares_rest"].values()) - 1) > 0.002:
         fails.append("parts PS/EELV/PCF du reste ≠ 1")
-    # ── Postures : monnaie ⇔ sans enjeu & gauche unie ≥ p_min ; p_left ≥ p_lfi presque partout ──
-    if not any(r["posture"] == "monnaie" for r in rows):
+    # ── Postures : règle 100 % probabilités simulées, et les deux pôles mesurés à l'identique ──
+    post = [r for r in rows if r["posture"]]
+    if not any(r["posture"] == "monnaie" for r in post):
         fails.append("aucune circo « monnaie d'échange »")
+    for r in post:
+        # Toute posture autre que « rien » porte sur un siège que la gauche unie gagne vraiment.
+        if (r["posture"] == "rien") != (r["p_left"] < N.P_MIN):
+            fails.append(f"{r['id']} « rien à jouer » ⇎ gauche unie < P_MIN")
+        if r["posture"] == "exiger" and r["q_lfi"] < N.LEVERAGE_Q:
+            fails.append(f"{r['id']} exiger sans option extérieure LFI")
+        # Monnaie = l'option extérieure est au PARTENAIRE, pas à LFI : c'est toute la définition.
+        if r["posture"] == "monnaie" and not (r["q_oth"] >= N.LEVERAGE_Q > r["q_lfi"]):
+            fails.append(f"{r['id']} monnaie sans q_oth ≥ seuil > q_lfi")
+        if r["posture"] == "obtenir" and (r["q_lfi"] >= N.LEVERAGE_Q or r["q_oth"] >= N.LEVERAGE_Q):
+            fails.append(f"{r['id']} obtenir alors qu'un pôle tient le siège seul")
+    # La règle ne doit PAS être un franchissement de seuil par deux quantités quasi identiques :
+    # les deux options extérieures doivent réellement se séparer (sinon monnaie = bruit d'arrondi).
+    sep = sum(1 for r in post if abs(r["q_oth"] - r["q_lfi"]) >= 0.2)
+    if sep < 50:
+        fails.append(f"options extérieures trop proches pour trancher ({sep} circos séparées de ≥ 20 pts)")
     if sum(1 for r in rows if r["pub"] and r["p_left"] + 0.02 < r["p_lfi"]) > 5:
         fails.append("p_left < p_lfi trop souvent (le report LFI est mesuré sous la moyenne)")
     if abs(float(d["split"]["near"]) - d["split"]["default_share"]) > 0.005:

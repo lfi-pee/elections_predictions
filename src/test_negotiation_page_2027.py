@@ -38,8 +38,8 @@ def main() -> None:
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(url)
             page.wait_for_function("document.querySelectorAll('#rows tr').length > 0")
-            # Vue par défaut : toutes les circonscriptions (les postures « monnaie » et « rien »
-            # ne vivent que dans les sans-enjeu, elles doivent être visibles d'emblée).
+            # Vue par défaut : toutes les circonscriptions (« rien à jouer » sort des circos en
+            # jeu pour LFI, les quatre postures doivent être visibles d'emblée).
             assert page.locator("#rows tr").count() == 577, "vue par défaut = toutes"
             assert page.locator("#rows .pos[data-tip]", has_text="Monnaie").count() == served["postures"]["monnaie"]
             # Rien au-dessus du tableau hormis l'explication et les filtres.
@@ -53,16 +53,19 @@ def main() -> None:
             assert "≥ 5 %" in tip and "≥ 50 %" in tip, tip
             # Ventilations : gauche 2024 par nuance (NFP + hors NFP) ; 2027 partagé LFI / reste.
             row = page.locator("#rows tr", has_text="93-01").first
-            assert "NFP-" in row.locator("td").nth(6).inner_text()
-            t27 = row.locator("td").nth(9).inner_text()
+            assert "NFP-" in row.locator("td").nth(8).inner_text()
+            t27 = row.locator("td").nth(11).inner_text()
             assert all(k in t27 for k in ("LFI", "PS", "Écolo.", "PCF")), t27
             # Mélenchon : part brute, moyenne nationale affichée sous le titre.
-            mel_txt = row.locator("td").nth(8).inner_text()
+            mel_txt = row.locator("td").nth(10).inner_text()
             assert mel_txt.strip() == f"{round(served_row_mel := next(r for r in served['rows'] if r['id'] == '93-01')['mel'] * 100)} %", mel_txt
             assert page.locator("#mel-nat").inner_text().strip() == f"{round(served['presidential']['national']['LFI'] * 100)} %"
             # Pastille : la règle puis les chiffres de la ligne.
             tipm = page.locator("#rows .pos[data-tip]", has_text="Monnaie").first.get_attribute("data-tip")
             assert "gauche unie" in tipm and "Ici :" in tipm, tipm
+            # Chaque chiffre cité au survol a sa colonne : le survol n'invente aucune valeur.
+            for key in ("p_lfi", "p_left", "q_lfi", "q_oth"):
+                assert page.locator(f'th[data-key="{key}"]').count() == 1, key
             # Le partage 2027 suit le filtre de part LFI et respecte la règle servie.
             served_row = next(r for r in served["rows"] if r["id"] == "93-01")
             def lfi27(share):
@@ -71,7 +74,7 @@ def main() -> None:
                 return round(served_row["ext_plus_G"] * rad, 1)
             def shown_lfi():
                 import re as _re
-                m = _re.search(r"LFI\s+([\d,]+)", row.locator("td").nth(9).inner_text())
+                m = _re.search(r"LFI\s+([\d,]+)", row.locator("td").nth(11).inner_text())
                 return float(m.group(1).replace(",", "."))
             assert abs(shown_lfi() - lfi27(float(served["split"]["near"]))) < 0.11
             page.select_option("#share", served["split"]["shares"][-1])

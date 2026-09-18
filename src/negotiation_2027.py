@@ -9,10 +9,16 @@ et de LFI seulement — les autres partis n'entrent dans aucun calcul.
 
 Trois nombres par circo, tous moyennés sur l'incertitude nationale ET locale :
 
-    p_lfi   = P(siège gagné par une candidature LFI dans une gauche unie)   → la VALEUR
-    q_lfi   = P(LFI seule se qualifie au 2nd tour si la gauche se divise)   → la FORCE réelle
+    p_lfi   = P(siège gagné par une candidature LFI dans une gauche unie)   → la VALEUR pour LFI
+    p_left  = P(siège gagné par une candidature d'union MOYENNE)            → la VALEUR du siège
+    q_lfi   = P(LFI seule se qualifie au 2nd tour si la gauche se divise)   → option extérieure LFI
+    q_oth   = P(le reste de la gauche seul se qualifie, même division)      → option extérieure
+                                                                              du PARTENAIRE
     rdev    = écart local du vote Mélenchon dans la gauche (présidentielle) → servi à DROITE
               (argument visible par tous), jamais utilisé dans la posture
+
+Les quatre premières sont des probabilités du MÊME Monte-Carlo (mêmes tirages) : les colonnes
+de gauche, postures comprises, ne reposent que là-dessus.
 
 D'où les groupes et les postures :
   • ACQUIS      — député·e LFI sortant·e : hors négociation, compté à part.
@@ -21,14 +27,14 @@ D'où les groupes et les postures :
                   reporteraient pas sur une candidature d'union → sorti du classement, signalé.
   • SANS ENJEU  — p_lfi < P_MIN : imprenable pour LFI.
   • EN JEU      — le reste : ce que LFI a intérêt à demander, classé par p_lfi décroissant.
-  Postures :
-    exiger   — en jeu ET LFI seule se qualifierait (q_lfi ≥ LEVERAGE_Q) : LFI n'a pas besoin de
-               l'accord ici, la revendication est incontestable, la menace d'y aller seule crédible.
-    obtenir  — en jeu mais LFI seule ne se qualifierait pas : la circo vaut cher, il faut l'obtenir
-               par la négociation (l'argument : une candidature LFI y gagne le siège).
-    monnaie  — sans enjeu pour LFI, mais LFI seule se qualifierait quand même : son retrait a un
-              prix, la circo se cède contre autre chose
-    rien     — sans enjeu, LFI faible : rien à jouer.
+  Postures (règle complète et symétrique dans `posture` ci-dessous) : la valeur du siège
+  (p_left) dit s'il y a quelque chose à jouer ; les deux options extérieures (q_lfi, q_oth)
+  disent qui peut se passer de l'accord.
+    exiger   — le siège se gagne ET LFI le tient sans l'accord (q_lfi ≥ LEVERAGE_Q).
+    obtenir  — le siège se gagne, aucun pôle ne le tient seul : il se gagne à la table.
+    monnaie  — le siège se gagne, l'option extérieure est au PARTENAIRE (q_oth ≥ LEVERAGE_Q >
+               q_lfi) : LFI devra le céder, autant l'échanger.
+    rien     — la gauche ne gagne pas le siège.
 Le classement est par p_lfi décroissant : ce qui se négocie est un NOMBRE de circos, et à nombre
 donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e. La courbe « sièges
 LFI espérés selon le nombre de circos prises dans cet ordre » dit COMBIEN en demander.
@@ -151,7 +157,7 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
     dAU = np.array(arr.get("dAU", [0.0] * n))
     dAB = np.array(arr["dAB"])
     rdev = np.array(arr.get("rdev", [0.0] * n))
-    out = {f"{s:.2f}": {k: np.zeros(n) for k in ("q_lfi", "w_lfi")} for s in shares}
+    out = {f"{s:.2f}": {k: np.zeros(n) for k in ("q_lfi", "q_oth", "w_lfi")} for s in shares}
     for d in range(draws):
         eG, eCD, eED = (rng.normal(size=n) * sig[b] for b in ("G", "CD", "ED"))
         g = np.clip(nat[d, 0] + dG + eG, 0, 100)
@@ -166,21 +172,43 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
             for i in range(n):
                 qual, pole = W.split_outcome(g[i], cd[i], ed[i], ab[i], rad[i], au=au[i])
                 o["q_lfi"][i] += qual[0]
+                o["q_oth"][i] += qual[1]
                 if pole == 0: o["w_lfi"][i] += 1
     return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
 
 
-def posture(group: str, q_lfi: float | None, p_left: float | None) -> str | None:
-    """Posture = trois prédictions du modèle, rien d'autre — jamais un chiffre de la partie droite
-    du tableau. Miroir exact de `negPosture` (js/negotiation.js).
-    exiger : en jeu, LFI seule se qualifierait · obtenir : en jeu, pas seule · monnaie : sans
-    enjeu pour LFI, mais la gauche unie (candidature d'union moyenne, étiquette quelconque) a une
-    vraie chance de gagner le siège : le céder a une valeur · rien : la gauche ne gagne pas ici."""
-    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or p_left is None:
+def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float | None) -> str | None:
+    """Posture = TROIS PROBABILITÉS SIMULÉES par le même Monte-Carlo (mêmes tirages), rien
+    d'autre — jamais un chiffre de la partie droite du tableau, et aucun seuil nouveau : les
+    deux seuils sont ceux déjà posés, P_MIN et LEVERAGE_Q. Miroir exact de `negPosture`
+    (js/negotiation.js).
+
+      p_left — la gauche unie gagne-t-elle le siège (candidature d'union moyenne) ? = la VALEUR
+      q_lfi  — si la gauche se divise, LFI seule atteint-elle le 2nd tour ?  = l'option extérieure DE LFI
+      q_oth  — si la gauche se divise, le reste de la gauche seul l'atteint-il ? = celle DU PARTENAIRE
+
+    Les deux options extérieures sont mesurées à l'identique sur les deux pôles : la règle est
+    symétrique, c'est elle qui dit qui peut se passer de l'accord.
+
+      rien à jouer     p_left < P_MIN — la gauche ne gagne pas le siège : rien à demander, rien
+                       à céder.
+      exiger           la gauche gagne le siège ET q_lfi ≥ LEVERAGE_Q — LFI tient le siège sans
+                       l'accord : la revendication ne se refuse pas.
+      monnaie d'échange  la gauche gagne le siège, q_lfi < LEVERAGE_Q ≤ q_oth — l'option
+                       extérieure est du côté du partenaire, pas de LFI : LFI ne peut pas exiger
+                       ce siège et devra le céder ; autant le céder contre autre chose. C'est un
+                       vrai siège (la gauche unie le gagne), donc la concession a un prix.
+      obtenir          la gauche gagne le siège et AUCUN pôle n'a d'option extérieure
+                       (q_lfi < LEVERAGE_Q, q_oth < LEVERAGE_Q) — personne ne peut se passer de
+                       l'accord : le siège se gagne à la table.
+    """
+    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_oth is None or p_left is None:
         return None
-    if group == "en_jeu":
-        return "exiger" if q_lfi >= LEVERAGE_Q else "obtenir"
-    return "monnaie" if p_left >= P_MIN else "rien"
+    if p_left < P_MIN:
+        return "rien"
+    if q_lfi >= LEVERAGE_Q:
+        return "exiger"
+    return "monnaie" if q_oth >= LEVERAGE_Q else "obtenir"
 
 
 def _group(p_lfi: float, lfi_incumbent: bool, outside_union: bool = False) -> str:
@@ -306,6 +334,8 @@ def build() -> dict:
             "p_lfi_ru": round(float(p_ru[i]), 3) if pub else None,
             "group": _group(pl, lfi_inc, outside) if pub else "non_mesure",
             "q_lfi": round(float(split[near]["q_lfi"][i]), 3) if pub else None,
+            # Option extérieure du PARTENAIRE : même simulation, même tirages, autre pôle.
+            "q_oth": round(float(split[near]["q_oth"][i]), 3) if pub else None,
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
             # Présidentielle : part BRUTE de Mélenchon dans le vote de gauche (colonne de droite,
             # la moyenne nationale est servie à part) ; écart local de chaque parti du reste.
@@ -320,7 +350,7 @@ def build() -> dict:
         })
 
     for r in rows:
-        r["posture"] = posture(r["group"], r["q_lfi"], r["p_left"])
+        r["posture"] = posture(r["group"], r["q_lfi"], r["q_oth"], r["p_left"])
     postures = {k: sum(1 for r in rows if r["posture"] == k) for k in ("exiger", "obtenir", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).

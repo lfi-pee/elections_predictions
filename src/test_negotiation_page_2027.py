@@ -135,6 +135,14 @@ def main() -> None:
             assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == served_postures
             assert page.locator("#rows .pos[data-tip]").count() == sum(1 for v in served_postures.values() if v)
             assert page.locator("#rows .grp[data-tip]").count() == 577 - sum(1 for v in served_postures.values() if v)
+            # Le « Calcul » d'une pastille ne doit citer QUE ce que la règle lit. Nommer la chance
+            # de la gauche unie y rendait chaque pastille falsifiable avec les chiffres de sa
+            # propre ligne : à 25 % de part LFI, 30-01 satisfaisait mot pour mot le calcul annoncé
+            # pour « monnaie d'échange » tout en affichant « rien à jouer ».
+            tips = page.evaluate("Object.fromEntries(['exiger','obtenir','monnaie','rien']"
+                                 ".map(k => [k, POSTURE_TIP[k]]))")
+            assert not any("gauche unie" in v for v in tips.values()), tips
+            assert all("député·e LFI" in v for v in tips.values()), tips
             # L'infobulle apparaît immédiatement au survol d'une pastille et d'un en-tête, puis disparaît.
             page.locator("#rows .pos[data-tip]").first.hover()
             assert page.locator(".tt").is_visible() and len(page.locator(".tt").text_content()) > 20

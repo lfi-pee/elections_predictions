@@ -122,7 +122,10 @@
 .negotiation .trunc { display: inline-block; max-width: 112px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .negotiation .pb { grid-template-columns: 40px 40px; gap: 6px; }
 .negotiation .table-scroll { max-height: 70vh; }
-@media (min-width: 1280px) { .negotiation main { max-width: none; padding-left: 2vw; padding-right: 2vw; } .negotiation .table-scroll { overflow-x: hidden; } }
+@media (min-width: 1280px) { .negotiation main { max-width: none; padding-left: 2vw; padding-right: 2vw; } }
+/* Pas d'`overflow-x: hidden` ici : le tableau demande ~1380 px et n'a plus de marge, donc sur un
+   écran étroit il DOIT pouvoir défiler plutôt que se faire couper. La règle qui l'affirmait
+   était morte depuis toujours — une seconde `@media` identique, plus bas, la contredisait. */
 
 /* Redimensionnement des colonnes : poignée sur le bord droit de chaque en-tête de colonne. */
 .negotiation thead th { position: relative; }

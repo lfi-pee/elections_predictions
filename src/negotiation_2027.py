@@ -28,9 +28,10 @@ D'où les groupes et les postures :
                   reporteraient pas sur une candidature d'union → sorti du classement, signalé.
   • SANS ENJEU  — p_lfi < P_MIN : imprenable pour LFI.
   • EN JEU      — le reste : ce que LFI a intérêt à demander, classé par p_lfi décroissant.
-  Postures (règle complète et symétrique dans `posture` ci-dessous) : la valeur du siège
-  (p_left) dit s'il y a quelque chose à jouer ; les deux options extérieures (q_lfi, q_oth)
-  disent qui peut se passer de l'accord.
+  Postures (règle complète dans `posture` ci-dessous) : la chance de LFI (p_lfi, lue via le
+  groupe) dit s'il y a quelque chose à jouer POUR LFI ; les deux options extérieures (q_lfi,
+  q_oth), mesurées à l'identique sur les deux pôles, disent qui peut se passer de l'accord.
+  p_left n'entre pas dans la règle : elle est servie et affichée, rien de plus.
     exiger   — LFI peut gagner le siège ET le tient sans l'accord (q_lfi ≥ LEVERAGE_Q).
     obtenir  — LFI peut le gagner, aucun pôle ne le tient seul : il se gagne à la table.
     monnaie  — LFI peut le gagner mais l'option extérieure est au PARTENAIRE (q_oth ≥

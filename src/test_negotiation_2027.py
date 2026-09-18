@@ -129,9 +129,14 @@ def main() -> None:
     if not any(r["posture"] == "monnaie" for r in post):
         fails.append("aucune circo « monnaie d'échange »")
     for r in post:
-        # Toute posture autre que « rien » porte sur un siège que la gauche unie gagne vraiment.
-        if (r["posture"] == "rien") != (r["p_left"] < N.P_MIN):
-            fails.append(f"{r['id']} « rien à jouer » ⇎ gauche unie < P_MIN")
+        # « Rien à jouer » ⇔ personne ne gagne le siège : ni la gauche unie, ni LFI elle-même.
+        if (r["posture"] == "rien") != (r["p_left"] < N.P_MIN or r["group"] == "sans_enjeu"):
+            fails.append(f"{r['id']} « rien à jouer » ⇎ (gauche unie < P_MIN ou sans enjeu)")
+        # Le garde-fou : aucune posture de DEMANDE ni de CESSION PAYANTE sur un siège que le
+        # classement dit imprenable pour LFI — sinon le tableau se contredit d'une colonne à
+        # l'autre (« obtenir » sur une circo affichée à 4 % de chance).
+        if r["posture"] != "rien" and r["group"] != "en_jeu":
+            fails.append(f"{r['id']} posture « {r['posture']} » hors du groupe « en jeu »")
         if r["posture"] == "exiger" and r["q_lfi"] < N.LEVERAGE_Q:
             fails.append(f"{r['id']} exiger sans option extérieure LFI")
         # Monnaie = l'option extérieure est au PARTENAIRE, pas à LFI : c'est toute la définition.
@@ -167,6 +172,19 @@ def main() -> None:
     means = [sum(sp["by_share"][kk]["q_lfi"]) for kk in sp["shares"]]
     if any(means[i] > means[i + 1] for i in range(len(means) - 1)):
         fails.append("q_lfi moyen non croissant avec la part LFI")
+    # Le curseur recalcule les postures dans la page : les invariants doivent tenir à CHAQUE cran,
+    # pas seulement à celui servi. Sans quoi une circo imprenable pour LFI peut basculer en
+    # « exiger » à une autre part nationale, sans qu'aucun test ne le voie.
+    for kk in sp["shares"]:
+        b = sp["by_share"][kk]
+        for i, r in enumerate(rows):
+            if not r["pub"]:
+                continue
+            po = N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i], r["p_left"])
+            if po is not None and po != "rien" and r["group"] != "en_jeu":
+                fails.append(f"{r['id']} posture « {po} » hors « en jeu » à la part {kk}")
+            if po == "exiger" and b["q_lfi"][i] < N.LEVERAGE_Q:
+                fails.append(f"{r['id']} exiger sans option extérieure à la part {kk}")
 
     # ── La page : un seul tableau, gabarits remplis en JS, aucun chiffre ni partenaire figé ──
     html = HTML.read_text()

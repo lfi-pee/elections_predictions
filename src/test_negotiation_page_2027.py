@@ -1,7 +1,9 @@
 """Rendu réel de la page « Négocier les circonscriptions » (Playwright) : chargement du JSON,
 tableau (577 lignes en « Toutes », « en jeu » par défaut), postures miroir du Python et
-survolables, curseur de part LFI, tri, colonnes redimensionnables, export CSV, aucune erreur
-JS, pas de défilement horizontal à 1440 px. Capture d'écran dans screenshots/.
+survolables, argumentaire (registre par posture, faits publics seulement, jamais un chiffre
+faible sur un siège qu'on demande), curseur de part LFI, tri, colonnes redimensionnables,
+export CSV, aucune erreur JS, pas de défilement horizontal à 1440 px. Capture d'écran dans
+screenshots/.
 
     python3 -u -m src.test_negotiation_page_2027
 """
@@ -66,6 +68,51 @@ def main() -> None:
             # Chaque chiffre cité au survol a sa colonne : le survol n'invente aucune valeur.
             for key in ("p_lfi", "p_left", "q_lfi", "q_oth"):
                 assert page.locator(f'th[data-key="{key}"]').count() == 1, key
+            # Argumentaire : une carte par ligne, construite sur les seules colonnes de droite.
+            assert page.locator('th[data-key="arg"]').count() == 1
+            assert page.locator("#rows .arg[data-card]").count() == 577
+            # Amener la ligne à l'écran AVANT de survoler : le défilement est asynchrone dans
+            # Chrome, et l'événement `scroll` (qui masque l'infobulle) arriverait après le survol.
+            # Puis écarter la souris, sinon `hover()` ne la déplace pas et aucun mouseover ne part.
+            argp = page.locator("#rows tr", has_text="92-01").first.locator(".arg")
+            argp.scroll_into_view_if_needed()
+            page.mouse.move(0, 0)
+            page.wait_for_timeout(100)
+            argp.hover()
+            card = page.locator(".tt.card")
+            assert card.is_visible() and "Exiger" in card.inner_text(), card.inner_text()
+            # text_content, pas inner_text : les intertitres de la carte sont en petites capitales CSS.
+            txt = card.text_content()
+            assert "À mettre sur la table" in txt and "Ce que le partenaire sortira" in txt, txt
+            assert card.locator("li").count() >= 2
+            # La règle de négociation, ligne à ligne : sur un siège qu'on demande (exiger, obtenir)
+            # comme sur un siège dont on fait payer la cession (monnaie), aucun fait défavorable ne
+            # passe du côté de ce qu'on met sur la table ; « rien à jouer » fait exactement
+            # l'inverse (le chiffre défavorable, avancé le premier).
+            bad = page.evaluate("""() => NEG.rows.filter(r => ['exiger','obtenir','monnaie'].includes(r.posture))
+              .filter(r => argFacts(r).some(f => !f.pro && r.card.pos.includes(f.text))).map(r => r.id)""")
+            assert bad == [], bad
+            conceded = page.evaluate("""() => NEG.rows.filter(r => r.posture === 'rien')
+              .filter(r => r.card.pos.length && !argFacts(r).filter(f => !f.pro).map(f => f.text).includes(r.card.pos[0])).map(r => r.id)""")
+            assert conceded == [], conceded
+            # Aucune probabilité du modèle ne fuit dans un argumentaire : rien de contestable.
+            leak = page.evaluate("""() => NEG.rows.flatMap(r => r.card.pos.concat(r.card.opp))
+              .filter(t => /chance|probabilit|sans accord|2nd tour/i.test(t))""")
+            assert leak == [], leak[:2]
+            # « Gauche hors union » : la carte s'interdit en pied d'avancer le score de gauche
+            # d'ici, gonflé par un·e sortant·e hors union — donc aucun fait posé ne le cite.
+            gonfle = page.evaluate("""() => NEG.rows.filter(r => r.group === 'hors_union')
+              .filter(r => r.card.pos.some(t => /part par part|de toute la gauche ici/.test(t))).map(r => r.id)""")
+            assert gonfle == [], gonfle
+            # Le registre suit la posture, et la pastille compte les faits disponibles.
+            heads = page.evaluate("""() => Object.fromEntries(['exiger','obtenir','monnaie','rien']
+              .map(k => [k, [...new Set(NEG.rows.filter(r => r.posture === k).map(r => r.card.head))]]))""")
+            assert all(len(v) == 1 for v in heads.values()), heads
+            assert page.evaluate("NEG.rows.every(r => r.card.n === r.card.pos.length)")
+            # La pastille dit la même chose que l'intitulé de la liste qu'elle annonce : sur un
+            # siège de sortant·e LFI, les faits ne se posent que si le siège est contesté.
+            assert page.evaluate("""() => NEG.rows.filter(r => r.group === 'acquis' && r.card.n)
+              .every(r => r.card.badge.includes('si contesté'))""")
             # Le partage 2027 suit le filtre de part LFI et respecte la règle servie.
             served_row = next(r for r in served["rows"] if r["id"] == "93-01")
             def lfi27(share):
@@ -119,6 +166,7 @@ def main() -> None:
             body = [ln for ln in text.splitlines() if not ln.startswith("#")]
             rows = list(csv.reader(io.StringIO("\n".join(body)), delimiter=";"))
             assert rows[0][:3] == ["rang", "circo", "nom"] and not any("autre" in h or "prix" in h for h in rows[0])
+            assert rows[0][-1] == "argumentaire" and all(len(r[-1]) > 60 for r in rows[1:])
             assert len(rows) - 1 == 577
             (ROOT / "screenshots").mkdir(exist_ok=True)
             page.screenshot(path=str(ROOT / "screenshots/negotiation_2027.png"), full_page=False)
@@ -126,7 +174,7 @@ def main() -> None:
             assert not errors, errors
     finally:
         server.shutdown()
-    print("OK — page négociation : tableau 577, postures survolables miroir du Python, part LFI, tri, colonnes redimensionnables, export CSV, 0 erreur JS.")
+    print("OK — page négociation : tableau 577, postures survolables miroir du Python, argumentaire par posture (faits publics seulement), part LFI, tri, colonnes redimensionnables, export CSV, 0 erreur JS.")
 
 
 if __name__ == "__main__":

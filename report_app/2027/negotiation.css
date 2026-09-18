@@ -114,7 +114,7 @@
 .negotiation thead th { white-space: normal; line-height: 1.25; vertical-align: bottom; max-width: 118px; }
 .negotiation thead th small { margin-top: 2px; font-size: 10px; }
 .negotiation td { white-space: nowrap; }
-.negotiation .trunc { display: inline-block; max-width: 128px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.negotiation .trunc { display: inline-block; max-width: 112px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .negotiation .pb { grid-template-columns: 40px 40px; gap: 6px; }
 .negotiation .table-scroll { max-height: 70vh; }
 @media (min-width: 1280px) { .negotiation main { max-width: none; padding-left: 2vw; padding-right: 2vw; } .negotiation .table-scroll { overflow-x: hidden; } }
@@ -134,6 +134,16 @@
 
 /* Ventilation sous un total (gauche 2024 par nuance ; 2027 LFI / reste). */
 #neg-table td small.parts{display:block;font-size:.72rem;line-height:1.15;opacity:.78;white-space:normal;text-align:right;font-variant-numeric:tabular-nums}
+
+/* Argumentaire : pastille du nombre de faits publics disponibles, carte au survol. */
+.negotiation .arg { display: inline-block; font-weight: 600; font-size: 11px; padding: 2px 7px; border-radius: 10px; border: 1px solid #ddd4c2; background: #fdfbf6; color: #67563a; white-space: nowrap; cursor: help; }
+.negotiation .arg.none { color: #8a919b; border-style: dashed; font-weight: 400; }
+.negotiation .tt.card { max-width: 430px; padding: 10px 12px; }
+.negotiation .tt.card b { display: block; font-size: 12.5px; margin-bottom: 6px; }
+.negotiation .tt.card u { display: block; text-decoration: none; text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; color: #aab4c0; margin-top: 7px; }
+.negotiation .tt.card ul { margin: 3px 0 0; padding-left: 15px; }
+.negotiation .tt.card li { margin: 2px 0; }
+.negotiation .tt.card i { display: block; margin-top: 8px; padding-top: 7px; border-top: 1px solid #39424f; font-style: normal; color: #c8d0da; }
 
 /* Le chiffre servi est celui de la commune entière (Paris, Marseille, Lyon…), la circonscription
    n'étant pas isolable dans les résultats présidentiels : on le dit sous le nombre. */

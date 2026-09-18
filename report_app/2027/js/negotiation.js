@@ -12,11 +12,11 @@ const P = () => NEG.data ? NEG.data.params : { p_min: 0.05 };
 const SP = () => NEG.data ? NEG.data.split : { leverage_q: 0.5 };
 const pctInt = (x) => Math.round(x * 100) + " %";
 const GROUP_TIP = {
-  get acquis() { return "Député·e sortant·e du groupe LFI : hors négociation."; },
+  get acquis() { return "Député·e sortant·e du groupe LFI : hors répartition, le siège se défend au lieu de se négocier."; },
   get en_jeu() { return `Chance d'élire un·e député·e LFI ≥ ${pctInt(P().p_min)} : une candidature LFI peut gagner ce siège, à demander.`; },
   get sans_enjeu() { return `Chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} : imprenable pour LFI.`; },
-  get hors_union() { return "Siège tenu par un·e élu·e de gauche hors de l'union : toutes les chances affichées sur cette ligne créditent la gauche des voix de ce·tte sortant·e, qui ne suivraient pas forcément une candidature commune. À lire comme un maximum."; },
-  get non_mesure() { return "En Corse et en Guyane, les forces politiques locales ne se rangent pas dans les blocs nationaux sur lesquels repose ce tableau : aucune chance publiée, donc aucune posture."; } };
+  get hors_union() { return "Siège gagné en 2024 par une candidature de gauche hors de l'union, dont le·la titulaire ne siège pas dans un groupe de gauche : toutes les chances affichées sur cette ligne créditent la gauche des voix de ce·tte sortant·e, qui ne suivraient pas forcément une candidature commune. À lire comme un maximum."; },
+  get non_mesure() { return "Aucune chance n'est publiée sur cette ligne, donc aucune posture : trop de voix y vont à des forces qui n'entrent dans aucun des trois blocs que le modèle prédit — gauche, centre-droit, extrême droite (régionalistes, autonomistes). C'est le cas en Corse et en Guyane, et dans quelques circonscriptions isolées."; } };
 const POSTURE_LAB = { exiger: "Exiger", obtenir: "Obtenir", monnaie: "Monnaie d'échange", rien: "Rien à jouer" };
 const POSTURE_ORDER = { exiger: 0, obtenir: 1, monnaie: 2, rien: 3, acquis: 4, hors_union: 5, non_mesure: 6 };
 // Le texte des postures dit « une chance sur deux » : il suppose le seuil leverage_q = 50 %.
@@ -24,12 +24,13 @@ const POSTURE_TIP = {
   get exiger() { return `Calcul : chance de la gauche unie ≥ ${pctInt(P().p_min)} ET, sans accord, LFI seule au 2nd tour ≥ ${pctInt(SP().leverage_q)}, quel que soit le chiffre du reste de la gauche. Sens : même sans accord, LFI est au 2nd tour plus d'une fois sur deux — elle n'a pas besoin de céder ce siège.`; },
   get obtenir() { return `Calcul : chance de la gauche unie ≥ ${pctInt(P().p_min)} ET, sans accord, NI LFI seule NI le reste de la gauche seul n'atteint ${pctInt(SP().leverage_q)}. Sens : divisée, aucune des deux parts de la gauche ne peut imposer sa candidature — LFI peut demander ce siège à la table, pas l'exiger.`; },
   get monnaie() { return `Calcul : chance de la gauche unie ≥ ${pctInt(P().p_min)}, sans accord LFI seule < ${pctInt(SP().leverage_q)} MAIS reste de la gauche seul ≥ ${pctInt(SP().leverage_q)}. Sens : sans accord, c'est le reste de la gauche qui reste dans la course, pas LFI. LFI devra céder ce siège : en échange, elle peut en demander un autre.`; },
-  get rien() { return `Calcul : chance de la gauche unie < ${pctInt(P().p_min)}. Sens : rien à demander, rien à céder.`; } };
+  get rien() { return `Calcul : chance de la gauche unie < ${pctInt(P().p_min)}, ou chance d'élire un·e député·e LFI < ${pctInt(P().p_min)} (siège imprenable pour LFI). Sens : rien à demander, rien à monnayer.`; } };
 // Infobulle d'une pastille : la règle, puis les SEULS chiffres qui la déclenchent. Chacun porte le
 // nom exact de sa colonne, et la seule probabilité de victoire est glosée : les deux « Sans accord »
 // mesurent une présence au 2nd tour, pas un siège gagné — un lecteur qui survole une pastille sans
-// avoir survolé l'en-tête les confondrait. p_lfi n'entre dans aucune règle : il reste à sa colonne.
-const postureTipRow = (r) => `${POSTURE_TIP[r.posture]} Ici : chance de la gauche unie (gagner le siège) ${pct(r.p_left)} · sans accord, LFI seule au 2nd tour ${pct(r.q_lfi)} · sans accord, reste de la gauche seul ${pct(r.q_oth)}.`;
+// avoir survolé l'en-tête les confondrait. La chance d'élire un·e député·e LFI ne sépare jamais
+// exiger / obtenir / monnaie, mais elle déclenche « rien à jouer » : elle est donc citée elle aussi.
+const postureTipRow = (r) => `${POSTURE_TIP[r.posture]} Ici : chance d'élire un·e député·e LFI ${pct(r.p_lfi)} · chance de la gauche unie (gagner le siège) ${pct(r.p_left)} · sans accord, LFI seule au 2nd tour ${pct(r.q_lfi)} · sans accord, reste de la gauche seul ${pct(r.q_oth)}.`;
 const GROUP_LAB_DEP = { "LFI-NFP": "LFI", SOC: "PS", ECOS: "Écologistes", GDR: "GDR (PCF & outre-mer)",
   EPR: "Ensemble", DEM: "MoDem", HOR: "Horizons", DR: "LR", UDDPLR: "UDR (Ciotti)", RN: "RN",
   LIOT: "LIOT", NI: "Non inscrit" };
@@ -54,7 +55,7 @@ const split27 = (r) => {
 };
 const parts24 = (r) => r.h2024_parts ? Object.entries(r.h2024_parts).sort((a, b) => b[1] - a[1]).map(([nu, v]) =>
   `${nu === "UG" ? "NFP" + (r.lab2024 ? "-" + esc(NFP_PARTY[r.lab2024] || r.lab2024) : "") : esc(NUANCE_LAB[nu] || nu)} ${f1(v)}`).join(" · ") : "";
-const NUMERIC_DESC = ["p_lfi", "p_left", "q_lfi", "q_oth", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "mel", "ext_plus_G"];
+const NUMERIC_DESC = ["arg", "p_lfi", "p_left", "q_lfi", "q_oth", "p_lfi_local", "p_lfi_ru", "h2024_G", "h2017_LFI", "mel", "ext_plus_G"];
 const $n = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -64,6 +65,139 @@ const pct = (p) => p == null ? "—" : p >= 0.995 ? ">99 %" : (p > 0 && p < 0.00
 const f1 = (x) => x == null ? "—" : x.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
 const f2 = (x) => x == null ? "—" : x.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const stateKey = (r) => r.posture || r.group;
+
+// ——— Argumentaire : ce qu'on dit à la table, avec les seuls faits publics de la ligne ————————
+// La posture (« notre lecture ») choisit le REGISTRE ; les phrases, elles, ne citent que la partie
+// droite du tableau — résultats du ministère, investiture NFP 2024, vote Mélenchon 2022, calcul
+// simple — que le partenaire a sous les yeux lui aussi. Aucune probabilité simulée n'y entre :
+// rien qu'il puisse contester, et notre lecture reste à nous.
+// La règle qui commande le registre : ceci est une négociation de REVENDICATION, pas de prix. Une
+// circonscription qu'on ne demande pas est une circonscription qu'on n'a pas (une répartition, une
+// date, pas de second tour), donc feindre l'indifférence sur un siège qu'on veut le perd. Sur un
+// siège qu'on demande, jamais un chiffre qui nous affaiblit ; sur un siège qu'on ne demande pas,
+// avancer soi-même le chiffre défavorable — il ne coûte aucun siège, et c'est lui qui fait croire
+// les autres. Le seul « bluff » utile est le miroir : rendre cher ce qu'on cédera de toute façon.
+const NATH = (y, k) => (NEG.data.history[y] || {})["national_" + k];
+const UNION_DEP = { SOC: 1, ECOS: 1, GDR: 1 };
+
+// Un fait = un chiffre public de la ligne et son point de comparaison national. `kind` dit ce
+// qu'il porte : « lfi », la force de LFI ici ; « seat », la valeur du siège pour la gauche ;
+// « price », le fait que la gauche détient déjà ce siège — qui fait le prix de ce qu'on cède, mais
+// ne plaide jamais pour le réclamer (là, c'est le partenaire qui le sortira). `pro` : favorable ou
+// non à ce que porte le fait.
+function argFacts(r) {
+  const out = [], add = (kind, pro, text, src) => out.push({ kind, pro, text, src });
+  const melN = NEG.data.presidential.national.LFI, g24N = NATH("2024", "G"), l17N = NATH("2017", "LFI"), g27N = NEG.data.scenario.means.G;
+  // « L'union a investi PS, PS a gagné » et « le siège est tenu par un·e PS, un·e sortant·e de
+  // l'union ne se déloge pas » sont le même fait ; la seconde le dit en portant l'argument. Quand
+  // les deux s'appliquent, une seule phrase — sinon la carte sert deux fois la même objection.
+  const unionDep = !!(r.depGroup && UNION_DEP[r.depGroup]);
+  if (r.lab2024 && r.union_won_2024 != null) {
+    const p = NFP_PARTY[r.lab2024] || r.lab2024, won = r.union_won_2024;
+    if (r.lab2024 === "FI") add("lfi", won, `Législatives 2024 : l'union a investi LFI ici, et le siège a été ${won ? "gagné" : "perdu"}.`, "nfp24");
+    else if (!won) add("lfi", true, `Législatives 2024 : l'union a investi ${p} ici, et le siège a été perdu.`, "nfp24");
+    else if (!unionDep) add("lfi", false, `Législatives 2024 : l'union a investi ${p} ici, et ${p} a gagné le siège.`, "nfp24");
+    if (won) add("price", true, `Ce siège, l'union l'a gagné en 2024 avec une candidature ${p} : ce n'est pas un siège perdu d'avance que nous cédons.`, "nfp24");
+  }
+  if (r.mel != null && Math.abs(r.mel - melN) >= 0.02) {
+    const up = r.mel > melN;
+    // Valeur communale (Paris, Marseille, Lyon…) : le fait posé sur la table porte sur la ville
+    // entière, pas sur la circonscription — on le dit dans la phrase, sinon elle serait fausse.
+    const ou = r.mel_com ? `dans tout ${r.mel_com}` : "ici", la = r.mel_com ? `de ${r.mel_com}` : "d'ici";
+    add("lfi", up, up ? `Présidentielle 2022 : Mélenchon prend ${Math.round(r.mel * 100)} % du vote de gauche ${ou}, contre ${Math.round(melN * 100)} % en France — la gauche ${la} est plus insoumise que la moyenne.`
+      : `Présidentielle 2022 : Mélenchon ne prend que ${Math.round(r.mel * 100)} % du vote de gauche ${ou}, contre ${Math.round(melN * 100)} % en France.`);
+  }
+  if (r.h2017_LFI != null && l17N != null && Math.abs(r.h2017_LFI - l17N) >= 2) {
+    const up = r.h2017_LFI > l17N;
+    // Un score de 0 en 2017 n'est pas un échec : c'est une circonscription sans candidature LFI.
+    add("lfi", up, r.h2017_LFI === 0 ? `Législatives 2017 : LFI n'y présentait pas de candidature, là où elle faisait ${f1(l17N)} % en France.`
+      : `Législatives 2017, dernier scrutin sous sa propre étiquette : LFI ${f1(r.h2017_LFI)} % ici, contre ${f1(l17N)} % en France.`);
+  }
+  if (r.depute && r.depGroup) {
+    const nom = r.depute, lab = GROUP_LAB_DEP[r.depGroup] || r.depGroup;
+    if (r.depGroup === NEG.data.params.lfi_group) add("lfi", true, `Le siège est tenu par ${nom} (LFI) : c'est notre sortant·e.`);
+    else if (UNION_DEP[r.depGroup]) add("lfi", false, `Le siège est tenu par ${nom} (${lab}) : un·e sortant·e d'un parti de l'union ne se déloge pas.`);
+    else if (r.group === "hors_union") add("lfi", true, `Le siège est tenu par ${nom}, élu·e en 2024 sur une candidature de gauche hors de l'union et aujourd'hui au groupe ${lab} : aucun parti de l'union n'y a de sortant·e à protéger.`);
+    else add("lfi", true, `Le siège est tenu par ${nom} (${lab}) : personne à gauche n'y a de sortant·e à protéger.`);
+  }
+  // Le « calcul simple » est le score 2024 décalé du même nombre de points partout : quand il place la
+  // circonscription du même côté de la moyenne nationale que 2024, le poser en deuxième fait ferait
+  // compter deux fois le même argument. Une seule phrase porte alors les deux chiffres.
+  const has24 = r.h2024_G != null && g24N != null, has27 = r.ext_plus_G != null;
+  const pro24 = has24 && r.h2024_G >= g24N, pro27 = has27 && r.ext_plus_G >= g27N;
+  if (has24 && has27 && pro24 === pro27)
+    add("seat", pro24, `Législatives 2024 : la gauche fait ${f1(r.h2024_G)} % au 1ᵉʳ tour ici, contre ${f1(g24N)} % en France ; en « calcul simple 2027 », ${f1(r.ext_plus_G)} % contre ${f1(g27N)} %.`);
+  else {
+    if (has24) add("seat", pro24, `Législatives 2024 : la gauche fait ${f1(r.h2024_G)} % au 1ᵉʳ tour ici, contre ${f1(g24N)} % en France.`);
+    if (has27) add("seat", pro27, `Calcul simple 2027 : la gauche à ${f1(r.ext_plus_G)} % ici, contre ${f1(g27N)} % en France.`);
+  }
+  if (has27) {
+    const o = split27(r), best = REST.map((p) => [REST_LAB[p], o[p]]).sort((a, b) => b[1] - a[1])[0];
+    if (best && Math.abs(o.LFI - best[1]) >= 0.2) add("lfi", o.LFI > best[1], `Calcul simple 2027, part par part : sur les ${f1(r.ext_plus_G)} % de toute la gauche ici, LFI en prend ${f1(o.LFI)}, ${o.LFI > best[1] ? "devant" : "derrière"} ${best[0]} (${f1(best[1])}) — à ${Math.round(+NEG.share * 100)} % de LFI dans la gauche au national (réglable en haut de page).`, "split27");
+  }
+  return out;
+}
+
+// Registre par posture. Ce qui change d'une posture à l'autre n'est pas le ton : c'est QUELS faits
+// on pose, et lesquels on laisse au partenaire. Aucune case du tableau n'a intérêt à se montrer
+// faible sur le siège lui-même : même en cédant, le prix qu'on obtient est ce que le partenaire
+// croit que ça nous coûte.
+function argCard(r) {
+  const f = argFacts(r), take = (kind, pro) => f.filter((x) => x.kind === kind && x.pro === pro);
+  const lp = take("lfi", true), lc = take("lfi", false), sp = take("seat", true), sc = take("seat", false), pr = take("price", true);
+  const c = { head: "", posLabel: "À mettre sur la table", pos: [], oppLabel: "Ce que le partenaire sortira — à préparer, pas à dire", opp: [], foot: "" };
+  if (r.posture === "rien") {
+    c.head = "Rien à jouer — concéder le premier, et avec le chiffre";
+    c.posLabel = "À dire tel quel, avant qu'on nous le sorte";
+    c.pos = sc.concat(lc).slice(0, 3); c.oppLabel = ""; c.opp = [];
+    c.foot = (c.pos.length ? "" : "Aucun chiffre public ne dit la faiblesse de ce siège : le concéder quand même, sans chiffre à l'appui. ")
+      + "Ce siège ne vaut rien pour personne, et les résultats publics le disent aussi bien que notre modèle : essayer de le lui vendre ne marchera pas. Le lâcher explicitement ne coûte aucun siège — et c'est ce qui fait croire nos chiffres là où nous demandons un siège.";
+  } else if (r.posture === "monnaie") {
+    c.head = "Monnaie d'échange — céder, mais faire payer";
+    c.posLabel = "Le prix, à mettre sur la table : ce que vaut ce qu'on cède";
+    c.pos = pr.concat(sp).slice(0, 3);
+    c.oppLabel = "Ce que le partenaire dira pour ne pas payer — à préparer, pas à dire";
+    // Le prix dit que le siège se gagne ; l'objection, que le partenaire y est sortant : deux faits
+    // distincts, qui tiennent ensemble dans une même carte. Le filtre ne couvre que le cas rare où
+    // c'est littéralement la même phrase (union gagnante en 2024, sortant·e passé·e hors union).
+    c.opp = lc.filter((x) => !c.pos.some((y) => y.src && y.src === x.src)).slice(0, 2);
+    c.foot = (c.pos.length ? "" : "Aucun fait public ne fait ici le prix de ce siège. ")
+      + "Ne pas disputer ce siège, et ne jamais dire qu'il ne vaut rien : ce qu'on en tire est ce que le partenaire croit qu'il nous coûte. Se faire payer en circonscriptions « exiger » ou « obtenir ».";
+  } else if (r.posture === "exiger" || r.posture === "obtenir") {
+    const ex = r.posture === "exiger";
+    c.head = ex ? "Exiger — dire pourquoi nous ne céderons pas" : "Obtenir — revendiquer, chiffres à l'appui";
+    c.pos = lp.concat(sp).slice(0, 3); c.opp = lc.concat(sc).slice(0, 2);
+    c.foot = (c.pos.length ? "" : "Aucun fait public ne porte la demande ici : la revendiquer quand même, mais dans un ensemble de circonscriptions, pas chiffre en main. ")
+      + (ex ? `Sans accord, LFI est au 2nd tour ici plus d'une fois sur deux : c'est le seul cas où nous pouvons nous passer de l'accord sur un siège — mais c'est notre lecture, pas un fait public${c.pos.length ? " : ce sont les faits ci-dessus qui portent la demande" : ", et aucun fait public ne la porte ici"}. Porter la demande sans menacer l'accord entier, dont nous avons besoin ailleurs.`
+            : "Divisée, ni LFI ni le reste de la gauche n'atteint seul le second tour ici : le siège se gagne à la table, en le demandant. La répartition ne se fait qu'une fois, à une date : une circonscription qu'on n'a pas revendiquée est perdue.");
+  } else if (r.group === "acquis") {
+    c.head = "Sortant·e LFI — hors répartition";
+    c.posLabel = "Si le siège est remis en cause : à mettre sur la table";
+    c.pos = lp.concat(sp).slice(0, 3); c.opp = lc.slice(0, 2);
+    c.foot = "Ce siège ne se répartit pas : il se défend.";
+  } else if (r.group === "hors_union") {
+    c.head = "Gauche hors union — chiffres à manier avec précaution";
+    // Le partage par parti du « calcul simple » cite le total de gauche d'ici, gonflé par les voix
+    // du·de la sortant·e hors union : c'est exactement ce que le pied de carte interdit d'avancer.
+    c.pos = lp.filter((x) => x.src !== "split27").slice(0, 3); c.opp = lc.concat(sc).slice(0, 2);
+    c.foot = "Le score de gauche affiché sur cette ligne comprend les voix d'un·e élu·e hors union, qui ne se reporteraient pas sur une candidature commune : l'avancer comme notre force se retourne dès que le partenaire le relève.";
+  } else {
+    c.head = "Non mesurée — aucune probabilité, donc aucune posture";
+    c.pos = lp.concat(sp).slice(0, 3); c.opp = lc.concat(sc).slice(0, 2);
+    c.foot = "Trop de voix vont ici à des forces qui n'entrent dans aucun des trois blocs que le modèle prédit — gauche, centre-droit, extrême droite (régionalistes, autonomistes) : le modèle n'a rien à en dire. Les faits publics, eux, restent vrais : ils se posent comme ailleurs.";
+  }
+  c.pos = c.pos.map((x) => x.text); c.opp = c.opp.map((x) => x.text);
+  c.n = c.pos.length;
+  // Sur un siège acquis, les faits ne servent que si le siège est contesté : la pastille le dit.
+  c.badge = !c.n ? "aucun \u00e0 poser" : c.n + (r.group === "acquis" ? "\u00a0si contest\u00e9" : "\u00a0\u00e0 poser");
+  return c;
+}
+const argHTML = (c) => `<b>${esc(c.head)}</b>`
+  + (c.pos.length ? `<u>${esc(c.posLabel)}</u><ul>${c.pos.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "")
+  + (c.opp.length ? `<u>${esc(c.oppLabel)}</u><ul>${c.opp.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "")
+  + `<i>${esc(c.foot)}</i>`;
+const argText = (c) => [c.head, c.pos.length ? c.posLabel + " : " + c.pos.join(" ") : "",
+  c.opp.length ? c.oppLabel + " : " + c.opp.join(" ") : "", c.foot].filter(Boolean).join(" — ");
 
 async function negLoad() {
   const r = await fetch("data/negotiation.json?v=2");
@@ -102,28 +236,34 @@ function negTooltips() {
   const tt = document.createElement("div"); tt.className = "tt"; tt.setAttribute("role", "tooltip"); document.body.appendChild(tt);
   document.querySelectorAll("#neg-table thead button[title]").forEach((el) => { el.dataset.tip = el.getAttribute("title"); el.removeAttribute("title"); });
   const show = (el) => {
-    tt.textContent = el.dataset.tip; tt.style.display = "block";
+    const card = el.dataset.card ? NEG.cards[el.dataset.card] : null;
+    tt.classList.toggle("card", !!card);
+    if (card) tt.innerHTML = card; else tt.textContent = el.dataset.tip;
+    tt.style.display = "block";
     const r = el.getBoundingClientRect(), w = tt.offsetWidth;
     let x = r.left + r.width / 2 - w / 2; x = Math.max(8, Math.min(window.innerWidth - w - 8, x));
     const below = r.bottom + 8, above = r.top - tt.offsetHeight - 8;
     tt.style.left = x + "px"; tt.style.top = (above > 8 ? above : below) + "px";
   };
   const hide = () => { tt.style.display = "none"; };
-  document.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-tip]"); if (el) show(el); else hide(); });
-  document.addEventListener("focusin", (e) => { const el = e.target.closest("[data-tip]"); if (el) show(el); });
+  document.addEventListener("mouseover", (e) => { const el = e.target.closest("[data-tip],[data-card]"); if (el) show(el); else hide(); });
+  document.addEventListener("focusin", (e) => { const el = e.target.closest("[data-tip],[data-card]"); if (el) show(el); });
   document.addEventListener("focusout", hide);
   document.addEventListener("scroll", hide, true);
 }
 
 // Posture = valeur du siège (p_left) × qui peut se passer de l'accord (q_lfi vs q_oth, les deux
 // options extérieures mesurées à l'identique sur les deux pôles). TROIS probabilités du même
-// Monte-Carlo, aucun chiffre de la partie droite du tableau, aucun seuil nouveau.
+// Monte-Carlo, aucun chiffre de la partie droite du tableau, aucun seuil nouveau — plus un
+// garde-fou : sur un siège imprenable pour LFI (groupe « sans enjeu »), il n'y a rien à jouer.
 // Miroir exact de `posture` (src/negotiation_2027.py).
 function negPosture(group, qL, qO, pLeft) {
   if (group === "acquis" || group === "hors_union" || group === "non_mesure"
       || qL == null || qO == null || pLeft == null) return null;
   const lev = NEG.data.split.leverage_q;
-  if (pLeft < NEG.data.params.p_min) return "rien";
+  // Aucune posture de DEMANDE sur un siège que LFI ne gagne pas : le groupe « sans enjeu » porte
+  // déjà ce verdict (chance LFI < p_min). p_lfi ne sépare jamais exiger/obtenir/monnaie.
+  if (pLeft < NEG.data.params.p_min || group === "sans_enjeu") return "rien";
   if (qL >= lev) return "exiger";
   return qO >= lev ? "monnaie" : "obtenir";
 }
@@ -137,20 +277,23 @@ function negApplyShare() {
     r.q_oth = r.pub ? b.q_oth[i] : null;
     r.posture = negPosture(r.group, r.q_lfi, r.q_oth, r.p_left);
   });
+  // L'argumentaire dépend de la posture ET du calcul simple 2027 : il se refait avec la part.
+  NEG.cards = {};
+  NEG.rows.forEach((r) => { r.card = argCard(r); NEG.cards[r.id] = argHTML(r.card); });
 }
 
 function negMethods() {
   const d = NEG.data, k = d.params.label_effect_k, le = d.params.label_effect, ci = d.params.label_effect_ci95;
   $n("m-label").innerHTML = `Le parti de chaque candidat·e d'union 2024 est connu par la répartition des circonscriptions du Nouveau Front populaire. Dans les <b>${d.params.label_effect_n} duels</b> candidat·e d'union contre RN de 2024 (centre-droit éliminé), un·e candidat·e LFI a récupéré <b>${Math.round(k.fi * 100)} %</b> des voix libérées au 1<sup>er</sup> tour, contre ${Math.round(k.union * 100)} % pour le·la candidat·e moyen·ne de l'union (${d.params.label_effect_n_fi} duels LFI ; écart ${f2(le.cd2l_delta_lfi)}, intervalle bootstrap à 95 % de ${f2(ci[0])} à ${f2(ci[1])} ; présent dans les trois terciles de force de la gauche, donc pas compensé dans les bastions ; ${f1(le.margin_effect_lfi_pts_inscrits)} point d'inscrits sur la marge de 2<sup>nd</sup> tour à marge de 1<sup>er</sup> tour égale). C'est ce taux de report propre à LFI que le modèle de sièges applique pour calculer la chance d'une candidature LFI. Un taux de report, pas un taux de victoire : le fait que LFI ait reçu des circonscriptions plus dures en 2024 ne le biaise pas.`;
-  $n("m-groups").innerHTML = `<b>Acquis</b> : député·e sortant·e du groupe LFI (${d.groups.acquis}). <b>En jeu</b> : une candidature LFI a au moins ${Math.round(d.params.p_min * 100)} % de chance de gagner le siège (${d.groups.en_jeu}) — le classement (#) ne porte que sur elles, par chance décroissante. <b>Sans enjeu</b> : moins de ${Math.round(d.params.p_min * 100)} % (${d.groups.sans_enjeu}). <b>Gauche hors union</b> : siège tenu par un·e élu·e de gauche hors de l'union (${d.groups.hors_union || 0}, voir ci-dessous). <b>Non mesurée</b> : hors nomenclature de blocs (${d.groups.non_mesure}).`;
+  $n("m-groups").innerHTML = `<b>Acquis</b> : député·e sortant·e du groupe LFI (${d.groups.acquis}). <b>En jeu</b> : une candidature LFI a au moins ${Math.round(d.params.p_min * 100)} % de chance de gagner le siège (${d.groups.en_jeu}) — le classement (#) ne porte que sur elles, par chance décroissante. <b>Sans enjeu</b> : moins de ${Math.round(d.params.p_min * 100)} % (${d.groups.sans_enjeu}) — ce seuil porte sur la chance de LFI ; celui des postures, sur la chance de la gauche unie. <b>Gauche hors union</b> : siège gagné en 2024 par une candidature de gauche hors de l'union (${d.groups.hors_union || 0}, voir ci-dessous). <b>Non mesurée</b> : hors nomenclature de blocs (${d.groups.non_mesure}).`;
   const sp = d.split;
-  $n("m-posture").innerHTML = `<b>Trois probabilités simulées, une posture</b> : toutes les colonnes « notre lecture » sortent du même Monte-Carlo (${d.params.draws} tirages par circonscription, incertitude nationale des sondages + erreur locale du modèle). <b>Chance de la gauche unie</b> : le siège est-il gagné par une candidature d'union moyenne (report moyen mesuré en 2024, étiquette quelconque) ? C'est la valeur du siège, indépendamment de qui le porte. <b>Sans accord</b> : si la gauche se divise (LFI d'un côté, PS·Place publique·Écologistes·PCF de l'autre, part nationale de LFI réglable de ${Math.round(+sp.shares[0] * 100)} à ${Math.round(+sp.shares[sp.shares.length - 1] * 100)} %, sondages : ${Math.round(sp.default_share * 100)} %, motif local du vote Mélenchon à la dernière présidentielle), lequel des deux pôles atteint seul le second tour ? Les deux sont mesurés <b>à l'identique</b> : c'est l'option extérieure de chacun, celle qui dit qui peut se passer de l'accord. <b>Postures</b>, déduites de ces trois chiffres et d'aucun autre — jamais des colonnes de droite : <b>rien à jouer</b> = la gauche unie gagne < ${Math.round(d.params.p_min * 100)} % ; <b>exiger</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} % et LFI seule atteint le 2<sup>nd</sup> tour ≥ ${Math.round(sp.leverage_q * 100)} % (LFI tient le siège sans l'accord) ; <b>monnaie d'échange</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} %, LFI seule < ${Math.round(sp.leverage_q * 100)} % mais le reste de la gauche seul ≥ ${Math.round(sp.leverage_q * 100)} % (le partenaire est chez lui : LFI ne peut pas exiger ce siège et devra le céder — et comme c'est un vrai siège, le céder a un prix) ; <b>obtenir</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} % et aucun des deux pôles n'atteint seul le 2<sup>nd</sup> tour (personne ne peut se passer de l'accord : le siège se gagne à la table). Le survol d'une pastille redonne sa règle et les trois chiffres qui la déclenchent.`;
+  $n("m-posture").innerHTML = `<b>Trois probabilités simulées, une posture</b> : toutes les colonnes « notre lecture » sortent du même Monte-Carlo (${d.params.draws} tirages par circonscription, incertitude nationale des sondages + erreur locale du modèle). <b>Chance de la gauche unie</b> : le siège est-il gagné par une candidature d'union moyenne (report moyen mesuré en 2024, étiquette quelconque) ? C'est la valeur du siège, indépendamment de qui le porte. <b>Sans accord</b> : si la gauche se divise (LFI d'un côté, PS·Place publique·Écologistes·PCF de l'autre, part nationale de LFI réglable de ${Math.round(+sp.shares[0] * 100)} à ${Math.round(+sp.shares[sp.shares.length - 1] * 100)} %, sondages : ${Math.round(sp.default_share * 100)} %, motif local du vote Mélenchon à la dernière présidentielle), lequel des deux pôles atteint seul le second tour ? Les deux sont mesurés <b>à l'identique</b> : c'est l'option extérieure de chacun, celle qui dit qui peut se passer de l'accord. <b>Postures</b>, déduites des seules colonnes « notre lecture » — jamais des colonnes de droite : <b>rien à jouer</b> = personne ne gagne le siège : la gauche unie gagne < ${Math.round(d.params.p_min * 100)} %, ou LFI elle-même < ${Math.round(d.params.p_min * 100)} % (groupe « sans enjeu ») — on ne revendique pas un siège qu'on ne gagne pas ; <b>exiger</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} % et LFI seule atteint le 2<sup>nd</sup> tour ≥ ${Math.round(sp.leverage_q * 100)} % (LFI tient le siège sans l'accord) ; <b>monnaie d'échange</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} %, LFI seule < ${Math.round(sp.leverage_q * 100)} % mais le reste de la gauche seul ≥ ${Math.round(sp.leverage_q * 100)} % (le partenaire est chez lui : LFI ne peut pas exiger ce siège et devra le céder — et comme c'est un vrai siège, le céder a un prix) ; <b>obtenir</b> = elle gagne ≥ ${Math.round(d.params.p_min * 100)} % et aucun des deux pôles n'atteint seul le 2<sup>nd</sup> tour (personne ne peut se passer de l'accord : le siège se gagne à la table). Le survol d'une posture, dans sa colonne, redonne sa règle et les trois chiffres qui la déclenchent. Les deux seuils à ${Math.round(d.params.p_min * 100)} % portent sur deux chances qui ne diffèrent que de l'écart d'étiquette : quand elles tombent de part et d'autre, c'est celle de LFI qui tranche — sans quoi le tableau ferait revendiquer un siège qu'il classe imprenable.`;
   const hors = NEG.rows.filter((r) => r.group === "hors_union");
   $n("m-hors").innerHTML = `${hors.length} circonscription${hors.length > 1 ? "s" : ""} — ${hors.map((r) => `${esc(r.id)} ${esc(r.nm)} (${esc(r.depute)}, ${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})`).join(" ; ")} — ont été gagnées en 2024 par une candidature codée à gauche mais hors de l'union, dont le ou la titulaire ne siège pas dans un groupe de gauche. Le bloc de gauche prédit y inclut ses voix, qui ne se reporteraient pas sur une candidature d'union : la chance affichée surestime ce qu'obtiendrait LFI. Ces sièges sont sortis du classement et signalés.`;
   const hs = d.history || {};
   $n("src-history").innerHTML = "Résultats passés : " + Object.values(hs).map((e) => `<b>${esc(e.label)}</b> (gauche nationale ${f1(e.national_G)} %${e.national_LFI != null ? `, LFI ${f1(e.national_LFI)} %` : ""}) — ${e.source.startsWith("https://") ? `<a href="${esc(e.source)}" target="_blank" rel="noopener">fichier officiel</a>` : esc(e.source)}`).join(" ; ") + ". Les scores sont en % des suffrages exprimés, tous candidats au dénominateur ; « LFI seule » n'est séparable qu'en 2017 (nuance FI), la gauche étant unie au 1<sup>er</sup> tour en 2022 et 2024. Sous « Gauche 2024 », la ventilation distingue la candidature NFP (nuance UG, avec le parti qui la portait) des candidatures de gauche hors NFP (nuances DVG, EXG, ECO…). Sous « Gauche 2027, calcul simple », le total est partagé entre les partis : LFI = part nationale de LFI dans la gauche (filtre, sondages par défaut) + écart local du vote Mélenchon 2022, bornée entre ${Math.round(d.params.rad_clip[0] * 100)} et ${Math.round(d.params.rad_clip[1] * 100)} % ; le reste va à PS, Écologistes et PCF selon la seule enquête qui les sépare (${esc(d.parties_2027.polls.join(", "))} : PS ${Math.round(d.parties_2027.shares_rest.PS * 100)} %, Écologistes ${Math.round(d.parties_2027.shares_rest.EELV * 100)} %, PCF ${Math.round(d.parties_2027.shares_rest.PCF * 100)} % du reste), chaque part décalée de l'écart local de son·sa candidat·e à la présidentielle 2022 (Hidalgo, Jadot, Roussel ; France entière : ${Math.round(d.presidential.national.PS * 100)} / ${Math.round(d.presidential.national.EELV * 100)} / ${Math.round(d.presidential.national.PCF * 100)} % du vote des trois), bornée, renormalisée. « Mélenchon dans le vote de gauche » : part brute de Mélenchon parmi les candidat·es de gauche au 1<sup>er</sup> tour de la présidentielle 2022 ; France entière ${Math.round(d.presidential.national.LFI * 100)} %. Les résultats présidentiels s'arrêtent à la commune : une circonscription entièrement située à l'intérieur d'une grande commune (les 18 de Paris, les 7 de Marseille, Lyon, Nice, Toulouse…) porte la valeur de CETTE commune, marquée « commune » et identique pour toutes les circonscriptions de la ville";
   const ns = d.params.nat_sigma, ls = d.params.local_sigma, m = d.scenario.means;
-  $n("m-unc").innerHTML = `Scénario « ${esc(d.scenario.label)} », ancre sondages G ${f1(m.G)} · C+D ${f1(m.CD)} · ED ${f1(m.ED)} %, abstention ${f1(m.AB)} %. <b>${d.params.draws} tirages</b> Monte-Carlo : le niveau national de chaque bloc est tiré autour de l'ancre avec l'erreur historique des sondages législatifs (écart-type G ${f1(ns.G)}, C+D ${f1(ns.CD)}, ED ${f1(ns.ED)} points — validation croisée 2002→2022), puis chaque circonscription reçoit son erreur locale (G ${f1(ls.G)}, C+D ${f1(ls.CD)}, ED ${f1(ls.ED)} points, la même que la fourchette de la carte). Un classement fait à un seul réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne sur ce que les sondages peuvent se tromper. Le CSV donne aussi la chance avec l'erreur locale seule et sous « droites unies » (LR refuse le front républicain).`;
+  $n("m-unc").innerHTML = `Scénario « ${esc(d.scenario.label)} », ancre sondages G ${f1(m.G)} · C+D ${f1(m.CD)} · ED ${f1(m.ED)} %, abstention ${f1(m.AB)} %. <b>${d.params.draws} tirages</b> Monte-Carlo : le niveau national de chaque bloc est tiré autour de l'ancre avec l'erreur historique des sondages législatifs (écart-type G ${f1(ns.G)}, C+D ${f1(ns.CD)}, ED ${f1(ns.ED)} points — validation croisée 2002→2022), puis chaque circonscription reçoit son erreur locale (G ${f1(ls.G)}, C+D ${f1(ls.CD)}, ED ${f1(ls.ED)} points, la même que la fourchette de la carte). Un classement fait à un seul réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne sur ce que les sondages peuvent se tromper. Le CSV donne aussi la chance avec l'erreur locale seule et sous « droites unies » (LR refuse le front républicain). Le <b>rang</b> est un ordre, pas une mesure fine : à ${d.params.draws} tirages, une chance n'est connue qu'à ±2 points près au milieu du tableau, si bien que des circonscriptions séparées de moins que cela sont interchangeables (une dizaine de rangs en haut, une vingtaine en bas). C'est sans effet sur ce à quoi le classement sert : le nombre de sièges espérés d'un paquet de circonscriptions ne dépend pas de leur ordre à l'intérieur du paquet.`;
 }
 
 function negVisible() {
@@ -159,7 +302,7 @@ function negVisible() {
     && (!term || fold(`${r.id} ${r.nm} ${r.dept} ${r.depute} ${r.lab2024 || ""}`).includes(term)));
   const k = NEG.sort, s = NEG.asc ? 1 : -1;
   const val = (r) => k === "posture" ? POSTURE_ORDER[stateKey(r)]
-    : k === "lab2024" ? (r.lab2024 || "") : k === "rank" ? (r.rank ?? 1e9) : r[k];
+    : k === "arg" ? (r.card ? r.card.n : -1) : k === "lab2024" ? (r.lab2024 || "") : k === "rank" ? (r.rank ?? 1e9) : r[k];
   rows.sort((a, b) => {
     const va = val(a), vb = val(b);
     if (va == null && vb == null) return a.id.localeCompare(b.id, "fr", { numeric: true });
@@ -175,6 +318,7 @@ function negTable() {
   const pb = (p, cls) => p == null ? "—" : `<span class="pb ${cls}"><span>${pct(p)}</span><i><b style="width:${Math.round(p * 100)}%"></b></i></span>`;
   const state = (r) => r.posture ? `<span class="pos pos-${r.posture}" tabindex="0" data-tip="${esc(postureTipRow(r))}">${POSTURE_LAB[r.posture]}</span>`
     : `<span class="grp g-${r.group}" tabindex="0" data-tip="${esc(GROUP_TIP[r.group])}"><i></i>${GROUP_LAB[r.group]}</span>`;
+  const arg = (r) => `<span class="arg${r.card.n ? "" : " none"}" tabindex="0" data-card="${esc(r.id)}">${esc(r.card.badge)}</span>`;
   const dep = (r) => r.depute ? `<span class="trunc" data-tip="${esc(r.depute)} (${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)})">${esc(r.depute)}</span> <span class="dim">${esc(GROUP_LAB_DEP[r.depGroup] || r.depGroup)}</span>` : "—";
   $n("rows").innerHTML = rows.map((r) => `<tr>
     <td class="num dim">${r.rank ?? ""}</td>
@@ -191,6 +335,7 @@ function negTable() {
     <td class="num args">${r.mel == null ? `<span class="dim" data-tip="Non calculable ici : aucun résultat présidentiel rattachable à cette circonscription.">—</span>`
       : Math.round(r.mel * 100) + " %" + (r.mel_com ? `<small class="parts com" data-tip="Les résultats présidentiels s'arrêtent à la commune, et cette circonscription est entièrement à l'intérieur de ${esc(r.mel_com)} : le chiffre est celui de ${esc(r.mel_com)} en entier. Toutes les circonscriptions de ${esc(r.mel_com)} portent donc le même ; il ne dit rien de leurs écarts internes.">valeur de ${esc(r.mel_com)}</small>` : "")}</td>
     <td class="num args">${r.ext_plus_G == null ? "—" : f1(r.ext_plus_G) + " %" + `<small class="parts">${(() => { const o = split27(r); return ["LFI", ...REST].map((p) => `${p === "LFI" ? "LFI" : REST_LAB[p]} ${f1(o[p])}`).join(" · "); })()}</small>`}</td>
+    <td class="left args">${arg(r)}</td>
   </tr>`).join("");
   document.querySelectorAll("th[data-key]").forEach((th) => {
     const on = th.dataset.key === NEG.sort;
@@ -236,7 +381,7 @@ function negExport() {
   const head = ["rang", "circo", "nom", "dept", "groupe", "posture", "chance_depute_lfi", "chance_gauche_unie", "part_lfi_force_reelle", "lfi_seule_qualifiee_2nd_tour", "reste_gauche_seul_qualifie_2nd_tour",
     "chance_lfi_incertitude_locale_seule", "chance_lfi_droites_unies", "pred_G", "pred_CD", "pred_ED", "depute", "groupe_depute", "parti_nfp_2024",
     "siege_union_2024", "gauche_2024", "gauche_2022", "lfi_seule_2017", "gauche_2017", "melenchon_part_du_vote_de_gauche_2022", "melenchon_valeur_de_la_commune",
-    "gauche_2024_plus_evolution_nationale", "lfi_2027_calcul_simple", "ps_2027_calcul_simple", "eelv_2027_calcul_simple", "pcf_2027_calcul_simple", "nfp_2024", "gauche_hors_nfp_2024", "gauche_2024_fois_evolution_nationale", "inscrits"];
+    "gauche_2024_plus_evolution_nationale", "lfi_2027_calcul_simple", "ps_2027_calcul_simple", "eelv_2027_calcul_simple", "pcf_2027_calcul_simple", "nfp_2024", "gauche_hors_nfp_2024", "gauche_2024_fois_evolution_nationale", "inscrits", "argumentaire"];
   const q = (v) => v == null ? "" : /[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const lines = [`# negotiation 2027 (LFI) — scenario ${d.scenario.key} ; tirages ${d.params.draws} ; part LFI ${NEG.share} ; tri ${NEG.sort} ${NEG.asc ? "asc" : "desc"} ; filtre groupe "${$n("group").value}" posture "${$n("posture").value}" texte "${$n("filter").value}"`,
     head.join(";")].concat(rows.map((r) => [r.rank, r.id, r.nm, r.dept, GROUP_LAB[r.group], r.posture ? POSTURE_LAB[r.posture] : "", r.p_lfi, r.p_left, NEG.share, r.q_lfi, r.q_oth,
@@ -244,7 +389,7 @@ function negExport() {
       r.union_won_2024 == null ? "" : (r.union_won_2024 ? 1 : 0), r.h2024_G, r.h2022_G, r.h2017_LFI, r.h2017_G,
       r.mel, r.mel_com || "", r.ext_plus_G, ...(split27(r) ? ["LFI", "PS", "EELV", "PCF"].map((p) => split27(r)[p]) : ["", "", "", ""]),
       r.h2024_parts ? (r.h2024_parts.UG ?? 0) : "", r.h2024_parts ? Math.round(Object.entries(r.h2024_parts).filter(([k]) => k !== "UG").reduce((a, [, v]) => a + v, 0) * 100) / 100 : "",
-      r.ext_mult_G, r.ins].map(q).join(";")));
+      r.ext_mult_G, r.ins, argText(r.card)].map(q).join(";")));
   const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "negociation_2027_lfi.csv"; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);

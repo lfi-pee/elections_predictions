@@ -7,7 +7,8 @@ avec le plus de député·es ? Le score de jouabilité de la carte n'y répond p
 GAUCHE peut gagner, sans savoir quelle étiquette porte la candidature. Ici tout est vu de LFI,
 et de LFI seulement — les autres partis n'entrent dans aucun calcul.
 
-Trois nombres par circo, tous moyennés sur l'incertitude nationale ET locale :
+Quatre probabilités par circo (plus un écart servi tel quel), toutes moyennées sur
+l'incertitude nationale ET locale :
 
     p_lfi   = P(siège gagné par une candidature LFI dans une gauche unie)   → la VALEUR pour LFI
     p_left  = P(siège gagné par une candidature d'union MOYENNE)            → la VALEUR du siège
@@ -34,7 +35,8 @@ D'où les groupes et les postures :
     obtenir  — le siège se gagne, aucun pôle ne le tient seul : il se gagne à la table.
     monnaie  — le siège se gagne, l'option extérieure est au PARTENAIRE (q_oth ≥ LEVERAGE_Q >
                q_lfi) : LFI devra le céder, autant l'échanger.
-    rien     — la gauche ne gagne pas le siège.
+    rien     — personne ne gagne le siège : ni la gauche unie (p_left < P_MIN), ni LFI
+               (groupe « sans enjeu »).
 Le classement est par p_lfi décroissant : ce qui se négocie est un NOMBRE de circos, et à nombre
 donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e. La courbe « sièges
 LFI espérés selon le nombre de circos prises dans cet ordre » dit COMBIEN en demander.
@@ -86,9 +88,11 @@ LEFT_NON_UNION_NUANCES = {"DVG", "SOC", "ECO", "RDG", "REG", "DIV", "DSV", "COM"
 SCENARIO = "union"
 # Grille de parts nationales LFI-dans-la-gauche pour le rapport de force (curseur de la page).
 SHARES = [0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55]
+# q ≥ 0,5 : le pôle a plus d'une chance sur deux de se qualifier seul — il tient le siège
+# sans l'accord. Seuil des postures, appliqué à l'identique aux deux pôles.
 LEVERAGE_Q = 0.5
 # Bornes de la part locale de LFI dans la gauche (part nationale + écart Mélenchon).
-RAD_CLIP = (0.05, 0.95)   # q_lfi ≥ 0,5 : LFI seule a plus d'une chance sur deux de se qualifier
+RAD_CLIP = (0.05, 0.95)
 
 
 def _load_served() -> tuple[dict, dict]:
@@ -190,8 +194,17 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
     Les deux options extérieures sont mesurées à l'identique sur les deux pôles : la règle est
     symétrique, c'est elle qui dit qui peut se passer de l'accord.
 
-      rien à jouer     p_left < P_MIN — la gauche ne gagne pas le siège : rien à demander, rien
-                       à céder.
+      rien à jouer     personne ne gagne ce siège : la gauche unie ne le gagne pas
+                       (p_left < P_MIN), OU LFI elle-même ne le gagne pas (groupe « sans
+                       enjeu », p_lfi < P_MIN). Rien à demander, rien à céder.
+                       Le second cas est un effet de seuil, pas une règle nouvelle : p_left et
+                       p_lfi ne diffèrent que de l'écart d'ÉTIQUETTE, plus petit que le bruit
+                       Monte-Carlo, et les deux franchissent le MÊME seuil P_MIN. Quand ils
+                       tombent de part et d'autre (8 circos à la part sondages, p_left de 5,0 à
+                       5,8 % — le bruit à 600 tirages vaut ±0,9 pt), c'est la chance de LFI qui
+                       tranche : c'est elle que la page classe, et on ne revendique pas un siège
+                       qu'on ne gagne pas. Sans ce garde-fou, ces circos affichaient « obtenir »
+                       (revendiquer) alors que le classement les dit imprenables.
       exiger           la gauche gagne le siège ET q_lfi ≥ LEVERAGE_Q — LFI tient le siège sans
                        l'accord : la revendication ne se refuse pas.
       monnaie d'échange  la gauche gagne le siège, q_lfi < LEVERAGE_Q ≤ q_oth — l'option
@@ -204,7 +217,10 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
     """
     if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_oth is None or p_left is None:
         return None
-    if p_left < P_MIN:
+    # Aucune posture de DEMANDE sur un siège que LFI ne gagne pas : `group` porte déjà ce verdict
+    # (« sans enjeu » = p_lfi < P_MIN). p_lfi ne sépare jamais exiger/obtenir/monnaie — il ne fait
+    # qu'interdire la revendication là où elle n'a pas d'objet.
+    if p_left < P_MIN or group == "sans_enjeu":
         return "rien"
     if q_lfi >= LEVERAGE_Q:
         return "exiger"

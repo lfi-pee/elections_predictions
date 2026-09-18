@@ -283,7 +283,7 @@ def build() -> dict:
     print(f"  rapport de force : gauche divisée × {len(shares)} parts LFI …")
     split = simulate_split(arr, summary, shares)
 
-    pres_src, pres, pres_nat = radical_spatial.left_presidential_shares()
+    pres_src, pres, pres_nat, pres_com = radical_spatial.left_presidential_shares()
     parties = _party_shares_rest()
     print(f"  présidentielle {pres_src} : Mélenchon dans la gauche {pres_nat['LFI']:.3f} ; reste PS/EELV/PCF {({k: round(v, 3) for k, v in pres_nat.items() if k != 'LFI'})} ; sondages reste {parties['shares_rest']}")
     deputes = deputes_an.load()
@@ -339,7 +339,11 @@ def build() -> dict:
             "rdev": arr.get("rdev", [0] * len(arr["id"]))[i],
             # Présidentielle : part BRUTE de Mélenchon dans le vote de gauche (colonne de droite,
             # la moyenne nationale est servie à part) ; écart local de chaque parti du reste.
+            # `mel_com` non vide = circo entièrement incluse dans une commune que le scrutin ne
+            # découpe pas (Paris, Marseille, Lyon…) : la valeur servie est celle de la commune,
+            # identique pour toutes ses circos. La page le dit dans la cellule.
             "mel": round(pres[cid]["LFI"], 3) if cid in pres else None,
+            "mel_com": pres_com.get(cid),
             "pres_rest": ({pt: round(pres[cid][pt] - pres_nat[pt], 3) for pt in ("PS", "EELV", "PCF") if pt in pres[cid]}
                           if cid in pres else None),
             "p_left": round(float(p_left[i]), 3) if pub else None,
@@ -394,7 +398,7 @@ def build() -> dict:
                    "rad_gain": radical_spatial.RAD_GAIN, "rad_clip": list(RAD_CLIP)},
         "groups": groups,
         "presidential": {"source": pres_src, "national": {k: round(v, 4) for k, v in pres_nat.items()},
-                         "note": "Part de Mélenchon dans le vote de gauche ; PS/EELV/PCF = part de chaque candidat·e dans le vote des trois. Communes à cheval sur plusieurs circos exclues (« — »)."},
+                         "note": "Part de Mélenchon dans le vote de gauche ; PS/EELV/PCF = part de chaque candidat·e dans le vote des trois. Les résultats présidentiels s'arrêtent à la commune : une circonscription entièrement incluse dans une grande commune (Paris, Marseille, Lyon…) reçoit la valeur de CETTE commune, la même pour toutes ses circonscriptions."},
         "parties_2027": parties,
         "postures": postures,
         # Option extérieure par part nationale LFI (clé = part, tableaux alignés sur `rows`).

@@ -134,3 +134,7 @@
 
 /* Ventilation sous un total (gauche 2024 par nuance ; 2027 LFI / reste). */
 #neg-table td small.parts{display:block;font-size:.72rem;line-height:1.15;opacity:.78;white-space:normal;text-align:right;font-variant-numeric:tabular-nums}
+
+/* Le chiffre servi est celui de la commune entière (Paris, Marseille, Lyon…), la circonscription
+   n'étant pas isolable dans les résultats présidentiels : on le dit sous le nombre. */
+#neg-table td small.parts.com { font-style: italic; opacity: .72; cursor: help; }

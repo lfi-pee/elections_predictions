@@ -110,6 +110,18 @@ def main() -> None:
             fails.append(f"{r['id']} part Mélenchon ≠ nationale + écart")
         if (r["mel"] is None) != (r["rdev"] == 0):
             fails.append(f"{r['id']} disponibilité Mélenchon incohérente")
+    # Valeur servie au niveau COMMUNAL (circo entièrement incluse dans une grande commune que le
+    # scrutin présidentiel ne découpe pas) : elle doit être la MÊME pour toutes les circos de la
+    # commune, et la commune doit être nommée — la page l'affiche telle quelle.
+    by_com = {}
+    for r in rows:
+        if r.get("mel_com"):
+            by_com.setdefault(r["mel_com"], set()).add(r["mel"])
+    for com, vals in by_com.items():
+        if len(vals) != 1:
+            fails.append(f"{com} : valeur communale non unique ({sorted(vals)})")
+    if any(r["mel"] is None and r.get("mel_com") for r in rows):
+        fails.append("commune nommée sans valeur de Mélenchon")
     if abs(sum(d["parties_2027"]["shares_rest"].values()) - 1) > 0.002:
         fails.append("parts PS/EELV/PCF du reste ≠ 1")
     # ── Postures : règle 100 % probabilités simulées, et les deux pôles mesurés à l'identique ──

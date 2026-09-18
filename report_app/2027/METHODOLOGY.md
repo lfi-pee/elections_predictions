@@ -51,9 +51,16 @@ réelles** (réglables au curseur) :
   les données (`radical_spatial.select_source`). Il mesure les voix de **Mélenchon parmi
   l'ensemble des voix de gauche**, puis leur écart à la moyenne pondérée par ces voix ; ce
   n'est pas une mesure directe du vote législatif LFI. Les européennes 2024 ne sont pas la
-  source de ce profil. Les communes à cheval sur plusieurs circonscriptions sont exclues
-  de son calcul. Le profil couvre 537 des 577 circonscriptions servies ; les 40 autres
-  utilisent un écart local nul (repli sur la part nationale, pas une observation locale).
+  source de ce profil. Les résultats présidentiels s'arrêtent à la **commune** : 537 des 577
+  circonscriptions sont mesurées sur les communes entièrement contenues en elles ; les 40
+  autres — les 18 de Paris, les 7 de Marseille, celles de Lyon, Nice, Toulouse, Montpellier,
+  Nantes, Strasbourg, Bordeaux, Tours, Saint-Étienne, Toulon, Boulogne-Billancourt et
+  Saint-Denis de La Réunion — sont entièrement *à l'intérieur* d'une grande commune que le
+  scrutin ne découpe pas et reçoivent l'écart de **cette commune**, identique pour toutes les
+  circonscriptions de la ville : exact pour la commune, muet sur les écarts internes. Ces
+  villes votant Mélenchon nettement plus que la moyenne dans la gauche (Paris 71 %, Marseille
+  79 %, contre 68 % en France), c'est un repère plus juste que l'écart nul (part nationale)
+  servi auparavant.
   Formule : `part locale = borne(part nationale + RAD_GAIN × écart local, 0,05, 0,95)` ;
   dispersion appliquée telle quelle (RAD_GAIN 1,0). La part de
   SIÈGES en diffère (~27 % des sièges de gauche à LFI en divisé — le pôle le plus fort rafle le

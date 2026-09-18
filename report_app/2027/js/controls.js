@@ -211,9 +211,10 @@ function renderLfiShare() {
          de la présidentielle 2022</b> : part de Mélenchon parmi les voix de gauche, exprimée
          en écart à leur moyenne pondérée. Cet écart est ajouté à la part nationale du curseur
          (actuellement <b>${pct} %</b>), puis le résultat est borné entre 5 et 95 %.
-         Ce n'est pas une mesure directe du vote législatif LFI. Les communes à cheval sur
-         plusieurs circonscriptions sont exclues du calcul ; sans profil disponible,
-         l'écart local vaut zéro. La part de
+         Ce n'est pas une mesure directe du vote législatif LFI. Les résultats présidentiels
+         s'arrêtent à la commune : une circonscription entièrement située à l'intérieur d'une
+         grande commune (les 18 de Paris, les 7 de Marseille, Lyon, Nice, Toulouse…) reçoit
+         l'écart de CETTE commune, le même pour toutes les circonscriptions de la ville. La part de
          <b>SIÈGES</b> qui en résulte est INFÉRIEURE à la part de voix quand LFI est minoritaire :
          dans chaque circo, le pôle le plus fort emporte le siège (détail dans « détail pôles »).
          Sans effet en gauche unie.</span></span>

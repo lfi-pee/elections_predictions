@@ -200,6 +200,10 @@ def main() -> None:
             with page.expect_download() as dl:
                 page.click("#export")
             text = Path(dl.value.path()).read_text(encoding="utf-8-sig")
+            # Le CSV est l'endroit où l'on soustrait deux colonnes : la réserve sur des bornes
+            # marginales doit y figurer, pas seulement dans la page.
+            note = " ".join(ln for ln in text.splitlines() if ln.startswith("#"))
+            assert "PRIS SEUL" in note and "mêmes" in note and "tirages" in note, note
             body = [ln for ln in text.splitlines() if not ln.startswith("#")]
             rows = list(csv.reader(io.StringIO("\n".join(body)), delimiter=";"))
             assert rows[0][:3] == ["rang", "circo", "nom"] and not any("autre" in h or "prix" in h for h in rows[0])

@@ -125,8 +125,11 @@ def wilson(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
     est déjà INTÉGRÉE dans le point estimé — la remettre autour serait la compter deux fois.
 
     Wilson plutôt que l'approximation normale parce que les valeurs affichées touchent les bords :
-    à p̂ = 1 sur 600 tirages, `p̂ ± z√(p̂(1−p̂)/n)` donne ±0, ce qui est faux (30 circos sont à
-    p̂ = 1). Wilson y donne [0,992 ; 0,999]. Miroir exact de `wilsonCI` (js/negotiation.js).
+    à p̂ = 1, `p̂ ± z√(p̂(1−p̂)/n)` donne ±0, ce qui est faux — et 22 circos sont à p̂ = 1 dans les
+    données servies. Wilson y donne [0,9936 ; 1] à 600 tirages, [0,99936 ; 1] à 6 000 : la borne
+    HAUTE vaut exactement 1 (c + h = (1 + z²/n)/d = 1 quand p̂ = 1), c'est la convention
+    d'affichage de `ci_txt` — pas Wilson — qui évite d'écrire « 100 ». Ce qui sauve la borne
+    basse de l'absurdité, c'est Wilson. Miroir exact de `wilsonCI` (js/negotiation.js).
     """
     if n <= 0:
         return 0.0, 1.0
@@ -152,12 +155,58 @@ def ci_txt(p: float, n: int, z: float = 1.96) -> str:
     def f(v: float) -> str:
         if v >= 0.995:
             return ">99"
-        if 0.0 < v < 0.005:
+        # Pas de « v > 0 » ici : une borne exactement nulle est le cas le plus fréquent de la
+        # colonne (363 des 571 q_lfi servis valent 0). L'exclure la renvoyait dans la branche
+        # décimale, qui écrivait « 0,0–<1 » : deux conventions dans un même jeton, dont l'une
+        # est la certitude que ce docstring promet de ne jamais afficher.
+        if v < 0.005:
             return "<1"
         return f"{v * 100:.1f}".replace(".", ",") if p < 0.1 else str(round(v * 100))
 
     a, b = f(lo), f(hi)
     return a if a == b else f"{a}–{b}"
+
+
+def rank_blur(w: np.ndarray, idx: list[int], z: float = 1.96) -> dict[str, int]:
+    """« Avec combien de voisines une circo est-elle interchangeable, au bruit de simulation près ? »
+
+    Deux circos sont interchangeables si l'ÉCART de leurs chances n'est pas distinguable de zéro :
+    |p̂_i − p̂_j| ≤ z·SE(p̂_i − p̂_j). C'est un test sur une DIFFÉRENCE, et la différence ne se lit pas
+    dans les deux intervalles marginaux : les circos partagent les tirages nationaux, donc
+    Var(p̂_i − p̂_j) = [Var_i + Var_j − 2·Cov_ij]/n, et seule la matrice par tirage donne Cov_ij.
+
+    Compter « combien de p̂_j tombent dans l'intervalle de Wilson de p̂_i » — ce que faisait la page
+    — répond à une autre question et se trompe de sens : la corrélation du bruit entre circos vaut
+    ~0,34, en dessous du 0,5 qui rendrait les deux critères équivalents, donc SE(écart) est PLUS
+    grand que la demi-largeur marginale et le flou de rang était SOUS-estimé.
+    """
+    x = w[:, idx].astype(np.float64)
+    nd = x.shape[0]
+    pi = x.mean(axis=0)
+    cov = (x.T @ x) / nd - np.outer(pi, pi)
+    var = np.diag(cov)
+    se = np.sqrt(np.maximum(var[:, None] + var[None, :] - 2 * cov, 0.0) / nd)
+    # `≤` et non `<` : deux circos toutes deux à p̂ = 1 ont un écart nul ET une SE nulle — elles
+    # sont parfaitement interchangeables, un test strict les déclarerait distinctes.
+    inside = np.abs(pi[:, None] - pi[None, :]) <= z * se + 1e-12
+    np.fill_diagonal(inside, False)
+    c = inside.sum(axis=1)
+    return {"med": int(np.median(c)), "max": int(c.max())}
+
+
+def paired_gap(wa: np.ndarray, wb: np.ndarray, z: float = 1.96) -> dict[str, float]:
+    """Sur le plus grand écart d'étiquette du jeu : demi-largeur 95 % de l'écart p̂_b − p̂_a mesurée
+    APPARIÉE (tirage par tirage) contre la somme des deux demi-largeurs marginales, que le lecteur
+    du CSV combinerait faute de mieux. Sert le chiffre que la ligne d'entête du CSV annonce — il
+    était écrit en dur et se serait tu si `DRAWS` changeait."""
+    a, b = wa.astype(np.float64), wb.astype(np.float64)
+    nd = a.shape[0]
+    pa, pb = a.mean(axis=0), b.mean(axis=0)
+    i = int(np.argmax(np.abs(pb - pa)))
+    paired = z * float((b[:, i] - a[:, i]).std(ddof=1)) / np.sqrt(nd)
+    (la, ha), (lb, hb) = wilson(float(pa[i]), nd, z), wilson(float(pb[i]), nd, z)
+    return {"paired_pt": round(paired * 100, 2),
+            "sum_pt": round(((ha - la) + (hb - lb)) / 2 * 100, 2)}
 
 
 def delivered_sigma(means: dict, draws: int = 200_000, seed: int = SEED) -> dict[str, float]:
@@ -172,7 +221,8 @@ def delivered_sigma(means: dict, draws: int = 200_000, seed: int = SEED) -> dict
 
 
 def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bool = False,
-             national: bool = True, draws: int = DRAWS, seed: int = SEED) -> dict[str, np.ndarray]:
+             national: bool = True, draws: int = DRAWS, seed: int = SEED,
+             matrices: bool = False) -> dict[str, np.ndarray]:
     """Probabilité de siège de gauche par circo pour chaque décalage d'étiquette de `deltas`
     ({nom: cd2l_delta}). Mêmes tirages (national + local) pour toutes les étiquettes, afin que
     p_lfi − p_autre ne porte que la différence d'étiquette."""
@@ -191,7 +241,11 @@ def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bo
     dG, dCD, dED = (np.array(arr[k]) for k in ("dG", "dCD", "dED"))
     dAU = np.array(arr.get("dAU", [0.0] * n))
     dAB = np.array(arr["dAB"])
-    wins = {k: np.zeros(n) for k in deltas}
+    # `matrices` : garder l'indicatrice de victoire TIRAGE PAR TIRAGE, et pas seulement sa
+    # moyenne. Indispensable à toute affirmation portant sur un ÉCART ou un RANG : deux circos
+    # partagent les tirages nationaux, donc la variance de p̂_i − p̂_j n'est pas déductible des
+    # deux marginales — il faut la covariance, qui n'existe qu'ici. 6 000 × 577 booléens = 3,5 Mo.
+    wins = {k: (np.zeros((draws, n), dtype=bool) if matrices else np.zeros(n)) for k in deltas}
     for d in range(draws):
         eG, eCD, eED = (rng.normal(size=n) * sig[b] for b in ("G", "CD", "ED"))
         g = np.clip(nat[d, 0] + dG + eG, 0, 100)
@@ -203,8 +257,11 @@ def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bo
             for k, dl in deltas.items():
                 if W.seat_winner(g[i], cd[i], ed[i], ab[i], "union", 1.0, right_union,
                                  au=au[i], cd2l_delta=dl) == "G":
-                    wins[k][i] += 1
-    return {k: v / draws for k, v in wins.items()}
+                    if matrices:
+                        wins[k][d, i] = True
+                    else:
+                        wins[k][i] += 1
+    return wins if matrices else {k: v / draws for k, v in wins.items()}
 
 
 def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = DRAWS,
@@ -243,7 +300,7 @@ def simulate_split(arr: dict, summary: dict, shares: list[float], draws: int = D
     return {k: {kk: vv / draws for kk, vv in v.items()} for k, v in out.items()}
 
 
-def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float | None) -> str | None:
+def posture(group: str, q_lfi: float | None, q_oth: float | None) -> str | None:
     """Posture = TROIS PROBABILITÉS SIMULÉES par le même Monte-Carlo (mêmes tirages), rien
     d'autre — jamais un chiffre de la partie droite du tableau, et aucun seuil nouveau : les
     deux seuils sont ceux déjà posés, P_MIN et LEVERAGE_Q. Miroir exact de `negPosture`
@@ -255,11 +312,14 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
       q_oth  — si la gauche se divise, le reste de la gauche seul l'atteint-il ? = celle DU PARTENAIRE
 
     `p_left` (la gauche unie gagne le siège, candidature d'union moyenne) n'entre PAS dans la
-    règle : c'est une colonne affichée — la valeur du siège pour l'union, indépendamment de qui
-    le porte — et rien de plus. Elle y entrait avant le garde-fou ; la tester serait aujourd'hui
-    du code mort, `seat_winner` étant croissante en `cd2l_delta` et les deux probabilités sortant
-    des MÊMES tirages, donc p_lfi ≤ p_left partout (invariant testé). p_left < P_MIN impliquerait
-    p_lfi < P_MIN, c'est-à-dire « sans enjeu », déjà traité.
+    règle et ne figure plus dans la signature : c'est une colonne affichée — la valeur du siège
+    pour l'union, indépendamment de qui le porte — et rien de plus. Elle y entrait avant le
+    garde-fou ; la tester serait aujourd'hui du code mort, `seat_winner` étant croissante en
+    `cd2l_delta` et les deux probabilités sortant des MÊMES tirages, donc p_lfi ≤ p_left partout
+    (invariant testé). p_left < P_MIN impliquerait p_lfi < P_MIN, c'est-à-dire « sans enjeu »,
+    déjà traité. La garder en paramètre revenait à la LIRE dans le garde-fou (`p_left is None`)
+    tout en affirmant en commentaire qu'on ne la lit pas — et cette lecture était de toute façon
+    redondante : `p_left is None` ⟺ circo non publiable ⟺ `q_lfi is None`, déjà filtré.
 
     Les deux options extérieures sont mesurées à l'identique sur les deux pôles : la règle est
     symétrique, c'est elle qui dit qui peut se passer de l'accord.
@@ -277,12 +337,11 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
                        (q_lfi < LEVERAGE_Q, q_oth < LEVERAGE_Q) — personne ne peut se passer de
                        l'accord : le siège se gagne à la table.
     """
-    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_oth is None or p_left is None:
+    if group in ("acquis", "hors_union", "non_mesure") or q_lfi is None or q_oth is None:
         return None
     # Aucune posture de DEMANDE sur un siège que LFI ne gagne pas : `group` porte déjà ce verdict
     # (« sans enjeu » = p_lfi < P_MIN). p_lfi ne sépare jamais exiger/obtenir/monnaie — il ne fait
-    # qu'interdire la revendication là où elle n'a pas d'objet. `p_left` reste dans la signature
-    # parce que la page l'affiche à côté de la pastille, pas parce que la règle le lit.
+    # qu'interdire la revendication là où elle n'a pas d'objet.
     if group == "sans_enjeu":
         return "rien"
     if q_lfi >= LEVERAGE_Q:
@@ -346,13 +405,16 @@ def build() -> dict:
     eff = label_effect_2024.load()
     deltas = {"lfi": eff["model"]["cd2l_delta_lfi"]}
     print(f"  décalage du taux de report pour une candidature LFI (2024) : {deltas}")
-    print(f"  Monte-Carlo {DRAWS} tirages × 577 circos × {len(deltas)} étiquettes …")
-    p = simulate(arr, summary, deltas)
-    p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
+    print(f"  Monte-Carlo {DRAWS} tirages × 577 circos × 2 étiquettes (LFI + union moyenne) …")
+    # Les deux étiquettes dans le MÊME appel : les tirages étaient déjà identiques (la graine est
+    # la même et le flux ne dépend pas de `deltas`), mais un seul appel garde la matrice par
+    # tirage des DEUX, seul moyen de chiffrer un écart ou un rang — cf. `rank_blur`/`paired_gap`.
     # Chance de la gauche unie avec la candidature d'union MOYENNE (report moyen mesuré en 2024,
-    # décalage 0) : la valeur du siège pour l'union, étiquette quelconque. Sert la posture
-    # « monnaie d'échange » (LFI ne gagne pas, la gauche unie si). Mêmes tirages.
-    p_left = simulate(arr, summary, {"union": 0.0})["union"]
+    # décalage 0) : la valeur du siège pour l'union, étiquette quelconque — affichée, hors règle.
+    wm = simulate(arr, summary, {"lfi": deltas["lfi"], "union": 0.0}, matrices=True)
+    p = {"lfi": wm["lfi"].mean(axis=0)}
+    p_left = wm["union"].mean(axis=0)
+    p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
     p_loc = simulate(arr, summary, {"lfi": deltas["lfi"]}, national=False)["lfi"]
     default_share = round(float(next(x for x in scenarios_2027.SCENARIOS if x["key"] == "split2")["radical_share"]), 3)
     # La part sondages elle-même est dans la grille (et sert de réglage par défaut) : la force
@@ -433,7 +495,7 @@ def build() -> dict:
         })
 
     for r in rows:
-        r["posture"] = posture(r["group"], r["q_lfi"], r["q_oth"], r["p_left"])
+        r["posture"] = posture(r["group"], r["q_lfi"], r["q_oth"])
     postures = {k: sum(1 for r in rows if r["posture"] == k) for k in ("exiger", "obtenir", "monnaie", "rien")}
     print(f"  postures (part LFI {near}) : {postures}")
     # Classement : p_lfi décroissant parmi les circos négociables (hors acquis, hors non mesurées).
@@ -455,6 +517,15 @@ def build() -> dict:
     eff_same_n = base_lfi + (cum_lfi[min(n24 - len(acquis), len(cum_lfi)) - 1] if n24 > len(acquis) else 0)
     groups = {g: sum(1 for r in rows if r["group"] == g) for g in
               ("acquis", "en_jeu", "sans_enjeu", "hors_union", "non_mesure")}
+    # Flou de rang et écart apparié : calculés ICI, sur les tirages, parce qu'ils portent sur des
+    # DIFFÉRENCES — la page ne peut pas les redériver des intervalles marginaux qu'elle affiche.
+    idx = {cid: i for i, cid in enumerate(arr["id"])}
+    en_jeu_idx = [idx[r["id"]] for r in rows if r["group"] == "en_jeu"]
+    rb = rank_blur(wm["lfi"], en_jeu_idx)
+    pg = paired_gap(wm["lfi"], wm["union"])
+    print(f"  flou de rang (écart apparié) : médiane {rb['med']}, max {rb['max']} ; "
+          f"plus grand écart d'étiquette ±{pg['paired_pt']} pt apparié vs ±{pg['sum_pt']} pt en "
+          f"sommant les deux demi-largeurs")
     print(f"  groupes : {groups}")
     print(f"  sièges LFI espérés — acquis : {base_lfi:.1f} ; carte 2024 ({n24} circos FI) : {exp24:.1f} ; "
           f"répartition efficace à {n24} circos : {eff_same_n:.1f}")
@@ -468,6 +539,8 @@ def build() -> dict:
                    # la page annonce, pas le NAT_SIGMA d'entrée (qu'elle affichait à tort).
                    "nat_sigma_delivered": delivered_sigma(m),
                    "ci_z": 1.96,
+                   "rank_blur": rb,
+                   "paired_gap": pg,
                    "local_sigma": {b: round(summary["circo_halfwidth_90"][b] / Z90, 2) for b in ("G", "CD", "ED")},
                    "p_min": P_MIN,
                    "cd2l_delta": deltas, "label_effect": eff["model"],

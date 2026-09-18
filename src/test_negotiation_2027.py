@@ -10,6 +10,8 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from src import negotiation_2027 as N, winnability_2027 as W
 
 NEG = Path("report_app/2027/data/negotiation.json")
@@ -71,7 +73,7 @@ def main() -> None:
             fails.append(f"{r['id']} sans enjeu mais chance ≥ P_MIN")
         if r["group"] == "en_jeu" and r["p_lfi"] < N.P_MIN:
             fails.append(f"{r['id']} en jeu mais chance < P_MIN")
-        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["q_oth"], r["p_left"]):
+        if r["posture"] != N.posture(r["group"], r["q_lfi"], r["q_oth"]):
             fails.append(f"{r['id']} posture non reproductible")
     if groups != d["groups"]:
         fails.append(f"comptes de groupes incohérents {groups} ≠ {d['groups']}")
@@ -163,16 +165,65 @@ def main() -> None:
 
     # ── Intervalle de Wilson : bornes valides, encadrantes, et qui resserrent avec les tirages ──
     n = d["params"]["draws"]
+    # Valeurs NUMÉRIQUES calculées à la main depuis la formule de Wilson
+    # (c ± h)/(1 + z²/n), c = p̂ + z²/2n, h = z√(p̂(1−p̂)/n + z²/4n²) — et non une propriété que
+    # `wilson` garantit par construction. Le test précédent n'affirmait que « lo ≤ p̂ ≤ hi », ce
+    # que le `min(p, …)/max(p, …)` de `wilson` rend VRAI QUOI QU'IL ARRIVE : une faute de frappe
+    # dans l'algèbre (z*z/(4*n*n) → z*z/(4*n)) passait le test, et le test de miroir avec le JS
+    # ne l'aurait pas vue non plus puisqu'il compare deux fois la même formule fausse.
+    for v, want in ((0.5, (0.487352, 0.512648)), (1.0, (0.999360, 1.0)),
+                    (0.05, (0.044767, 0.055808)), (0.0, (0.0, 0.000640))):
+        got = N.wilson(v, 6000)
+        if max(abs(a - b) for a, b in zip(got, want)) > 1e-6:
+            fails.append(f"Wilson({v}, 6000) = {got}, attendu {want} : l'algèbre a changé")
+    if max(abs(a - b) for a, b in zip(N.wilson(1.0, 600), (0.993638, 1.0))) > 1e-6:
+        fails.append(f"Wilson(1, 600) = {N.wilson(1.0, 600)}, attendu (0.993638, 1.0)")
     for v in (0.0, 0.001, 0.05, 0.5, 0.95, 0.999, 1.0):
         lo, hi = N.wilson(v, n)
         if not (0.0 <= lo <= v <= hi <= 1.0):
             fails.append(f"Wilson({v}, {n}) = [{lo}, {hi}] n'encadre pas la valeur ou sort de [0,1]")
+    # Une borne exactement nulle est le cas le plus fréquent de la colonne : elle doit sortir
+    # dans la convention « < 1 », pas dans la décimale (« 0,0–<1 » mêlait les deux, et « 0,0 »
+    # est la certitude que la légende promet de ne jamais afficher).
+    if N.ci_txt(0.0, n) != "<1":
+        fails.append(f"ci_txt(0, {n}) = « {N.ci_txt(0.0, n)} » : une borne nulle doit s'écrire « <1 »")
     if N.wilson(0.5, n)[1] - N.wilson(0.5, n)[0] >= N.wilson(0.5, n // 4)[1] - N.wilson(0.5, n // 4)[0]:
         fails.append("l'intervalle de Wilson ne se resserre pas quand les tirages augmentent")
     if N.wilson(1.0, n)[1] - N.wilson(1.0, n)[0] <= 0:
         fails.append("Wilson dégénère à p = 1 (c'est tout l'intérêt de ne pas prendre l'approx. normale)")
     if "ci_z" not in d["params"]:
         fails.append("ci_z absent des paramètres : la page ne pourrait pas refaire l'intervalle")
+
+    # ── Flou de rang : un test sur un ÉCART, donc sur la covariance, pas sur les marginales ──
+    # Construit à la main deux circos PARFAITEMENT corrélées (mêmes tirages, même indicatrice) et
+    # deux INDÉPENDANTES à la même distance : le critère correct déclare les premières
+    # interchangeables et pas les secondes. Le critère marginal — « p̂_j tombe-t-il dans
+    # l'intervalle de Wilson de p̂_i » — ne les distingue pas, puisqu'il ignore la covariance.
+    nw = 4000
+    x1 = np.zeros(nw, dtype=bool); x1[:nw // 2] = True                 # p̂ = 0,500
+    x2 = x1.copy(); x2[nw // 2:nw // 2 + 60] = True                    # p̂ = 0,515, même motif
+    pair = np.stack([x1, x2], axis=1)
+    # Écart 0,015 ; la demi-largeur de Wilson vaut 0,0155 — le critère MARGINAL déclare donc ces
+    # deux circos interchangeables. Mais leur bruit est corrélé à 0,97 (mêmes tirages nationaux),
+    # donc la SE de l'écart vaut 0,0019 et l'écart fait 7,8 σ : elles ne le sont pas du tout.
+    # C'est exactement le cas que la page manquait, et le seul qui sépare les deux critères.
+    lo_m, hi_m = N.wilson(0.5, nw)
+    if not lo_m <= 0.515 <= hi_m:
+        fails.append("le cas témoin ne sépare plus les deux critères : revoir le test, pas le code")
+    if N.rank_blur(pair, [0, 1])["max"] != 0:
+        fails.append("rank_blur utilise la marginale au lieu de l'écart apparié : deux circos "
+                     "corrélées à 0,97 et distantes de 7,8 σ sont déclarées interchangeables")
+    same = np.stack([x1, x1], axis=1)
+    if N.rank_blur(same, [0, 1])["med"] != 1:
+        fails.append("rank_blur : deux circos aux tirages identiques doivent être interchangeables")
+    rb = d["params"].get("rank_blur")
+    if not rb or not (0 <= rb["med"] <= rb["max"] < d["groups"]["en_jeu"]):
+        fails.append(f"rank_blur servi absent ou incohérent ({rb}) ; en jeu = {d['groups']['en_jeu']}")
+    pg = d["params"].get("paired_gap")
+    # Tout l'argument de la ligne d'entête du CSV : l'écart apparié est plus serré que la somme
+    # des deux demi-largeurs. S'il cesse de l'être, la phrase ment et il faut la retirer.
+    if not pg or not (0 < pg["paired_pt"] < pg["sum_pt"]):
+        fails.append(f"paired_gap servi absent ou non resserré par l'appariement ({pg})")
     # L'écart-type national ANNONCÉ n'est pas celui que la renormalisation délivre : la page doit
     # servir le second, mesuré sur les tirages.
     nsd = d["params"].get("nat_sigma_delivered")
@@ -207,7 +258,7 @@ def main() -> None:
         for i, r in enumerate(rows):
             if not r["pub"]:
                 continue
-            po = N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i], r["p_left"])
+            po = N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i])
             if po is not None and po != "rien" and r["group"] != "en_jeu":
                 fails.append(f"{r['id']} posture « {po} » hors « en jeu » à la part {kk}")
             if po == "exiger" and b["q_lfi"][i] < N.LEVERAGE_Q:

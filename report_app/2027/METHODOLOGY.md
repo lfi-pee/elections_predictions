@@ -115,11 +115,13 @@ réelles** (réglables au curseur) :
 - **La question** : dans une gauche unie (une candidature par circo), quelles circos LFI
   doit-elle demander pour élire le plus de député·es ? Le score de jouabilité (§2) dit où *la
   gauche* peut gagner, sans connaître l'étiquette. Tout est vu de LFI : aucun autre parti n'entre
-  dans un calcul. Trois prédictions du modèle par circo (`negotiation_2027.py`,
+  dans un calcul. Quatre prédictions du modèle par circo (`negotiation_2027.py`,
   `data/negotiation.json`), et rien d'autre à gauche du tableau : **p_lfi** = P(siège avec une
   candidature LFI) — la valeur ; **q_lfi** = P(LFI seule se qualifie au 2nd tour si la gauche se
-  divise) — la force réelle ; **p_left** = P(siège avec la candidature d'union MOYENNE, report
-  moyen 2024, étiquette quelconque) — la valeur du siège pour l'union. La **part de Mélenchon**
+  divise) — l'option extérieure de LFI ; **q_oth** = P(le reste de la gauche seul se qualifie,
+  même division) — celle du partenaire, mesurée à l'identique ; **p_left** = P(siège avec la
+  candidature d'union MOYENNE, report moyen 2024, étiquette quelconque) — la valeur du siège
+  pour l'union, affichée mais absente de la règle des postures. La **part de Mélenchon**
   dans le vote de gauche (présidentielle 2022, part brute, moyenne nationale ~68 %) est servie à
   DROITE, comme argument visible par tous : elle n'entre dans aucune posture.
 - **Report vers une candidature LFI, MESURÉ** (`label_effect_2024.py`) : le parti de chaque
@@ -131,11 +133,23 @@ réelles** (réglables au curseur) :
   terciles de force de la gauche). Un **taux** de report, insensible au fait que LFI ait reçu des
   circos plus dures. Injecté dans `seat_winner` comme décalage additif `cd2l_delta` du taux
   centre-droit → gauche ; 0 = le modèle moyen de la carte, calibré sur les 109 sièges RN de 2024.
-- **Incertitude** : 600 tirages Monte-Carlo, niveau national tiré autour de l'ancre sondages avec
-  l'erreur historique des sondages législatifs (RMSE LOO 2002→2022 de `bayesian_polls` : G 6,3 ·
-  C+D 6,3 · ED 7,5 pts), puis bruit local par circo (σ = demi-largeur circo 90 % / 1,645).
-  Abstention fixée à la référence (γ = identité). Un classement à un seul réglage de curseur ne
-  survivrait pas à une réunion ; celui-ci moyenne sur l'erreur des sondages.
+- **Incertitude** : 6 000 tirages Monte-Carlo, niveau national tiré autour de l'ancre sondages
+  avec l'erreur historique des sondages législatifs (RMSE LOO 2002→2022 de `bayesian_polls` :
+  G 6,3 · C+D 6,3 · ED 7,5 pts), **les trois blocs étant ensuite renormalisés à 100 − Autre** :
+  cette contrainte de somme rabote la dispersion, et ce que le modèle délivre vaut en réalité
+  G 5,43 · C+D 5,42 · ED 5,88 pts (`delivered_sigma`, mesuré sur les tirages). C'est 14 à 22 %
+  de moins que la cible de calibration ci-dessus : le modèle est sous-dispersé au niveau
+  national, et la page annonce le délivré, pas la cible. Puis bruit local par circo
+  (σ = demi-largeur circo 90 % / 1,645). Abstention fixée à la référence (γ = identité).
+  Un classement à un seul réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne
+  sur l'erreur des sondages.
+- **Bornes affichées** : sous chaque probabilité, son intervalle de Wilson à 95 % sur les
+  6 000 tirages (±1,3 pt au plus large). C'est l'erreur de **simulation** et elle seule — de
+  combien le chiffre bougerait à graine différente. L'incertitude de l'**élection** (sondages,
+  erreur locale) est déjà dans le point estimé ; la remettre autour la compterait deux fois.
+  Ces bornes valent pour un chiffre **pris seul** : les quatre colonnes sortent des mêmes
+  tirages, donc un écart entre deux d'entre elles est bien mieux connu (mesuré : 3,5× pour
+  p_left − p_lfi) que la combinaison de leurs bornes ne le suggère.
 - **Groupes** : *acquis* = député·e sortant·e LFI (71 ; `deputes_an.py`, open data AN) ; *gauche
   hors union* = siège pris en 2024 par une candidature codée à gauche mais hors union (DVG,
   régionaliste…) dont le titulaire ne siège pas dans un groupe de gauche (La Rochelle/Falorni,

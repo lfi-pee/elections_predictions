@@ -153,14 +153,36 @@ def main() -> None:
             # Le miroir JS ↔ Python doit tenir à CHAQUE cran du curseur, pas au seul cran servi :
             # c'est le curseur qui recalcule les options extérieures, donc les postures. Un test
             # au cran par défaut ne peut pas voir une règle qui dérape ailleurs.
+            nd, zc = served["params"]["draws"], served["params"]["ci_z"]
+            lev = served["split"]["leverage_q"]
+            def crosses(v, t):
+                if v is None:
+                    return False
+                lo, hi = N.wilson(v, nd, zc)
+                return lo < t < hi
             for k in served["split"]["shares"]:
                 page.select_option("#share", k)
                 b = served["split"]["by_share"][k]
-                want = {r["id"]: N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i], r["p_left"])
+                want = {r["id"]: N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i])
                         for i, r in enumerate(served["rows"])}
                 assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == want, k
                 assert page.evaluate("NEG.rows.every(r => r.posture === null || r.posture === 'rien'"
                                      " || r.group === 'en_jeu')"), k
+                # Le compte « à cheval sur un seuil » ne doit compter QUE les lignes dont le seuil
+                # décide la posture. q_oth n'est lu que si q_lfi est SOUS le seuil : au-dessus,
+                # la posture vaut « exiger » quoi que fasse q_oth. Sans cette condition la page
+                # annonçait 7 postures indécises pour 5 réelles à la part 0,55 — et ce cran-là
+                # n'apparaît qu'en balayant tout le curseur, d'où le test dans cette boucle.
+                want_q = sum(1 for i, r in enumerate(served["rows"])
+                             if r["group"] == "en_jeu"
+                             and (crosses(b["q_lfi"][i], lev)
+                                  or (b["q_lfi"][i] is not None and b["q_lfi"][i] < lev
+                                      and crosses(b["q_oth"][i], lev))))
+                assert page.evaluate("straddle().q") == want_q, (k, page.evaluate("straddle()"), want_q)
+                decided = page.evaluate(
+                    "(lv) => NEG.rows.filter(r => r.group === 'en_jeu')"
+                    ".every(r => !(r.q_lfi >= lv) || negPosture(r.group, r.q_lfi, r.q_oth) === 'exiger')", lev)
+                assert decided, k
             page.select_option("#share", served["split"]["shares"][-1])
             assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > served["postures"]["exiger"]
             page.select_option("#share", served["split"]["near"])
@@ -180,6 +202,18 @@ def main() -> None:
                 (v, g, N.ci_txt(v, served["params"]["draws"]))
                 for v, g in zip(vals, got) if g != N.ci_txt(v, served["params"]["draws"])][:5]
             assert "100" not in page.evaluate("ciTxt(1)"), page.evaluate("ciTxt(1)")
+            # `wilsonCI` comparé au Python NUMÉRIQUEMENT, pas seulement à travers l'arrondi
+            # d'affichage de `ciTxt` : deux formules divergentes peuvent s'écrire pareil une fois
+            # arrondies au point de pourcentage, et c'est la moitié basse de la colonne qui le
+            # cacherait le mieux.
+            probe = [0.0, 1e-4, 0.004, 0.05, 0.2, 0.5, 0.8, 0.95, 0.999, 1.0]
+            js_ci = page.evaluate("(vs) => vs.map(v => wilsonCI(v, NEG.data.params.draws, NEG.data.params.ci_z))", probe)
+            for v, (jl, jh) in zip(probe, js_ci):
+                pl, ph = N.wilson(v, nd, zc)
+                assert abs(jl - pl) < 1e-12 and abs(jh - ph) < 1e-12, (v, (jl, jh), (pl, ph))
+            # Le flou de rang est SERVI (il porte sur un écart, que la page ne peut pas redériver
+            # de ses bornes marginales) : la page doit lire ce chiffre-là, pas en recalculer un.
+            assert page.evaluate("rankBlur()") == served["params"]["rank_blur"]
             page.select_option("#posture", "monnaie")
             assert page.locator("#rows tr").count() == served["postures"]["monnaie"]
             page.select_option("#posture", "")

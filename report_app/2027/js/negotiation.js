@@ -91,11 +91,14 @@ const ciTxt = (p) => {
   // Même convention que le chiffre au-dessus : jamais de certitude affichée, une décimale sous
   // 10 %. Deux bornes qui s'écrivent pareil se fondent en un jeton — l'intervalle est alors plus
   // étroit que ce que l'affichage distingue, et « 100–100 » sous « >99 % » serait un démenti.
-  // `Math.max(0, v)` écrase le zéro négatif que laisse la soustraction au bord (sinon « -0 »), et
-  // minimumFractionDigits fixe la décimale : sans lui « 1,0 » s'écrirait « 1 » ici et « 1,0 » côté
-  // Python, et le miroir se briserait sur la moitié basse de la colonne.
-  const f = (v) => v >= 0.995 ? ">99" : (v > 0 && v < 0.005) ? "<1"
-    : p < 0.1 ? (Math.max(0, v) * 100).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  // Le seuil bas ne s'écrit PAS « v > 0 » : une borne exactement nulle est le cas le plus
+  // fréquent de la colonne (363 des 571 q_lfi servis valent 0), et la laisser passer dans la
+  // branche décimale affichait « 0,0–<1 » — deux conventions dans un même jeton, dont l'une est
+  // la certitude que la légende promet de ne jamais afficher. minimumFractionDigits fixe la
+  // décimale : sans lui « 1,0 » s'écrirait « 1 » ici et « 1,0 » côté Python, et le miroir se
+  // briserait sur la moitié basse de la colonne.
+  const f = (v) => v >= 0.995 ? ">99" : v < 0.005 ? "<1"
+    : p < 0.1 ? (v * 100).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
               : String(Math.round(v * 100));
   const a = f(lo), b = f(hi);
   return a === b ? a : `${a}–${b}`;
@@ -288,19 +291,19 @@ function negTooltips() {
   document.addEventListener("scroll", hide, true);
 }
 
-// Posture = valeur du siège (p_left) × qui peut se passer de l'accord (q_lfi vs q_oth, les deux
+// Posture = la chance de LFI (lue via le groupe) × qui peut se passer de l'accord (q_lfi vs q_oth, les deux
 // options extérieures mesurées à l'identique sur les deux pôles). TROIS probabilités du même
 // Monte-Carlo, aucun chiffre de la partie droite du tableau, aucun seuil nouveau — plus un
 // garde-fou : sur un siège imprenable pour LFI (groupe « sans enjeu »), il n'y a rien à jouer.
 // Miroir exact de `posture` (src/negotiation_2027.py).
-function negPosture(group, qL, qO, pLeft) {
+function negPosture(group, qL, qO) {
   if (group === "acquis" || group === "hors_union" || group === "non_mesure"
-      || qL == null || qO == null || pLeft == null) return null;
+      || qL == null || qO == null) return null;
   const lev = NEG.data.split.leverage_q;
   // Aucune posture de DEMANDE sur un siège que LFI ne gagne pas : le groupe « sans enjeu » porte
   // déjà ce verdict (chance LFI < p_min). p_lfi ne sépare jamais exiger/obtenir/monnaie.
-  // `pLeft` reste en paramètre parce que la page l'affiche à côté de la pastille, pas parce que
-  // la règle le lit : p_lfi ≤ p_left partout, donc « p_left < p_min » serait du code mort.
+  // `p_left` n'est plus un paramètre : la garder revenait à la lire dans ce garde-fou tout en
+  // écrivant ici qu'on ne la lit pas — et cette lecture doublait « qO == null ».
   if (group === "sans_enjeu") return "rien";
   if (qL >= lev) return "exiger";
   return qO >= lev ? "monnaie" : "obtenir";
@@ -313,7 +316,7 @@ function negApplyShare() {
   NEG.rows.forEach((r, i) => {
     r.q_lfi = r.pub ? b.q_lfi[i] : null;
     r.q_oth = r.pub ? b.q_oth[i] : null;
-    r.posture = negPosture(r.group, r.q_lfi, r.q_oth, r.p_left);
+    r.posture = negPosture(r.group, r.q_lfi, r.q_oth);
   });
   // L'argumentaire dépend de la posture ET du calcul simple 2027 : il se refait avec la part.
   NEG.cards = {};
@@ -321,18 +324,14 @@ function negApplyShare() {
 }
 
 // Combien de circonscriptions sont interchangeables avec une circonscription donnée, au bruit
-// de simulation près : pour chaque circo « en jeu », le nombre d'autres dont la chance tombe
-// dans son intervalle à 95 %. Médiane et maximum. Calculé ici, sur les chiffres servis, pour que
-// la phrase ne puisse pas se désynchroniser du nombre de tirages.
+// de simulation près. SERVI par `negotiation_2027.rank_blur`, pas recalculé ici : le critère
+// porte sur un ÉCART (|p̂_i − p̂_j| ≤ z·SE de l'écart), et la SE de l'écart n'est pas déductible
+// des deux intervalles marginaux — les circos partagent les tirages nationaux, il faut leur
+// covariance par tirage, qui n'existe que côté Python. La version qui comptait les p̂_j tombant
+// dans l'intervalle de Wilson de p̂_i répondait à une autre question, et sous-estimait le flou
+// (corrélation du bruit entre circos ~0,34, en dessous du 0,5 qui rendrait les deux équivalents).
 function rankBlur() {
-  const z = NEG.data.params.ci_z ?? 1.96, nd = NEG.data.params.draws;
-  const ps = NEG.rows.filter((r) => r.group === "en_jeu").map((r) => r.p_lfi).sort((a, b) => b - a);
-  if (!ps.length) return { med: 0, max: 0 };
-  const n = ps.map((p) => {
-    const [lo, hi] = wilsonCI(p, nd, z);
-    return ps.filter((q) => q >= lo && q <= hi).length - 1;
-  }).sort((a, b) => a - b);
-  return { med: n[Math.floor(n.length / 2)], max: n[n.length - 1] };
+  return NEG.data.params.rank_blur || { med: 0, max: 0 };
 }
 
 // Lignes dont l'intervalle traverse un seuil de décision : leur chiffre est indécis, mais
@@ -343,8 +342,13 @@ function straddle() {
   const cross = (v, t) => { if (v == null) return false; const [lo, hi] = wilsonCI(v, nd, z); return lo < t && t < hi; };
   const pm = NEG.data.params.p_min, lv = NEG.data.split.leverage_q;
   const graded = (r) => r.group === "en_jeu" || r.group === "sans_enjeu";
+  // La règle lit q_oth SEULEMENT quand q_lfi est sous le seuil : au-dessus, la posture vaut
+  // « exiger » quoi que fasse q_oth, et un q_oth à cheval ne décide alors rien. Sans cette
+  // seconde condition la page annonçait 7 postures indécises pour 5 réelles à la part 0,55 —
+  // le défaut même que le filtre de groupe était censé supprimer.
+  const qUndecided = (r) => cross(r.q_lfi, lv) || (r.q_lfi != null && r.q_lfi < lv && cross(r.q_oth, lv));
   return { p: NEG.rows.filter((r) => graded(r) && cross(r.p_lfi, pm)).length,
-           q: NEG.rows.filter((r) => r.group === "en_jeu" && (cross(r.q_lfi, lv) || cross(r.q_oth, lv))).length };
+           q: NEG.rows.filter((r) => r.group === "en_jeu" && qUndecided(r)).length };
 }
 
 function negMethods() {
@@ -464,7 +468,7 @@ function negExport() {
     "gauche_2024_plus_evolution_nationale", "lfi_2027_calcul_simple", "ps_2027_calcul_simple", "eelv_2027_calcul_simple", "pcf_2027_calcul_simple", "nfp_2024", "gauche_hors_nfp_2024", "gauche_2024_fois_evolution_nationale", "inscrits", "argumentaire"];
   const q = (v) => v == null ? "" : /[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
   const lines = [`# negotiation 2027 (LFI) — scenario ${d.scenario.key} ; tirages ${d.params.draws} ; part LFI ${NEG.share} ; tri ${NEG.sort} ${NEG.asc ? "asc" : "desc"} ; filtre groupe "${$n("group").value}" posture "${$n("posture").value}" texte "${$n("filter").value}"`,
-    `# les colonnes _ic95_ sont des bornes à 95 % sur le BRUIT DE SIMULATION (pas l'incertitude de l'élection, déjà intégrée dans le chiffre), et elles valent pour chaque chiffre PRIS SEUL : les quatre probabilités sortent des mêmes ${d.params.draws} tirages, donc un écart entre deux d'entre elles est bien mieux connu que la somme de leurs bornes — sur le plus grand écart d'étiquette du jeu, ±0,46 point apparié contre ±1,79 en combinant naïvement les deux intervalles.`,
+    `# les colonnes _ic95_ sont des bornes à 95 % sur le BRUIT DE SIMULATION (pas l'incertitude de l'élection, déjà intégrée dans le chiffre), et elles valent pour chaque chiffre PRIS SEUL : les quatre probabilités sortent des mêmes ${d.params.draws} tirages, donc un écart entre deux d'entre elles est bien mieux connu que la somme de leurs bornes — sur le plus grand écart d'étiquette du jeu, ±${f2(d.params.paired_gap.paired_pt)} point apparié contre ±${f2(d.params.paired_gap.sum_pt)} en sommant les deux demi-largeurs.`,
     head.join(";")].concat(rows.map((r) => [r.rank, r.id, r.nm, r.dept, GROUP_LAB[r.group], r.posture ? POSTURE_LAB[r.posture] : "", ...ci4(r.p_lfi), ...ci4(r.p_left), NEG.share, ...ci4(r.q_lfi), ...ci4(r.q_oth),
       r.p_lfi_local, r.p_lfi_ru, r.pred && r.pred.G, r.pred && r.pred.CD, r.pred && r.pred.ED, r.depute, r.depGroup, r.lab2024,
       r.union_won_2024 == null ? "" : (r.union_won_2024 ? 1 : 0), r.h2024_G, r.h2022_G, r.h2017_LFI, r.h2017_G,

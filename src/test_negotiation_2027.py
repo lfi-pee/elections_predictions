@@ -129,9 +129,10 @@ def main() -> None:
     if not any(r["posture"] == "monnaie" for r in post):
         fails.append("aucune circo « monnaie d'échange »")
     for r in post:
-        # « Rien à jouer » ⇔ personne ne gagne le siège : ni la gauche unie, ni LFI elle-même.
-        if (r["posture"] == "rien") != (r["p_left"] < N.P_MIN or r["group"] == "sans_enjeu"):
-            fails.append(f"{r['id']} « rien à jouer » ⇎ (gauche unie < P_MIN ou sans enjeu)")
+        # « Rien à jouer » ⇔ le groupe « sans enjeu », exactement. La posture et le classement
+        # lisent le MÊME seuil sur la MÊME quantité : ils ne peuvent plus se contredire.
+        if (r["posture"] == "rien") != (r["group"] == "sans_enjeu"):
+            fails.append(f"{r['id']} « rien à jouer » ⇎ groupe « sans enjeu »")
         # Le garde-fou : aucune posture de DEMANDE ni de CESSION PAYANTE sur un siège que le
         # classement dit imprenable pour LFI — sinon le tableau se contredit d'une colonne à
         # l'autre (« obtenir » sur une circo affichée à 4 % de chance).
@@ -149,8 +150,34 @@ def main() -> None:
     sep = sum(1 for r in post if abs(r["q_oth"] - r["q_lfi"]) >= 0.2)
     if sep < 50:
         fails.append(f"options extérieures trop proches pour trancher ({sep} circos séparées de ≥ 20 pts)")
-    if sum(1 for r in rows if r["pub"] and r["p_left"] + 0.02 < r["p_lfi"]) > 5:
-        fails.append("p_left < p_lfi trop souvent (le report LFI est mesuré sous la moyenne)")
+    # p_lfi ≤ p_left PARTOUT, pas « en général » : `seat_winner` est croissante en cd2l_delta et
+    # les deux probabilités sortent des mêmes tirages. C'est cet invariant qui rend « p_left <
+    # P_MIN » inatteignable et autorise à l'avoir retiré de la règle — s'il tombe, la règle doit
+    # être rouverte, pas rafistolée.
+    viol = [r["id"] for r in rows if r["pub"] and r["p_lfi"] > r["p_left"] + 1e-9]
+    if viol:
+        fails.append(f"p_lfi > p_left sur {len(viol)} circos ({viol[:5]}) : la règle des postures "
+                     f"supposait le contraire")
+    if any(r["pub"] and r["p_left"] < N.P_MIN and r["group"] == "en_jeu" for r in rows):
+        fails.append("une circo « en jeu » avec gauche unie < P_MIN : impossible si p_lfi ≤ p_left")
+
+    # ── Intervalle de Wilson : bornes valides, encadrantes, et qui resserrent avec les tirages ──
+    n = d["params"]["draws"]
+    for v in (0.0, 0.001, 0.05, 0.5, 0.95, 0.999, 1.0):
+        lo, hi = N.wilson(v, n)
+        if not (0.0 <= lo <= v <= hi <= 1.0):
+            fails.append(f"Wilson({v}, {n}) = [{lo}, {hi}] n'encadre pas la valeur ou sort de [0,1]")
+    if N.wilson(0.5, n)[1] - N.wilson(0.5, n)[0] >= N.wilson(0.5, n // 4)[1] - N.wilson(0.5, n // 4)[0]:
+        fails.append("l'intervalle de Wilson ne se resserre pas quand les tirages augmentent")
+    if N.wilson(1.0, n)[1] - N.wilson(1.0, n)[0] <= 0:
+        fails.append("Wilson dégénère à p = 1 (c'est tout l'intérêt de ne pas prendre l'approx. normale)")
+    if "ci_z" not in d["params"]:
+        fails.append("ci_z absent des paramètres : la page ne pourrait pas refaire l'intervalle")
+    # L'écart-type national ANNONCÉ n'est pas celui que la renormalisation délivre : la page doit
+    # servir le second, mesuré sur les tirages.
+    nsd = d["params"].get("nat_sigma_delivered")
+    if not nsd or any(nsd[b] >= N.NAT_SIGMA[b] for b in ("G", "CD", "ED")):
+        fails.append(f"nat_sigma_delivered absent ou non raboté par la renormalisation ({nsd})")
     if abs(float(d["split"]["near"]) - d["split"]["default_share"]) > 0.005:
         fails.append("la part sondages n'est pas le réglage par défaut")
     if "rad_gain" not in d["params"] or len(d["params"]["rad_clip"]) != 2:

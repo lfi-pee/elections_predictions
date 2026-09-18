@@ -31,12 +31,11 @@ D'où les groupes et les postures :
   Postures (règle complète et symétrique dans `posture` ci-dessous) : la valeur du siège
   (p_left) dit s'il y a quelque chose à jouer ; les deux options extérieures (q_lfi, q_oth)
   disent qui peut se passer de l'accord.
-    exiger   — le siège se gagne ET LFI le tient sans l'accord (q_lfi ≥ LEVERAGE_Q).
-    obtenir  — le siège se gagne, aucun pôle ne le tient seul : il se gagne à la table.
-    monnaie  — le siège se gagne, l'option extérieure est au PARTENAIRE (q_oth ≥ LEVERAGE_Q >
-               q_lfi) : LFI devra le céder, autant l'échanger.
-    rien     — personne ne gagne le siège : ni la gauche unie (p_left < P_MIN), ni LFI
-               (groupe « sans enjeu »).
+    exiger   — LFI peut gagner le siège ET le tient sans l'accord (q_lfi ≥ LEVERAGE_Q).
+    obtenir  — LFI peut le gagner, aucun pôle ne le tient seul : il se gagne à la table.
+    monnaie  — LFI peut le gagner mais l'option extérieure est au PARTENAIRE (q_oth ≥
+               LEVERAGE_Q > q_lfi) : LFI devra le céder, autant l'échanger.
+    rien     — LFI ne gagne pas le siège (groupe « sans enjeu »).
 Le classement est par p_lfi décroissant : ce qui se négocie est un NOMBRE de circos, et à nombre
 donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e député·e. La courbe « sièges
 LFI espérés selon le nombre de circos prises dans cet ordre » dit COMBIEN en demander.
@@ -78,7 +77,11 @@ REPARTITION = Path("data/nuance/nfp_repartition_2024.csv")
 # négociation menée des mois avant le scrutin.
 NAT_SIGMA = {"G": 6.3, "CD": 6.3, "ED": 7.5}
 Z90 = 1.645
-DRAWS = 600
+# Tirages Monte-Carlo. La page AFFICHE l'erreur de simulation à côté de chaque probabilité
+# (intervalle de Wilson à 95 %) : ce nombre est donc lu par le lecteur, pas seulement subi.
+# À 600 tirages elle valait ±4,0 pts à p = 0,5 — plus large que l'écart entre deux postures ;
+# à 6 000 elle vaut ±1,3 pt. Le build passe de 50 s à ~8 min, ce qui reste un coût de build.
+DRAWS = 6000
 SEED = 2027
 P_MIN = 0.05           # p_lfi < 5 % : « sans enjeu »
 LFI_GROUP = "LFI-NFP"
@@ -113,6 +116,60 @@ def _draw_national(rng: np.random.Generator, means: dict, n: int) -> np.ndarray:
     return x / x.sum(axis=1, keepdims=True) * (100.0 - means.get("AU", 0.0))
 
 
+def wilson(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Intervalle de Wilson à 95 % sur une probabilité estimée par `n` tirages Monte-Carlo.
+
+    C'est l'erreur de SIMULATION, et elle seule : de combien le chiffre bougerait si on relançait
+    le Monte-Carlo avec une autre graine. L'incertitude de l'ÉLECTION (sondages + erreur locale)
+    est déjà INTÉGRÉE dans le point estimé — la remettre autour serait la compter deux fois.
+
+    Wilson plutôt que l'approximation normale parce que les valeurs affichées touchent les bords :
+    à p̂ = 1 sur 600 tirages, `p̂ ± z√(p̂(1−p̂)/n)` donne ±0, ce qui est faux (30 circos sont à
+    p̂ = 1). Wilson y donne [0,992 ; 0,999]. Miroir exact de `wilsonCI` (js/negotiation.js).
+    """
+    if n <= 0:
+        return 0.0, 1.0
+    d = 1.0 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / d
+    # Bornes serrées sur le point estimé : en arithmétique exacte l'intervalle de Wilson le
+    # contient toujours, mais aux bords (p = 0, p = 1) la soustraction laisse un résidu flottant
+    # de l'ordre de 1e-20 du mauvais côté. Un intervalle qui n'encadre pas le chiffre qu'il annote
+    # est précisément le défaut qu'on corrige ailleurs sur cette page : on l'interdit ici par
+    # construction plutôt que par tolérance.
+    return min(p, max(0.0, c - h)), max(p, min(1.0, c + h))
+
+
+def ci_txt(p: float, n: int, z: float = 1.96) -> str:
+    """Bornes telles que la page les écrit sous le chiffre. Même convention que le chiffre
+    lui-même : jamais de certitude affichée (« >99 », « <1 »), une décimale sous 10 % pour que le
+    seuil des 5 % reste lisible dans l'intervalle aussi, et bornes fondues en un seul jeton quand
+    elles s'écrivent pareil (l'intervalle est alors plus étroit que ce que l'affichage distingue).
+    Miroir exact de `ciTxt` (js/negotiation.js) ; le test de page compare les deux."""
+    lo, hi = wilson(p, n, z)
+
+    def f(v: float) -> str:
+        if v >= 0.995:
+            return ">99"
+        if 0.0 < v < 0.005:
+            return "<1"
+        return f"{v * 100:.1f}".replace(".", ",") if p < 0.1 else str(round(v * 100))
+
+    a, b = f(lo), f(hi)
+    return a if a == b else f"{a}–{b}"
+
+
+def delivered_sigma(means: dict, draws: int = 200_000, seed: int = SEED) -> dict[str, float]:
+    """Écart-type RÉELLEMENT délivré par `_draw_national`, bloc par bloc.
+
+    NAT_SIGMA est appliqué aux trois blocs indépendamment, PUIS les trois sont renormalisés à
+    100 − Autre. La renormalisation rabote la dispersion (elle impose une contrainte de somme) :
+    ce que le modèle délivre n'est pas ce que NAT_SIGMA annonce, et c'est le délivré que la page
+    doit afficher. Mesuré, pas dérivé."""
+    x = _draw_national(np.random.default_rng(seed), means, draws)
+    return {b: round(float(x[:, i].std(ddof=1)), 2) for i, b in enumerate(("G", "CD", "ED"))}
+
+
 def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bool = False,
              national: bool = True, draws: int = DRAWS, seed: int = SEED) -> dict[str, np.ndarray]:
     """Probabilité de siège de gauche par circo pour chaque décalage d'étiquette de `deltas`
@@ -124,8 +181,12 @@ def simulate(arr: dict, summary: dict, deltas: dict[str, float], right_union: bo
     n = len(arr["id"])
     hw = summary["circo_halfwidth_90"]
     sig = {b: hw[b] / Z90 for b in ("G", "CD", "ED")}
-    nat = _draw_national(rng, m, draws) if national else np.tile(
-        [m["G"], m["CD"], m["ED"]], (draws, 1))
+    # Le tirage national est TOUJOURS consommé, même quand on ne s'en sert pas : sans cela le
+    # flux du générateur se décale et `p_lfi_local` ne partagerait pas les erreurs locales de
+    # `p_lfi`, alors que la page et le CSV les présentent comme une paire (l'écart porterait
+    # ~1,3 pt de bruit de simulation qu'une comparaison appariée annule).
+    drawn = _draw_national(rng, m, draws)
+    nat = drawn if national else np.tile([m["G"], m["CD"], m["ED"]], (draws, 1))
     dG, dCD, dED = (np.array(arr[k]) for k in ("dG", "dCD", "dED"))
     dAU = np.array(arr.get("dAU", [0.0] * n))
     dAB = np.array(arr["dAB"])
@@ -187,24 +248,24 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
     deux seuils sont ceux déjà posés, P_MIN et LEVERAGE_Q. Miroir exact de `negPosture`
     (js/negotiation.js).
 
-      p_left — la gauche unie gagne-t-elle le siège (candidature d'union moyenne) ? = la VALEUR
+      p_lfi  — LFI gagne-t-elle le siège en portant la candidature unique ? = y a-t-il un enjeu
+               POUR LFI. Lu à travers `group` : « sans enjeu » ⇔ p_lfi < P_MIN.
       q_lfi  — si la gauche se divise, LFI seule atteint-elle le 2nd tour ?  = l'option extérieure DE LFI
       q_oth  — si la gauche se divise, le reste de la gauche seul l'atteint-il ? = celle DU PARTENAIRE
+
+    `p_left` (la gauche unie gagne le siège, candidature d'union moyenne) n'entre PAS dans la
+    règle : c'est une colonne affichée — la valeur du siège pour l'union, indépendamment de qui
+    le porte — et rien de plus. Elle y entrait avant le garde-fou ; la tester serait aujourd'hui
+    du code mort, `seat_winner` étant croissante en `cd2l_delta` et les deux probabilités sortant
+    des MÊMES tirages, donc p_lfi ≤ p_left partout (invariant testé). p_left < P_MIN impliquerait
+    p_lfi < P_MIN, c'est-à-dire « sans enjeu », déjà traité.
 
     Les deux options extérieures sont mesurées à l'identique sur les deux pôles : la règle est
     symétrique, c'est elle qui dit qui peut se passer de l'accord.
 
-      rien à jouer     personne ne gagne ce siège : la gauche unie ne le gagne pas
-                       (p_left < P_MIN), OU LFI elle-même ne le gagne pas (groupe « sans
-                       enjeu », p_lfi < P_MIN). Rien à demander, rien à céder.
-                       Le second cas est un effet de seuil, pas une règle nouvelle : p_left et
-                       p_lfi ne diffèrent que de l'écart d'ÉTIQUETTE, plus petit que le bruit
-                       Monte-Carlo, et les deux franchissent le MÊME seuil P_MIN. Quand ils
-                       tombent de part et d'autre (8 circos à la part sondages, p_left de 5,0 à
-                       5,8 % — le bruit à 600 tirages vaut ±0,9 pt), c'est la chance de LFI qui
-                       tranche : c'est elle que la page classe, et on ne revendique pas un siège
-                       qu'on ne gagne pas. Sans ce garde-fou, ces circos affichaient « obtenir »
-                       (revendiquer) alors que le classement les dit imprenables.
+      rien à jouer     LFI ne gagne pas ce siège (groupe « sans enjeu », p_lfi < P_MIN) :
+                       rien à demander, rien à céder. On ne revendique pas un siège qu'on ne
+                       gagne pas — et c'est le classement lui-même qui le dit.
       exiger           la gauche gagne le siège ET q_lfi ≥ LEVERAGE_Q — LFI tient le siège sans
                        l'accord : la revendication ne se refuse pas.
       monnaie d'échange  la gauche gagne le siège, q_lfi < LEVERAGE_Q ≤ q_oth — l'option
@@ -219,8 +280,9 @@ def posture(group: str, q_lfi: float | None, q_oth: float | None, p_left: float 
         return None
     # Aucune posture de DEMANDE sur un siège que LFI ne gagne pas : `group` porte déjà ce verdict
     # (« sans enjeu » = p_lfi < P_MIN). p_lfi ne sépare jamais exiger/obtenir/monnaie — il ne fait
-    # qu'interdire la revendication là où elle n'a pas d'objet.
-    if p_left < P_MIN or group == "sans_enjeu":
+    # qu'interdire la revendication là où elle n'a pas d'objet. `p_left` reste dans la signature
+    # parce que la page l'affiche à côté de la pastille, pas parce que la règle le lit.
+    if group == "sans_enjeu":
         return "rien"
     if q_lfi >= LEVERAGE_Q:
         return "exiger"
@@ -401,6 +463,10 @@ def build() -> dict:
                         **({"national_LFI": round(e["national"]["LFI"], 1)} if "LFI" in e["national"] else {})}
                     for k, e in hist.items()},
         "params": {"draws": DRAWS, "seed": SEED, "nat_sigma": NAT_SIGMA,
+                   # Ce que la renormalisation laisse réellement passer : c'est ce chiffre-là que
+                   # la page annonce, pas le NAT_SIGMA d'entrée (qu'elle affichait à tort).
+                   "nat_sigma_delivered": delivered_sigma(m),
+                   "ci_z": 1.96,
                    "local_sigma": {b: round(summary["circo_halfwidth_90"][b] / Z90, 2) for b in ("G", "CD", "ED")},
                    "p_min": P_MIN,
                    "cd2l_delta": deltas, "label_effect": eff["model"],

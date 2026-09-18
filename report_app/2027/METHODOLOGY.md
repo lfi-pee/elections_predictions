@@ -147,16 +147,29 @@ réelles** (réglables au curseur) :
   modèle rejoue une gauche DIVISÉE (LFI d'un côté, PS·PP·Écologistes·PCF de l'autre, motif
   Mélenchon, `split_outcome`) et sert **deux options extérieures mesurées à l'identique sur les
   deux pôles** : `q_lfi` (LFI seule atteint le 2nd tour) et `q_oth` (le reste de la gauche seul
-  l'atteint). Avec `p_left` (la gauche unie gagne le siège, candidature d'union moyenne), ce sont
-  les **trois probabilités du même Monte-Carlo** dont se déduisent les postures, et rien d'autre :
-  *rien à jouer* (p_left < 5 % : la gauche ne gagne pas le siège, rien à demander ni à céder) ;
-  *exiger* (p_left ≥ 5 % et q_lfi ≥ 50 % : LFI tient le siège sans l'accord) ; *monnaie
-  d'échange* (p_left ≥ 5 %, q_lfi < 50 % ≤ q_oth : l'option extérieure est du côté du partenaire,
-  LFI ne peut pas exiger ce siège et devra le céder — c'est un vrai siège, donc la concession a
-  un prix) ; *obtenir* (p_left ≥ 5 % et aucun des deux pôles ne tient le siège seul : personne ne
-  peut se passer de l'accord, il se gagne à la table). Aucun seuil nouveau : 5 % et 50 % sont
-  ceux déjà posés. Le survol d'une pastille redonne les quatre chiffres de la ligne, tous
+  l'atteint). Avec `p_lfi` (LFI gagne le siège en portant la candidature unique), ce sont les
+  **trois probabilités du même Monte-Carlo** dont se déduisent les postures, et rien d'autre :
+  *rien à jouer* (p_lfi < 5 %, c'est-à-dire le groupe « sans enjeu » : LFI ne gagne pas ce siège,
+  rien à demander ni à céder) ; *exiger* (p_lfi ≥ 5 % et q_lfi ≥ 50 % : LFI tient le siège sans
+  l'accord) ; *monnaie d'échange* (p_lfi ≥ 5 %, q_lfi < 50 % ≤ q_oth : l'option extérieure est du
+  côté du partenaire, LFI ne peut pas exiger ce siège et devra le céder — c'est un vrai siège,
+  donc la concession a un prix) ; *obtenir* (p_lfi ≥ 5 % et aucun des deux pôles ne tient le
+  siège seul : personne ne peut se passer de l'accord, il se gagne à la table). Aucun seuil
+  nouveau : 5 % et 50 % sont ceux déjà posés, et le 5 % est **le même** que celui du groupe, de
+  sorte que classement et posture ne peuvent pas se contredire. `p_left` (la gauche unie gagne le
+  siège, candidature d'union moyenne) est **affichée sans entrer dans la règle** : elle situe la
+  valeur du siège pour l'union. Ce n'est pas la chance du partenaire — aucune chance n'est
+  calculée pour un autre parti. Le survol d'une pastille redonne les chiffres de la ligne, tous
   présents en colonne.
+  *Correction (2026-09-18, seconde).* La règle testait `p_left < 5 %` pour « rien à jouer » alors
+  que le groupe testait `p_lfi < 5 %`. Les deux quantités ne diffèrent que de l'écart d'étiquette,
+  plus petit que le bruit de simulation : 8 circonscriptions tombaient de part et d'autre et
+  affichaient « obtenir » (revendiquer) tout en étant classées imprenables, argumentaire compris.
+  Le garde-fou aligne la posture sur le groupe. `seat_winner` étant croissante en `cd2l_delta` et
+  les deux probabilités sortant des mêmes tirages, p_lfi ≤ p_left partout (invariant testé) :
+  `p_left < 5 %` était donc devenu du code mort, et a été supprimé de la règle. Les postures de
+  demande vivent désormais **exclusivement** dans le groupe « en jeu », vérifié à chaque cran du
+  curseur de part nationale.
   *Correction (2026-09-18).* La règle précédente opposait `p_lfi` (candidature LFI) à `p_left`
   (candidature d'union moyenne). L'effet d'étiquette mesuré sur 2024 étant faible, ces deux
   quantités ne se séparent que de 0,5 pt en médiane et 3,8 pts au maximum : « monnaie d'échange »
@@ -180,8 +193,9 @@ réelles** (réglables au curseur) :
   ancre du modèle), chaque part décalée de l'écart local de son·sa candidat·e présidentiel·le 2022
   (Hidalgo, Jadot, Roussel ; `radical_spatial.left_presidential_shares`), bornée [0,02 ; 0,96],
   renormalisée. Aucune sortie du modèle à droite : le score de gauche prévu ne
-  reste que dans le CSV. Vue par défaut : toutes les circonscriptions (les postures « monnaie »
-  et « rien » ne vivent que dans les sans-enjeu). Le partage LFI / reste du calcul simple est un
+  reste que dans le CSV. Vue par défaut : toutes les circonscriptions (« rien à jouer »
+  recouvre exactement le groupe « sans enjeu » ; « exiger », « obtenir » et « monnaie d'échange »
+  vivent exclusivement dans le groupe « en jeu »). Le partage LFI / reste du calcul simple est un
   chiffre de DROITE (argument), pas une entrée du modèle ni de la posture. Colonnes redimensionnables ; le CSV porte les colonnes détaillées (sensibilités
   « sondages exacts » et « droites unies », gauche 2022/2017, extrapolation en %).
 - **Garde-fous** : `test_negotiation_2027.py` (partition des groupes, postures reproductibles

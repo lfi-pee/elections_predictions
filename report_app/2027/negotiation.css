@@ -52,10 +52,15 @@
 .negotiation .g-a_negocier i { background: #2f6fd0; } .negotiation .g-sans_enjeu i { background: #8a919b; }
 .negotiation .g-non_mesure i { background: #c2c6cd; }
 /* Barres de probabilité dans les cellules : fond neutre, remplissage discret, chiffre en encre. */
-.negotiation .pb { display: inline-grid; grid-template-columns: 44px 56px; align-items: center; gap: 8px; }
+.negotiation .pb { display: inline-grid; grid-template-columns: 44px 56px; align-items: center; gap: 2px 8px; }
 .negotiation .pb span { text-align: right; }
-.negotiation .pb i { display: block; height: 6px; background: #e8eaeb; border-radius: 3px; overflow: hidden; }
+.negotiation .pb i { display: block; height: 6px; background: #e8eaeb; border-radius: 3px; overflow: hidden; position: relative; }
 .negotiation .pb i b { display: block; height: 100%; background: #a01722; border-radius: 3px; }
+/* Bornes à 95 % sur le bruit de simulation : bande claire sur la barre, chiffres sous le nombre.
+   La seconde ligne n'ajoute aucune largeur — la contrainte du tableau est horizontale. */
+.negotiation .pb i u { position: absolute; top: 0; height: 100%; background: #c9ccce; }
+.negotiation .pb small { grid-column: 1 / -1; text-align: right; font-size: 9.5px; line-height: 1.1;
+  color: #99a0a8; font-variant-numeric: tabular-nums; cursor: help; letter-spacing: -.01em; }
 .negotiation .pb.oth i b { background: #ef7a5a; }
 /* Tuiles de chiffres clés */
 .negotiation .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 26px 0; }

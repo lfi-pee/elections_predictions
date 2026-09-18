@@ -19,6 +19,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from src import negotiation_2027 as N
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -140,9 +142,36 @@ def main() -> None:
             assert "Mélenchon" in page.locator(".tt").text_content()
             page.locator("h1").hover()
             assert not page.locator(".tt").is_visible()
+            # Le miroir JS ↔ Python doit tenir à CHAQUE cran du curseur, pas au seul cran servi :
+            # c'est le curseur qui recalcule les options extérieures, donc les postures. Un test
+            # au cran par défaut ne peut pas voir une règle qui dérape ailleurs.
+            for k in served["split"]["shares"]:
+                page.select_option("#share", k)
+                b = served["split"]["by_share"][k]
+                want = {r["id"]: N.posture(r["group"], b["q_lfi"][i], b["q_oth"][i], r["p_left"])
+                        for i, r in enumerate(served["rows"])}
+                assert page.evaluate("Object.fromEntries(NEG.rows.map(r => [r.id, r.posture]))") == want, k
+                assert page.evaluate("NEG.rows.every(r => r.posture === null || r.posture === 'rien'"
+                                     " || r.group === 'en_jeu')"), k
             page.select_option("#share", served["split"]["shares"][-1])
             assert page.evaluate("NEG.rows.filter(r => r.posture === 'exiger').length") > served["postures"]["exiger"]
             page.select_option("#share", served["split"]["near"])
+            # Bornes à 95 % sous chaque probabilité : rendues, et miroir exact du Wilson Python.
+            row0 = served["rows"][0]
+            shown = page.evaluate("""() => [...document.querySelectorAll('#rows tr')]
+                .find(tr => tr.querySelector('th').textContent.includes(%r))
+                .querySelectorAll('td.num .pb small')""" % row0["id"]
+                + """.length""")
+            assert shown == 4, shown
+            # Le texte des bornes est un miroir exact du Python, sur TOUTE la plage de valeurs :
+            # bords compris, où la convention « jamais de certitude » doit aussi s'appliquer.
+            vals = sorted({r["p_lfi"] for r in served["rows"] if r["p_lfi"] is not None}
+                          | {0.0, 0.004, 0.05, 0.5, 0.996, 1.0})
+            got = page.evaluate("(vs) => vs.map(v => ciTxt(v))", vals)
+            assert got == [N.ci_txt(v, served["params"]["draws"]) for v in vals], [
+                (v, g, N.ci_txt(v, served["params"]["draws"]))
+                for v, g in zip(vals, got) if g != N.ci_txt(v, served["params"]["draws"])][:5]
+            assert "100" not in page.evaluate("ciTxt(1)"), page.evaluate("ciTxt(1)")
             page.select_option("#posture", "monnaie")
             assert page.locator("#rows tr").count() == served["postures"]["monnaie"]
             page.select_option("#posture", "")
@@ -168,6 +197,17 @@ def main() -> None:
             assert rows[0][:3] == ["rang", "circo", "nom"] and not any("autre" in h or "prix" in h for h in rows[0])
             assert rows[0][-1] == "argumentaire" and all(len(r[-1]) > 60 for r in rows[1:])
             assert len(rows) - 1 == 577
+            # Chaque probabilité exportée porte ses bornes, et toutes les lignes ont la même
+            # largeur que l'entête (un décalage d'une colonne rendrait le CSV muet et faux).
+            assert [h for h in rows[0] if h.endswith(("_ic95_bas", "_ic95_haut"))] == [
+                "chance_depute_lfi_ic95_bas", "chance_depute_lfi_ic95_haut",
+                "chance_gauche_unie_ic95_bas", "chance_gauche_unie_ic95_haut",
+                "lfi_seule_ic95_bas", "lfi_seule_ic95_haut",
+                "reste_gauche_seul_ic95_bas", "reste_gauche_seul_ic95_haut"], rows[0]
+            assert {len(r) for r in rows} == {len(rows[0])}, {len(r) for r in rows}
+            iv = rows[0].index("chance_depute_lfi")
+            assert all(float(r[iv + 1]) <= float(r[iv]) <= float(r[iv + 2])
+                       for r in rows[1:] if r[iv]), "bornes CSV n'encadrent pas la chance"
             (ROOT / "screenshots").mkdir(exist_ok=True)
             page.screenshot(path=str(ROOT / "screenshots/negotiation_2027.png"), full_page=False)
             browser.close()

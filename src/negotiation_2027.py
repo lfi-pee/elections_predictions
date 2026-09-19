@@ -64,19 +64,30 @@ from pathlib import Path
 import numpy as np
 
 from src import radical_spatial
-from src import coverage_2027, deputes_an, label_effect_2024, scenarios_2027, winnability_2027 as W
+from src import coverage_2027, deputes_an, label_effect_2024, poll_error_model, scenarios_2027, winnability_2027 as W
 
 SERVED = Path("report_app/2027/data")
 OUT = SERVED / "negotiation.json"
 HISTORY = SERVED / "comparison_history.json"   # résultats passés par circo (report_comparison_2027)
 REPARTITION = Path("data/nuance/nfp_repartition_2024.csv")
 
-# Erreur historique de l'ancre nationale (sondages → résultat, législatives T1) : RMSE par bloc
-# des erreurs LOO de `bayesian_polls` (λ=5, scrutins 2002/2007/2012/2017/2022 : G +11,6/−3,4/
-# −5,1/+0,7/−4,9 ; CD −9,3/−1,7/+5,0/−9,2/+0,2 ; ED +2,7/+8,5/+2,4/+11,6/+8,0 pts). Larges parce
-# que les législatives se sondent mal (2002, 2017) — c'est l'incertitude honnête d'une
-# négociation menée des mois avant le scrutin.
-NAT_SIGMA = {"G": 6.3, "CD": 6.3, "ED": 7.5}
+# Erreur de l'ancre nationale : biais RÉTRACTÉ et covariance, mesurés sur les législatives
+# T1 2002→2024 par `poll_error_model` (qui les extrait de `bayesian_polls` et les met en cache).
+# Plus de constante écrite à la main ici : les six erreurs étaient recopiées dans ce fichier et
+# avaient déjà dérivé de ce que le code produit (CD 2007 : −1,7 recopié contre −0,36 calculé).
+#
+# Deux choses que l'ancienne version ne faisait pas, et qui changent les chiffres publiés :
+#   • le BIAIS est corrigé. Les sondages sur-prédisent l'extrême droite aux législatives — de
+#     +4,1 pts en moyenne sur six scrutins. Tirer autour de l'ancre BRUTE plaçait l'extrême
+#     droite trop haut à chaque tirage, et aucune largeur d'intervalle ne peut rattraper une
+#     erreur de centre. La correction est rétractée vers zéro (λ ≈ 0,36) : six observations ne
+#     suffisent pas à parier sur le biais brut, et 2024 est parti dans l'autre sens.
+#   • la COVARIANCE est celle des données, et le tirage se fait dans le plan de somme nulle
+#     (les trois blocs se partagent un total imposé, l'abstention et « Autre » étant fixes).
+#     L'ancienne version tirait les trois blocs INDÉPENDAMMENT puis renormalisait : cette
+#     projection rabotait 14 à 22 % de la dispersion visée et fabriquait des corrélations à peu
+#     près égales entre toutes les paires, là où gauche et centre-droit sont de loin les plus
+#     anticorrélés. Ici rien n'est raboté, parce qu'il n'y a plus rien à projeter.
 Z90 = 1.645
 # Tirages Monte-Carlo. La page AFFICHE l'erreur de simulation à côté de chaque probabilité
 # (intervalle de Wilson à 95 %) : ce nombre est donc lu par le lecteur, pas seulement subi.
@@ -84,6 +95,7 @@ Z90 = 1.645
 # à 6 000 elle vaut ±1,3 pt. Le build passe de 50 s à ~8 min, ce qui reste un coût de build.
 DRAWS = 6000
 SEED = 2027
+CI_Z = 1.96            # bornes à 95 % sur le bruit de simulation (Wilson)
 P_MIN = 0.05           # p_lfi < 5 % : « sans enjeu »
 LFI_GROUP = "LFI-NFP"
 LEFT_GROUPS = {"LFI-NFP", "SOC", "ECOS", "GDR"}
@@ -109,15 +121,40 @@ def _scenario(key: str) -> dict:
     return next(s for s in scenarios_2027.SCENARIOS if s["key"] == key)
 
 
+_FIT: dict | None = None
+
+
+def error_fit() -> dict:
+    """Biais rétracté + covariance de l'erreur d'ancre (mis en cache : lecture d'un JSON)."""
+    global _FIT
+    if _FIT is None:
+        _FIT = poll_error_model.fit()
+    return _FIT
+
+
+def _sampler(f: dict) -> np.ndarray:
+    """Racine carrée de la covariance. `eigh` et non Cholesky : la covariance est SINGULIÈRE
+    par construction (direction (1,1,1), les erreurs somment à zéro), ce que Cholesky refuse.
+    Le plancher à zéro n'absorbe que le −1e-16 numérique de la valeur propre nulle."""
+    w, v = np.linalg.eigh(f["cov"])
+    return v @ np.diag(np.sqrt(np.maximum(w, 0.0)))
+
+
 def _draw_national(rng: np.random.Generator, means: dict, n: int) -> np.ndarray:
-    """n tirages (G, CD, ED) autour de l'ancre, renormalisés à 100 − Autre."""
+    """n tirages (G, CD, ED) : l'ancre MOINS une erreur tirée dans sa loi mesurée.
+
+    `err = prédit − réel`, donc on soustrait. L'ancre somme déjà à 100 − Autre et l'erreur somme
+    à zéro : chaque tirage respecte le total EXACTEMENT, sans renormalisation. Celle qui reste
+    ne sert qu'au plancher (un bloc négatif n'a pas de sens), lequel est à plus de quatre
+    écarts-types de l'ancre — sur 200 000 tirages il ne se déclenche pas."""
     base = np.array([means["G"], means["CD"], means["ED"]])
-    sig = np.array([NAT_SIGMA["G"], NAT_SIGMA["CD"], NAT_SIGMA["ED"]])
-    x = np.maximum(1.0, base + rng.normal(size=(n, 3)) * sig)
+    f = error_fit()
+    e = f["bias"] + rng.standard_normal((n, 3)) @ _sampler(f).T
+    x = np.maximum(0.5, base - e)
     return x / x.sum(axis=1, keepdims=True) * (100.0 - means.get("AU", 0.0))
 
 
-def wilson(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
+def wilson(p: float, n: int, z: float = CI_Z) -> tuple[float, float]:
     """Intervalle de Wilson à 95 % sur une probabilité estimée par `n` tirages Monte-Carlo.
 
     C'est l'erreur de SIMULATION, et elle seule : de combien le chiffre bougerait si on relançait
@@ -144,7 +181,7 @@ def wilson(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
     return min(p, max(0.0, c - h)), max(p, min(1.0, c + h))
 
 
-def ci_txt(p: float, n: int, z: float = 1.96) -> str:
+def ci_txt(p: float, n: int, z: float = CI_Z) -> str:
     """Bornes telles que la page les écrit sous le chiffre. Même convention que le chiffre
     lui-même : jamais de certitude affichée (« >99 », « <1 »), une décimale sous 10 % pour que le
     seuil des 5 % reste lisible dans l'intervalle aussi, et bornes fondues en un seul jeton quand
@@ -167,7 +204,7 @@ def ci_txt(p: float, n: int, z: float = 1.96) -> str:
     return a if a == b else f"{a}–{b}"
 
 
-def rank_blur(w: np.ndarray, idx: list[int], z: float = 1.96) -> dict[str, int]:
+def rank_blur(w: np.ndarray, idx: list[int], z: float = CI_Z) -> dict[str, int]:
     """« Avec combien de voisines une circo est-elle interchangeable, au bruit de simulation près ? »
 
     Deux circos sont interchangeables si l'ÉCART de leurs chances n'est pas distinguable de zéro :
@@ -191,15 +228,20 @@ def rank_blur(w: np.ndarray, idx: list[int], z: float = 1.96) -> dict[str, int]:
     inside = np.abs(pi[:, None] - pi[None, :]) <= z * se + 1e-12
     np.fill_diagonal(inside, False)
     c = inside.sum(axis=1)
-    return {"med": int(np.median(c)), "max": int(c.max())}
+    # `round` et non `int` : avec un nombre PAIR de circos « en jeu » la médiane tombe sur
+    # un demi, et `int` la tronquerait vers le bas — la page publie ce chiffre comme un fait.
+    return {"med": int(round(float(np.median(c)))), "max": int(c.max())}
 
 
-def paired_gap(wa: np.ndarray, wb: np.ndarray, z: float = 1.96) -> dict[str, float]:
+def paired_gap(wa: np.ndarray, wb: np.ndarray, idx: list[int], z: float = CI_Z) -> dict[str, float]:
     """Sur le plus grand écart d'étiquette du jeu : demi-largeur 95 % de l'écart p̂_b − p̂_a mesurée
     APPARIÉE (tirage par tirage) contre la somme des deux demi-largeurs marginales, que le lecteur
     du CSV combinerait faute de mieux. Sert le chiffre que la ligne d'entête du CSV annonce — il
     était écrit en dur et se serait tu si `DRAWS` changeait."""
-    a, b = wa.astype(np.float64), wb.astype(np.float64)
+    # `idx` : les circos PUBLIABLES seulement. Le chiffre part dans l'entête d'un CSV public ;
+    # le maximum ne doit pas pouvoir être porté par une circo dont on a justement décidé de ne
+    # rien publier, même s'il ne s'agit que de la largeur de son intervalle.
+    a, b = wa[:, idx].astype(np.float64), wb[:, idx].astype(np.float64)
     nd = a.shape[0]
     pa, pb = a.mean(axis=0), b.mean(axis=0)
     i = int(np.argmax(np.abs(pb - pa)))
@@ -210,12 +252,13 @@ def paired_gap(wa: np.ndarray, wb: np.ndarray, z: float = 1.96) -> dict[str, flo
 
 
 def delivered_sigma(means: dict, draws: int = 200_000, seed: int = SEED) -> dict[str, float]:
-    """Écart-type RÉELLEMENT délivré par `_draw_national`, bloc par bloc.
+    """Écart-type RÉELLEMENT délivré par `_draw_national`, bloc par bloc — mesuré, pas déduit.
 
-    NAT_SIGMA est appliqué aux trois blocs indépendamment, PUIS les trois sont renormalisés à
-    100 − Autre. La renormalisation rabote la dispersion (elle impose une contrainte de somme) :
-    ce que le modèle délivre n'est pas ce que NAT_SIGMA annonce, et c'est le délivré que la page
-    doit afficher. Mesuré, pas dérivé."""
+    Ce n'est plus un correctif mais un CONTRÔLE : depuis que le tirage se fait dans le plan de
+    somme nulle, plus rien ne rabote la dispersion et le délivré doit coïncider avec la cible
+    (`error_fit()["sd"]`) au bruit d'échantillonnage près. C'est un test, et le test de données
+    l'exige. Tant que le tirage passait par une renormalisation, l'écart était de 14 à 22 %.
+    """
     x = _draw_national(np.random.default_rng(seed), means, draws)
     return {b: round(float(x[:, i].std(ddof=1)), 2) for i, b in enumerate(("G", "CD", "ED"))}
 
@@ -412,7 +455,7 @@ def build() -> dict:
     # Chance de la gauche unie avec la candidature d'union MOYENNE (report moyen mesuré en 2024,
     # décalage 0) : la valeur du siège pour l'union, étiquette quelconque — affichée, hors règle.
     wm = simulate(arr, summary, {"lfi": deltas["lfi"], "union": 0.0}, matrices=True)
-    p = {"lfi": wm["lfi"].mean(axis=0)}
+    p_lfi_arr = wm["lfi"].mean(axis=0)
     p_left = wm["union"].mean(axis=0)
     p_ru = simulate(arr, summary, {"lfi": deltas["lfi"]}, right_union=True)["lfi"]
     p_loc = simulate(arr, summary, {"lfi": deltas["lfi"]}, national=False)["lfi"]
@@ -451,7 +494,7 @@ def build() -> dict:
         outside = (win24.get(cid) in LEFT_NON_UNION_NUANCES and dep.get("groupe") not in LEFT_GROUPS) if win24 else False
         # Arrondi AVANT le groupage : le groupe servi doit être reproductible depuis les
         # probabilités servies (à 3 décimales), pas depuis des valeurs internes plus fines.
-        pl = round(float(p["lfi"][i]), 3)
+        pl = round(float(p_lfi_arr[i]), 3)
         g0 = min(100, max(0, m["G"] + arr["dG"][i]))
         cd0 = min(100, max(0, m["CD"] + arr["dCD"][i]))
         ed0 = min(100, max(0, m["ED"] + arr["dED"][i]))
@@ -521,8 +564,10 @@ def build() -> dict:
     # DIFFÉRENCES — la page ne peut pas les redériver des intervalles marginaux qu'elle affiche.
     idx = {cid: i for i, cid in enumerate(arr["id"])}
     en_jeu_idx = [idx[r["id"]] for r in rows if r["group"] == "en_jeu"]
+    ef = error_fit()
     rb = rank_blur(wm["lfi"], en_jeu_idx)
-    pg = paired_gap(wm["lfi"], wm["union"])
+    pub_idx = [idx[r["id"]] for r in rows if r["pub"]]
+    pg = paired_gap(wm["lfi"], wm["union"], pub_idx)
     print(f"  flou de rang (écart apparié) : médiane {rb['med']}, max {rb['max']} ; "
           f"plus grand écart d'étiquette ±{pg['paired_pt']} pt apparié vs ±{pg['sum_pt']} pt en "
           f"sommant les deux demi-largeurs")
@@ -534,11 +579,20 @@ def build() -> dict:
         "history": {k: {"label": e["label"], "source": e["source"], "national_G": round(e["national"]["G"], 1),
                         **({"national_LFI": round(e["national"]["LFI"], 1)} if "LFI" in e["national"] else {})}
                     for k, e in hist.items()},
-        "params": {"draws": DRAWS, "seed": SEED, "nat_sigma": NAT_SIGMA,
-                   # Ce que la renormalisation laisse réellement passer : c'est ce chiffre-là que
-                   # la page annonce, pas le NAT_SIGMA d'entrée (qu'elle affichait à tort).
+        "params": {"draws": DRAWS, "seed": SEED,
+                   # Loi de l'erreur d'ancre, telle que `poll_error_model` la mesure : biais
+                   # rétracté effectivement appliqué, écart-type et corrélations visés, et ce
+                   # que le tirage délivre (contrôle : les deux doivent coïncider).
+                   "nat_sigma": {b: round(float(ef["sd"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
                    "nat_sigma_delivered": delivered_sigma(m),
-                   "ci_z": 1.96,
+                   "nat_bias": {b: round(float(ef["bias"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
+                   "nat_bias_raw": {b: round(float(ef["bias_raw"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
+                   "nat_shrink": round(float(ef["shrink"]), 3),
+                   "nat_corr": {f"{a}{b}": round(float(ef["corr"][i][j]), 2)
+                                for i, a in enumerate(("G", "CD", "ED"))
+                                for j, b in enumerate(("G", "CD", "ED")) if i < j},
+                   "nat_n": ef["n"],
+                   "ci_z": CI_Z,
                    "rank_blur": rb,
                    "paired_gap": pg,
                    "local_sigma": {b: round(summary["circo_halfwidth_90"][b] / Z90, 2) for b in ("G", "CD", "ED")},

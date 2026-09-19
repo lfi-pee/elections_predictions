@@ -133,23 +133,38 @@ réelles** (réglables au curseur) :
   terciles de force de la gauche). Un **taux** de report, insensible au fait que LFI ait reçu des
   circos plus dures. Injecté dans `seat_winner` comme décalage additif `cd2l_delta` du taux
   centre-droit → gauche ; 0 = le modèle moyen de la carte, calibré sur les 109 sièges RN de 2024.
-- **Incertitude** : 6 000 tirages Monte-Carlo, niveau national tiré autour de l'ancre sondages
-  avec l'erreur historique des sondages législatifs (RMSE LOO 2002→2022 de `bayesian_polls` :
-  G 6,3 · C+D 6,3 · ED 7,5 pts), **les trois blocs étant ensuite renormalisés à 100 − Autre** :
-  cette contrainte de somme rabote la dispersion, et ce que le modèle délivre vaut en réalité
-  G 5,43 · C+D 5,42 · ED 5,88 pts (`delivered_sigma`, mesuré sur les tirages). C'est 14 à 22 %
-  de moins que la cible de calibration ci-dessus : le modèle est sous-dispersé au niveau
-  national, et la page annonce le délivré, pas la cible. Puis bruit local par circo
-  (σ = demi-largeur circo 90 % / 1,645). Abstention fixée à la référence (γ = identité).
-  Un classement à un seul réglage de curseur ne survivrait pas à une réunion ; celui-ci moyenne
-  sur l'erreur des sondages.
+- **Incertitude nationale** : 6 000 tirages Monte-Carlo. Le niveau national n'est PAS tiré
+  autour de l'ancre brute. Sur les 6 législatives T1 mesurées (2002→2024, erreurs LOO de
+  `bayesian_polls`, convention prédit − réel), les sondages ont sur-estimé l'extrême droite de
+  +4,1 pts en moyenne et sous-estimé le centre-droit de 3,5 — une erreur de CENTRE, qu'aucune
+  largeur d'intervalle ne rattrape. Elle est donc corrigée, mais **rétractée vers zéro** par un
+  facteur scalaire λ = 0,36 (Efron–Morris : la part de ‖biais‖² qui subsiste une fois retiré le
+  bruit d'échantillonnage tr(Σ)/n ; si les biais ne dépassent pas leur propre bruit, λ = 0 et
+  rien n'est corrigé). Six scrutins ne suffisent pas à parier sur le chiffre brut, et 2024 —
+  hors échantillon — est parti dans l'autre sens. Correction appliquée : ED −1,5 · C+D +1,2 ·
+  G +0,2 pt. Autour de ce centre corrigé, l'erreur est tirée dans sa **loi mesurée** :
+  écart-type G 6,5 · C+D 6,7 · ED 5,8 pts, et les corrélations réelles entre blocs
+  (G/C+D −0,61 · G/ED −0,41 · C+D/ED −0,47) — une part surestimée est prise à une autre, et
+  c'est ce partage qui décide des qualifications au 2<sup>d</sup> tour. Les erreurs sont
+  exprimées en parts des trois blocs, donc somment à zéro : le tirage respecte le total imposé
+  **sans renormalisation**, et ce qui sort vaut exactement ce qui est visé (contrôlé à chaque
+  build). La version précédente tirait les trois blocs indépendamment puis renormalisait : cette
+  projection rabotait 14 à 22 % de la dispersion et rendait toutes les paires à peu près
+  également anticorrélées, là où gauche et centre-droit le sont de loin le plus. Voir
+  `poll_error_model.py`.
+- **Incertitude locale** : bruit par circo (σ = demi-largeur circo 90 % / 1,645 : G 4,6 ·
+  C+D 5,9 · ED 3,7 pts). Abstention et bloc « Autre » tenus fixes à la référence du scénario
+  (γ = identité) : ils ne sont ni dans le chiffre ni dans les bornes.
 - **Bornes affichées** : sous chaque probabilité, son intervalle de Wilson à 95 % sur les
   6 000 tirages (±1,3 pt au plus large). C'est l'erreur de **simulation** et elle seule — de
   combien le chiffre bougerait à graine différente. L'incertitude de l'**élection** (sondages,
   erreur locale) est déjà dans le point estimé ; la remettre autour la compterait deux fois.
   Ces bornes valent pour un chiffre **pris seul** : les quatre colonnes sortent des mêmes
-  tirages, donc un écart entre deux d'entre elles est bien mieux connu (mesuré : 3,5× pour
-  p_left − p_lfi) que la combinaison de leurs bornes ne le suggère.
+  tirages, donc un écart entre deux d'entre elles est bien mieux connu — l'entête du CSV donne
+  le chiffre exact, servi et non écrit à la main. Conséquence sur le rang : une circonscription
+  est interchangeable avec une dizaine de voisines, au bruit de simulation près (critère sur
+  l'ÉCART, `rank_blur`, pas sur les bornes marginales — les circos partagent les tirages
+  nationaux, donc la variance de l'écart demande leur covariance).
 - **Groupes** : *acquis* = député·e sortant·e LFI (71 ; `deputes_an.py`, open data AN) ; *gauche
   hors union* = siège pris en 2024 par une candidature codée à gauche mais hors union (DVG,
   régionaliste…) dont le titulaire ne siège pas dans un groupe de gauche (La Rochelle/Falorni,
@@ -186,12 +201,12 @@ réelles** (réglables au curseur) :
   curseur de part nationale.
   *Correction (2026-09-18).* La règle précédente opposait `p_lfi` (candidature LFI) à `p_left`
   (candidature d'union moyenne). L'effet d'étiquette mesuré sur 2024 étant faible, ces deux
-  quantités ne se séparent que de 0,5 pt en médiane et 3,8 pts au maximum : « monnaie d'échange »
+  quantités ne se séparent que de 0,6 pt en médiane et 3,0 pts au maximum : « monnaie d'échange »
   n'y capturait que 8 circonscriptions à cheval sur le seuil de 5 %, toutes ingagnables (gauche
   23-26 % contre RN 44-51 %) — un artefact d'arrondi, pas une catégorie politique. Les deux
   options extérieures, elles, se séparent vraiment. Un test interdit le retour en arrière.
-  Vérification externe : les 113 circonscriptions « monnaie d'échange » portent très
-  majoritairement une investiture NFP 2024 du partenaire (58 PS, 27 Écologistes, 8 PCF, 18 LFI).
+  Vérification externe : les 108 circonscriptions « monnaie d'échange » portent très
+  majoritairement une investiture NFP 2024 du partenaire (55 PS, 25 Écologistes, 8 PCF, 19 LFI).
 - **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de
   circos et qu'à nombre donné chaque circo vaut pour LFI exactement sa chance d'y élire un·e
   député·e. Aucun score composite : il cacherait le raisonnement.

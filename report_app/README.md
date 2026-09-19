@@ -65,6 +65,7 @@ les député·es en exercice viennent de l'open data de l'Assemblée (`data/nuan
 ```bash
 python3 -m src.label_effect_2024     # mesure → 2027/data/label_effect_2024.json
 python3 -m src.deputes_an            # sortant·es → data/nuance/deputes_2026.csv
+python3 -m src.poll_error_model      # loi d'erreur de l'ancre → data/polls/national_errors.json
 python3 -m src.negotiation_2027      # Monte-Carlo (~8 min à 6 000 tirages) → 2027/data/negotiation.json
 python3 -m src.test_negotiation_2027 && python3 -m src.test_negotiation_page_2027
 ```

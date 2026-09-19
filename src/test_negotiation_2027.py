@@ -194,6 +194,37 @@ def main() -> None:
     if "ci_z" not in d["params"]:
         fails.append("ci_z absent des paramètres : la page ne pourrait pas refaire l'intervalle")
 
+    # ── Loi d'erreur de l'ancre : les invariants dont dépend TOUT le reste ───────────────
+    from src import poll_error_model as PE
+    pe = PE.load()
+    err_mat = PE.errors(pe)
+    # Exprimées en parts des trois blocs : chaque scrutin somme à zéro. Si cet invariant tombe,
+    # le tirage sort du plan de somme nulle et le total national n'est plus tenu — ce que la
+    # renormalisation masquerait en rabotant silencieusement la dispersion.
+    if float(np.abs(err_mat.sum(axis=0)).max()) > 1e-9:
+        fails.append(f"les erreurs d'ancre ne somment pas à zéro (max {np.abs(err_mat.sum(axis=0)).max():.2e})")
+    if err_mat.shape[1] != len(pe["train"]) + 1:
+        fails.append("2024 (hors échantillon) manque à la matrice d'erreur : l'exclure reviendrait "
+                     "à retirer la seule observation qui contredit le biais mesuré")
+    efit = PE.fit(pe)
+    if not 0.0 <= efit["shrink"] <= 1.0:
+        fails.append(f"facteur de rétraction hors [0,1] : {f['shrink']}")
+    if abs(float(efit["bias"].sum())) > 1e-9:
+        fails.append("le biais rétracté ne somme pas à zéro : un facteur par bloc casserait le plan")
+    # La covariance prédictive doit rester SINGULIÈRE dans la direction (1,1,1) : c'est elle qui
+    # garantit qu'aucun tirage ne change le total, donc qu'aucune renormalisation n'est requise.
+    if float(np.abs(efit["cov"] @ np.ones(3)).max()) > 1e-9:
+        fails.append("la covariance prédictive n'est plus singulière dans la direction (1,1,1)")
+    # Rétracter ne doit jamais amplifier ni retourner un biais.
+    if np.any(np.abs(efit["bias"]) > np.abs(efit["bias_raw"]) + 1e-9) or np.any(efit["bias"] * efit["bias_raw"] < -1e-12):
+        fails.append(f"rétraction incohérente : {f['bias']} contre {f['bias_raw']}")
+    # Un biais nul doit donner une rétraction totale (λ = 0) : la rétraction ne peut pas
+    # inventer un biais que les données ne portent pas.
+    if PE.fit({"train": [{"pred": {b: 33.0 for b in PE.BLOCS}, "act": {b: 33.0 for b in PE.BLOCS}}] * 4,
+               "holdout": {"pred": {"G": 34.0, "CD": 33.0, "ED": 33.0},
+                           "act": {"G": 33.0, "CD": 33.5, "ED": 33.5}}}, True)["shrink"] > 0.5:
+        fails.append("la rétraction laisse passer un biais qui tient dans son propre bruit")
+
     # ── Flou de rang : un test sur un ÉCART, donc sur la covariance, pas sur les marginales ──
     # Construit à la main deux circos PARFAITEMENT corrélées (mêmes tirages, même indicatrice) et
     # deux INDÉPENDANTES à la même distance : le critère correct déclare les premières
@@ -226,9 +257,23 @@ def main() -> None:
         fails.append(f"paired_gap servi absent ou non resserré par l'appariement ({pg})")
     # L'écart-type national ANNONCÉ n'est pas celui que la renormalisation délivre : la page doit
     # servir le second, mesuré sur les tirages.
-    nsd = d["params"].get("nat_sigma_delivered")
-    if not nsd or any(nsd[b] >= N.NAT_SIGMA[b] for b in ("G", "CD", "ED")):
-        fails.append(f"nat_sigma_delivered absent ou non raboté par la renormalisation ({nsd})")
+    # Le tirage national doit DÉLIVRER ce qu'il vise : depuis qu'il se fait dans le plan de
+    # somme nulle, plus aucune renormalisation ne rabote la dispersion. Un écart ici veut dire
+    # que la projection est revenue, et avec elle la sous-dispersion de 14 à 22 %.
+    nsd, ns = d["params"].get("nat_sigma_delivered"), d["params"].get("nat_sigma")
+    if not nsd or not ns or any(abs(nsd[b] - ns[b]) > 0.05 for b in ("G", "CD", "ED")):
+        fails.append(f"le tirage national ne délivre pas sa cible : visé {ns}, délivré {nsd}")
+    # Le biais rétracté est tiré vers zéro, jamais amplifié, et garde le signe du biais brut.
+    br, bs, lam = d["params"].get("nat_bias_raw"), d["params"].get("nat_bias"), d["params"].get("nat_shrink")
+    if not (br and bs and lam is not None) or not 0.0 <= lam <= 1.0:
+        fails.append(f"rétraction du biais absente ou hors [0,1] ({lam})")
+    elif any(abs(bs[b]) > abs(br[b]) + 1e-9 or bs[b] * br[b] < 0 for b in ("G", "CD", "ED")):
+        fails.append(f"le biais rétracté n'est pas entre zéro et le biais brut : {bs} vs {br}")
+    # Les erreurs sont exprimées en parts des trois blocs : elles somment à zéro, donc le biais
+    # appliqué aussi — sans quoi le tirage ne respecterait plus le total imposé.
+    elif abs(sum(bs.values())) > 0.02:
+        fails.append(f"le biais appliqué ne somme pas à zéro ({sum(bs.values()):+.3f}) : "
+                     f"le tirage sortirait du plan et le total ne serait plus tenu")
     if abs(float(d["split"]["near"]) - d["split"]["default_share"]) > 0.005:
         fails.append("la part sondages n'est pas le réglage par défaut")
     if "rad_gain" not in d["params"] or len(d["params"]["rad_clip"]) != 2:

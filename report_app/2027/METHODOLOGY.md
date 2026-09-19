@@ -127,7 +127,7 @@ réelles** (réglables au curseur) :
 - **Report vers une candidature LFI, MESURÉ** (`label_effect_2024.py`) : le parti de chaque
   candidat·e d'union 2024 est connu par la répartition des circos du NFP (data.gouv, 546 circos :
   FI 229, PS 175, écologistes 92, PCF 50). Dans les **142 duels** union–RN de 2024 (centre-droit
-  éliminé), un·e candidat·e LFI a récupéré **53 %** des voix libérées contre 59 % pour le·la
+  éliminé), un·e candidat·e LFI a récupéré **53 %** des voix libérées contre 58 % pour le·la
   candidat·e moyen·ne de l'union (écart −0,05 ; vs non-LFI −0,08, IC 95 % bootstrap [−0,11 ;
   −0,06] ; −1,4 pt d'inscrits de marge à marge de 1er tour égale ; présent dans les trois
   terciles de force de la gauche). Un **taux** de report, insensible au fait que LFI ait reçu des

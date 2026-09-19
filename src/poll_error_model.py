@@ -14,7 +14,7 @@ peut-elle être fausse, et dans quelle direction ? Trois choses, toutes mesurée
      d'intervalle ne rattrape une erreur de centre.
 
   2. LA RÉTRACTION. Cinq scrutins, c'est peu, et le sixième — 2024, hors échantillon — est
-     parti dans l'AUTRE sens (−4,6). Corriger du biais brut reviendrait à parier que cinq
+     parti dans l'AUTRE sens (−5,1). Corriger du biais brut reviendrait à parier que cinq
      observations disent toute la vérité ; ne rien corriger, à parier qu'elles n'en disent
      rien. On prend donc la moyenne a posteriori sous un a priori centré sur ZÉRO dont
      l'échelle est estimée sur les données (empirical Bayes). Si les biais observés ne
@@ -23,7 +23,8 @@ peut-elle être fausse, et dans quelle direction ? Trois choses, toutes mesurée
      nous.
 
   3. LA COVARIANCE. Les trois blocs ne se trompent pas indépendamment : une part surestimée
-     est prise à une autre. Gauche et centre-droit sont anticorrélés à −0,8 dans les données.
+     est prise à une autre. Gauche et centre-droit sont les plus anticorrélés : −0,61 sur les
+     six scrutins (−0,84 sur les cinq d'apprentissage seuls).
      Le modèle précédent tirait les trois INDÉPENDAMMENT puis renormalisait à 100, ce qui
      fabrique une anticorrélation à peu près égale entre toutes les paires (−0,4 / −0,5 / −0,5)
      — l'ordre des corrélations réelles s'en trouvait presque inversé — et rabotait au passage
@@ -164,9 +165,9 @@ def fit(d: dict | None = None, with_holdout: bool = True) -> dict:
     La covariance prédictive vaut Σ·(1 + λ/n). Le terme ajouté est la variance A POSTERIORI du
     biais, λ·Σ/n, et non la variance d'échantillonnage de λb̂, qui vaudrait λ²·Σ/n : la
     correction appliquée est une moyenne a posteriori, c'est donc l'incertitude a posteriori
-    qu'il faut reporter. La distinction n'est pas cosmétique — elle vaut ici 6 % d'écart-type en
-    plus plutôt que 2 %, dans le sens de la prudence. Le facteur porte sur Σ tout entier, donc
-    reste lui aussi dans le plan de somme nulle.
+    qu'il faut reporter. La distinction n'est pas cosmétique : 6,0 % de VARIANCE en plus plutôt
+    que 2,1 % — soit +2,9 % d'écart-type contre +1,1 %, dans le sens de la prudence. Le facteur
+    porte sur Σ tout entier, donc reste lui aussi dans le plan de somme nulle.
 
     CE QUE CETTE COVARIANCE NE DIT PAS. Σ est estimée sur n scrutins et ensuite traitée
     comme CONNUE : seule l'incertitude sur la moyenne est reportée. Avec 5 degrés de liberté,

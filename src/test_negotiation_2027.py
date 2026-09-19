@@ -203,11 +203,17 @@ def main() -> None:
     import re as _re
     md = METHO.read_text()
     pm = d["params"]
-    nsh, nsg, ncr, lsg = pm["nat_shift"], pm["nat_sigma"], pm["nat_corr"], pm["local_sigma"]
+    nsh, nsg = pm.get("nat_shift"), pm.get("nat_sigma")
+    ncr, lsg = pm.get("nat_corr"), pm.get("local_sigma")
+    if not all((nsh, nsg, ncr, lsg)):
+        fails.append("params incomplets : nat_shift/nat_sigma/nat_corr/local_sigma requis pour "
+                     "confronter METHODOLOGY.md au JSON servi")
+        nsh = nsg = ncr = lsg = {}
     mono = [r for r in rows if r.get("posture") == "monnaie"]
     lab = {k: sum(1 for r in mono if r.get("lab2024") == k) for k in ("PS", "PE", "PCF", "FI")}
-    strad = [r for r in rows if r["pub"] and r["p_left"] >= N.P_MIN > r["p_lfi"]]
-    gaps = sorted(r["p_left"] - r["p_lfi"] for r in rows if r["pub"])
+    strad = [r for r in rows if r.get("pub") and r.get("p_left") is not None
+             and r["p_left"] >= N.P_MIN > r["p_lfi"]]
+    gaps = sorted(r["p_left"] - r["p_lfi"] for r in rows if r.get("pub"))
     half = (N.wilson(0.5, pm["draws"])[1] - 0.5) * 100
 
     def fr(x, n=1):
@@ -219,10 +225,21 @@ def main() -> None:
         q = Decimal(str(x)).quantize(Decimal("1." + "0" * n), rounding=ROUND_HALF_UP)
         return str(q).replace(".", ",").replace("-", "−")
 
-    want = [
+    md_checks = [
         (rf"{pm['draws'] // 1000}\s*000 tirages Monte-Carlo", "nombre de tirages"),
         (rf"sur-estimé l'extrême droite de\s*\n?\s*\+{fr(pm['nat_bias_raw']['ED'])} pts", "biais brut ED"),
+        (rf"sous-estimé le centre-droit de {fr(-pm['nat_bias_raw']['CD'])}", "biais brut C+D"),
         (rf"λ = {fr(pm['nat_shrink'], 2)}", "facteur de rétraction"),
+        (rf"récupéré \*\*{round(pm['label_effect_k']['fi'] * 100)} %\*\* des voix libérées "
+         rf"contre {round(pm['label_effect_k']['union'] * 100)} %", "taux de report par étiquette"),
+        (rf"les {pm['nat_n']} législatives T1", "nombre de scrutins mesurés"),
+        (rf"Σ est estimée sur {pm['nat_n']} scrutins", "nombre de scrutins (limite de Σ)"),
+        (rf"sur les\s*\n?\s*{pm['draws'] // 1000}\s*000 tirages \(±", "tirages (2e mention)"),
+        (rf"sortant·e LFI \({d['groups']['acquis']} ;", "compte des acquis"),
+        (rf"sorti du classement, signalé \({d['groups']['hors_union']}\)", "compte hors union"),
+        (rf"\*sans\s*\n?\s*enjeu\* = p_lfi < {round(N.P_MIN * 100)} %", "seuil « sans enjeu »"),
+        (rf"LFI-dans-la-gauche \({round(min(map(float, d['split']['shares'])) * 100)}→"
+         rf"{round(max(map(float, d['split']['shares'])) * 100)} %", "bornes du curseur de part LFI"),
         (rf"ED {fr(nsh['ED'])} · C\+D \+{fr(nsh['CD'])} ·\s*\n?\s*G \+{fr(nsh['G'])} pt", "décalage appliqué"),
         (rf"écart-type G {fr(nsg['G'])} · C\+D {fr(nsg['CD'])} · ED {fr(nsg['ED'])} pts", "écarts-types nationaux"),
         (rf"G/C\+D {fr(ncr['GCD'], 2)} · G/ED {fr(ncr['GED'], 2)} · C\+D/ED {fr(ncr['CDED'], 2)}", "corrélations"),
@@ -239,10 +256,27 @@ def main() -> None:
          rf"{round(min(r['pred']['ED'] for r in strad))}-"
          rf"{round(max(r['pred']['ED'] for r in strad))} %", "fourchettes des circos à cheval"),
     ]
-    for pat, what in want:
+    for pat, what in md_checks:
         if not _re.search(pat, md):
             fails.append(f"METHODOLOGY.md : {what} ne correspond plus au JSON servi "
                          f"(motif attendu : {pat})")
+
+    # ── Jetons de cache : les trois actifs doivent porter la MÊME version ────────────────
+    # Le JSON était passé à ?v=3 en laissant le JS à ?v=1, tous deux réécrits. Un visiteur en
+    # retour aurait reçu le nouveau JSON avec l'ancien JS — celui dont la règle des postures est
+    # justement celle que le garde-fou supprime. Le défaut est silencieux : rien ne casse, la
+    # page calcule simplement l'ancienne règle sur les nouvelles données.
+    html = HTML.read_text()
+    js = Path("report_app/2027/js/negotiation.js").read_text()
+    toks = {"negotiation.css": _re.search(r"negotiation\.css\?v=(\d+)", html),
+            "negotiation.js": _re.search(r"js/negotiation\.js\?v=(\d+)", html),
+            "negotiation.json": _re.search(r"data/negotiation\.json\?v=(\d+)", js)}
+    if any(v is None for v in toks.values()):
+        fails.append(f"jeton de cache introuvable : {[k for k, v in toks.items() if v is None]}")
+    elif len({v.group(1) for v in toks.values()}) != 1:
+        fails.append("jetons de cache désynchronisés : "
+                     + ", ".join(f"{k} ?v={v.group(1)}" for k, v in toks.items())
+                     + " — un visiteur en cache mélangerait ancienne et nouvelle version")
 
     # ── Loi d'erreur de l'ancre : les invariants dont dépend TOUT le reste ───────────────
     from src import poll_error_model as PE

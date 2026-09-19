@@ -17,6 +17,7 @@ from src import negotiation_2027 as N, winnability_2027 as W
 NEG = Path("report_app/2027/data/negotiation.json")
 EFF = Path("report_app/2027/data/label_effect_2024.json")
 HTML = Path("report_app/2027/negotiation.html")
+METHO = Path("report_app/2027/METHODOLOGY.md")
 
 
 def main() -> None:
@@ -194,6 +195,55 @@ def main() -> None:
     if "ci_z" not in d["params"]:
         fails.append("ci_z absent des paramètres : la page ne pourrait pas refaire l'intervalle")
 
+    # ── METHODOLOGY.md : chaque chiffre DÉRIVÉ doit se retrouver dans le JSON servi ────────
+    # Trois passes de revue adverse d'affilée ont trouvé des chiffres périmés dans ce fichier —
+    # jamais dans le code, toujours dans la prose qui le décrit. Rien en CI ne pouvait les voir.
+    # Ce garde-fou lit la méthodologie et recalcule ce qu'elle affirme. Il ne vérifie pas le
+    # texte, seulement les nombres : ceux que personne ne recompte à la main.
+    import re as _re
+    md = METHO.read_text()
+    pm = d["params"]
+    nsh, nsg, ncr, lsg = pm["nat_shift"], pm["nat_sigma"], pm["nat_corr"], pm["local_sigma"]
+    mono = [r for r in rows if r.get("posture") == "monnaie"]
+    lab = {k: sum(1 for r in mono if r.get("lab2024") == k) for k in ("PS", "PE", "PCF", "FI")}
+    strad = [r for r in rows if r["pub"] and r["p_left"] >= N.P_MIN > r["p_lfi"]]
+    gaps = sorted(r["p_left"] - r["p_lfi"] for r in rows if r["pub"])
+    half = (N.wilson(0.5, pm["draws"])[1] - 0.5) * 100
+
+    def fr(x, n=1):
+        # Arrondi au DEMI SUPÉRIEUR et moins typographique : il faut reproduire ce que la page
+        # écrit (`toLocaleString` arrondit à l'écart de zéro, là où `%.1f` de Python suit la
+        # règle du banquier — 3,65 donne « 3,7 » en JS et « 3,6 » en Python), sinon le garde-fou
+        # signalerait un écart là où les deux fichiers sont d'accord.
+        from decimal import Decimal, ROUND_HALF_UP
+        q = Decimal(str(x)).quantize(Decimal("1." + "0" * n), rounding=ROUND_HALF_UP)
+        return str(q).replace(".", ",").replace("-", "−")
+
+    want = [
+        (rf"{pm['draws'] // 1000}\s*000 tirages Monte-Carlo", "nombre de tirages"),
+        (rf"sur-estimé l'extrême droite de\s*\n?\s*\+{fr(pm['nat_bias_raw']['ED'])} pts", "biais brut ED"),
+        (rf"λ = {fr(pm['nat_shrink'], 2)}", "facteur de rétraction"),
+        (rf"ED {fr(nsh['ED'])} · C\+D \+{fr(nsh['CD'])} ·\s*\n?\s*G \+{fr(nsh['G'])} pt", "décalage appliqué"),
+        (rf"écart-type G {fr(nsg['G'])} · C\+D {fr(nsg['CD'])} · ED {fr(nsg['ED'])} pts", "écarts-types nationaux"),
+        (rf"G/C\+D {fr(ncr['GCD'], 2)} · G/ED {fr(ncr['GED'], 2)} · C\+D/ED {fr(ncr['CDED'], 2)}", "corrélations"),
+        (rf"G {fr(lsg['G'])} ·\s*\n?\s*C\+D {fr(lsg['CD'])} · ED {fr(lsg['ED'])} pts", "écarts-types locaux"),
+        (rf"±{fr(half)} pt au plus large", "demi-largeur de Wilson à p = 0,5"),
+        (rf"les {len(strad)} circonscriptions à cheval", "circos de part et d'autre du seuil"),
+        (rf"{len(strad)} circonscriptions tombent de part et d'autre", "circos de part et d'autre (2e mention)"),
+        (rf"les {len(mono)} circonscriptions « monnaie d'échange »", "compte monnaie"),
+        (rf"{lab['PS']} PS, {lab['PE']} Écologistes, {lab['PCF']} PCF, {lab['FI']} LFI", "ventilation monnaie"),
+        (rf"{fr(100 * gaps[len(gaps) // 2])} pt en médiane et {fr(100 * gaps[-1])} pts au maximum",
+         "écart p_left − p_lfi"),
+        (rf"gauche {round(min(r['pred']['G'] for r in strad))}-"
+         rf"{round(max(r['pred']['G'] for r in strad))} % contre RN "
+         rf"{round(min(r['pred']['ED'] for r in strad))}-"
+         rf"{round(max(r['pred']['ED'] for r in strad))} %", "fourchettes des circos à cheval"),
+    ]
+    for pat, what in want:
+        if not _re.search(pat, md):
+            fails.append(f"METHODOLOGY.md : {what} ne correspond plus au JSON servi "
+                         f"(motif attendu : {pat})")
+
     # ── Loi d'erreur de l'ancre : les invariants dont dépend TOUT le reste ───────────────
     from src import poll_error_model as PE
     pe = PE.load()
@@ -208,7 +258,7 @@ def main() -> None:
                      "à retirer la seule observation qui contredit le biais mesuré")
     efit = PE.fit(pe)
     if not 0.0 <= efit["shrink"] <= 1.0:
-        fails.append(f"facteur de rétraction hors [0,1] : {f['shrink']}")
+        fails.append(f"facteur de rétraction hors [0,1] : {efit['shrink']}")
     if abs(float(efit["bias"].sum())) > 1e-9:
         fails.append("le biais rétracté ne somme pas à zéro : un facteur par bloc casserait le plan")
     # La covariance prédictive doit rester SINGULIÈRE dans la direction (1,1,1) : c'est elle qui
@@ -217,7 +267,7 @@ def main() -> None:
         fails.append("la covariance prédictive n'est plus singulière dans la direction (1,1,1)")
     # Rétracter ne doit jamais amplifier ni retourner un biais.
     if np.any(np.abs(efit["bias"]) > np.abs(efit["bias_raw"]) + 1e-9) or np.any(efit["bias"] * efit["bias_raw"] < -1e-12):
-        fails.append(f"rétraction incohérente : {f['bias']} contre {f['bias_raw']}")
+        fails.append(f"rétraction incohérente : {efit['bias']} contre {efit['bias_raw']}")
     # Un biais nul doit donner une rétraction totale (λ = 0) : la rétraction ne peut pas
     # inventer un biais que les données ne portent pas.
     if PE.fit({"train": [{"pred": {b: 33.0 for b in PE.BLOCS}, "act": {b: 33.0 for b in PE.BLOCS}}] * 4,
@@ -263,6 +313,15 @@ def main() -> None:
     nsd, ns = d["params"].get("nat_sigma_delivered"), d["params"].get("nat_sigma")
     if not nsd or not ns or any(abs(nsd[b] - ns[b]) > 0.05 for b in ("G", "CD", "ED")):
         fails.append(f"le tirage national ne délivre pas sa cible : visé {ns}, délivré {nsd}")
+    # Les CORRÉLATIONS aussi, pas seulement les écarts-types : c'est pour elles que le tirage a
+    # été réécrit, et c'est le partage entre blocs — pas la dispersion de chacun — qui décide des
+    # qualifications au 2nd tour. Un tirage indépendant passerait le test des écarts-types.
+    xs = N._draw_national(np.random.default_rng(N.SEED), d["scenario"]["means"], 200_000)
+    got = np.corrcoef(xs.T)
+    want = d["params"].get("nat_corr") or {}
+    for (i, a), (j, b) in (((0, "G"), (1, "CD")), ((0, "G"), (2, "ED")), ((1, "CD"), (2, "ED"))):
+        if abs(got[i, j] - want.get(f"{a}{b}", 99)) > 0.01:
+            fails.append(f"corrélation {a}/{b} délivrée {got[i, j]:.3f} ≠ servie {want.get(f'{a}{b}')}")
     # Le biais rétracté est tiré vers zéro, jamais amplifié, et garde le signe du biais brut.
     br, bs, lam = d["params"].get("nat_bias_raw"), d["params"].get("nat_bias"), d["params"].get("nat_shrink")
     if not (br and bs and lam is not None) or not 0.0 <= lam <= 1.0:

@@ -144,9 +144,13 @@ def _draw_national(rng: np.random.Generator, means: dict, n: int) -> np.ndarray:
     """n tirages (G, CD, ED) : l'ancre MOINS une erreur tirée dans sa loi mesurée.
 
     `err = prédit − réel`, donc on soustrait. L'ancre somme déjà à 100 − Autre et l'erreur somme
-    à zéro : chaque tirage respecte le total EXACTEMENT, sans renormalisation. Celle qui reste
-    ne sert qu'au plancher (un bloc négatif n'a pas de sens), lequel est à plus de quatre
-    écarts-types de l'ancre — sur 200 000 tirages il ne se déclenche pas."""
+    à zéro : chaque tirage respecte le total EXACTEMENT, sans renormalisation. Celle qui reste ne
+    sert qu'au plancher (un bloc négatif n'a pas de sens). Le bloc le plus exposé est le
+    centre-droit, à 4,1 écarts-types du plancher : aucun déclenchement sur les 6 000 tirages du
+    build, 6 sur les 200 000 du contrôle `delivered_sigma`. Quand il se déclenche, la
+    renormalisation cesse d'être neutre et redistribue sur les deux autres blocs — c'est
+    précisément pourquoi le plancher est à 0,5 et non à 1,0 : assez bas pour ne jamais mordre là
+    où on publie, assez haut pour qu'une part reste une part."""
     base = np.array([means["G"], means["CD"], means["ED"]])
     f = error_fit()
     e = f["bias"] + rng.standard_normal((n, 3)) @ _sampler(f).T
@@ -220,6 +224,8 @@ def rank_blur(w: np.ndarray, idx: list[int], z: float = CI_Z) -> dict[str, int]:
     x = w[:, idx].astype(np.float64)
     nd = x.shape[0]
     pi = x.mean(axis=0)
+    # ddof=0 assumé et cohérent avec `paired_gap` à 6 000 tirages (écart < 0,01 %) :
+    # c'est la covariance de l'ÉCHANTILLON de tirages, pas une estimation de population.
     cov = (x.T @ x) / nd - np.outer(pi, pi)
     var = np.diag(cov)
     se = np.sqrt(np.maximum(var[:, None] + var[None, :] - 2 * cov, 0.0) / nd)
@@ -245,7 +251,7 @@ def paired_gap(wa: np.ndarray, wb: np.ndarray, idx: list[int], z: float = CI_Z) 
     nd = a.shape[0]
     pa, pb = a.mean(axis=0), b.mean(axis=0)
     i = int(np.argmax(np.abs(pb - pa)))
-    paired = z * float((b[:, i] - a[:, i]).std(ddof=1)) / np.sqrt(nd)
+    paired = z * float((b[:, i] - a[:, i]).std(ddof=0)) / np.sqrt(nd)
     (la, ha), (lb, hb) = wilson(float(pa[i]), nd, z), wilson(float(pb[i]), nd, z)
     return {"paired_pt": round(paired * 100, 2),
             "sum_pt": round(((ha - la) + (hb - lb)) / 2 * 100, 2)}
@@ -586,6 +592,12 @@ def build() -> dict:
                    "nat_sigma": {b: round(float(ef["sd"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
                    "nat_sigma_delivered": delivered_sigma(m),
                    "nat_bias": {b: round(float(ef["bias"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
+                   # Le DÉCALAGE APPLIQUÉ à l'ancre, servi à part et de signe opposé au biais :
+                   # `_draw_national` renvoie ancre − erreur, donc un bloc SUR-prédit (biais > 0)
+                   # est tiré vers le BAS. Servir les deux évite d'avoir à retourner le signe à
+                   # l'affichage — ce qui avait été oublié, et la page annonçait une extrême
+                   # droite rehaussée de 1,5 pt une phrase après avoir dit qu'on la corrigeait.
+                   "nat_shift": {b: round(-float(ef["bias"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
                    "nat_bias_raw": {b: round(float(ef["bias_raw"][i]), 2) for i, b in enumerate(("G", "CD", "ED"))},
                    "nat_shrink": round(float(ef["shrink"]), 3),
                    "nat_corr": {f"{a}{b}": round(float(ef["corr"][i][j]), 2)

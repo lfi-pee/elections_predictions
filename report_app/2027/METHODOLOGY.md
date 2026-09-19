@@ -138,9 +138,9 @@ réelles** (réglables au curseur) :
   `bayesian_polls`, convention prédit − réel), les sondages ont sur-estimé l'extrême droite de
   +4,1 pts en moyenne et sous-estimé le centre-droit de 3,5 — une erreur de CENTRE, qu'aucune
   largeur d'intervalle ne rattrape. Elle est donc corrigée, mais **rétractée vers zéro** par un
-  facteur scalaire λ = 0,36 (Efron–Morris : la part de ‖biais‖² qui subsiste une fois retiré le
-  bruit d'échantillonnage tr(Σ)/n ; si les biais ne dépassent pas leur propre bruit, λ = 0 et
-  rien n'est corrigé). Six scrutins ne suffisent pas à parier sur le chiffre brut, et 2024 —
+  facteur scalaire λ = 0,36 (moyenne a posteriori, facteur estimé par méthode des moments : la
+  part de ‖biais‖² qui subsiste une fois retiré le bruit d'échantillonnage tr(Σ)/n ; si les biais
+  ne dépassent pas leur propre bruit, λ = 0 et rien n'est corrigé). Six scrutins ne suffisent pas à parier sur le chiffre brut, et 2024 —
   hors échantillon — est parti dans l'autre sens. Correction appliquée : ED −1,5 · C+D +1,2 ·
   G +0,2 pt. Autour de ce centre corrigé, l'erreur est tirée dans sa **loi mesurée** :
   écart-type G 6,5 · C+D 6,7 · ED 5,8 pts, et les corrélations réelles entre blocs
@@ -150,8 +150,11 @@ réelles** (réglables au curseur) :
   **sans renormalisation**, et ce qui sort vaut exactement ce qui est visé (contrôlé à chaque
   build). La version précédente tirait les trois blocs indépendamment puis renormalisait : cette
   projection rabotait 14 à 22 % de la dispersion et rendait toutes les paires à peu près
-  également anticorrélées, là où gauche et centre-droit le sont de loin le plus. Voir
-  `poll_error_model.py`.
+  également anticorrélées, là où gauche et centre-droit le sont de loin le plus. **Limite
+  assumée** : Σ est estimée sur 6 scrutins puis traitée comme connue — seule l'incertitude sur
+  le centre est reportée (facteur 1 + λ/n). Les trois corrélations ci-dessus ont une erreur-type
+  de l'ordre de 0,3 : elles ne sont pas distinguables les unes des autres, et c'est la seule
+  quantité de cette page servie sans ses bornes. Voir `poll_error_model.py`.
 - **Incertitude locale** : bruit par circo (σ = demi-largeur circo 90 % / 1,645 : G 4,6 ·
   C+D 5,9 · ED 3,7 pts). Abstention et bloc « Autre » tenus fixes à la référence du scénario
   (γ = identité) : ils ne sont ni dans le chiffre ni dans les bornes.
@@ -192,7 +195,7 @@ réelles** (réglables au curseur) :
   présents en colonne.
   *Correction (2026-09-18, seconde).* La règle testait `p_left < 5 %` pour « rien à jouer » alors
   que le groupe testait `p_lfi < 5 %`. Les deux quantités ne diffèrent que de l'écart d'étiquette,
-  plus petit que le bruit de simulation : 8 circonscriptions tombaient de part et d'autre et
+  plus petit que le bruit de simulation : 9 circonscriptions tombent de part et d'autre et
   affichaient « obtenir » (revendiquer) tout en étant classées imprenables, argumentaire compris.
   Le garde-fou aligne la posture sur le groupe. `seat_winner` étant croissante en `cd2l_delta` et
   les deux probabilités sortant des mêmes tirages, p_lfi ≤ p_left partout (invariant testé) :
@@ -201,10 +204,11 @@ réelles** (réglables au curseur) :
   curseur de part nationale.
   *Correction (2026-09-18).* La règle précédente opposait `p_lfi` (candidature LFI) à `p_left`
   (candidature d'union moyenne). L'effet d'étiquette mesuré sur 2024 étant faible, ces deux
-  quantités ne se séparent que de 0,6 pt en médiane et 3,0 pts au maximum : « monnaie d'échange »
-  n'y capturait que 8 circonscriptions à cheval sur le seuil de 5 %, toutes ingagnables (gauche
-  23-26 % contre RN 44-51 %) — un artefact d'arrondi, pas une catégorie politique. Les deux
-  options extérieures, elles, se séparent vraiment. Un test interdit le retour en arrière.
+  quantités ne se séparent que de 0,6 pt en médiane et 3,0 pts au maximum : la catégorie ne
+  reposait que sur les 9 circonscriptions à cheval sur le seuil de 5 %, toutes ingagnables
+  (gauche 20-29 % contre RN 39-54 %) — un artefact d'arrondi, pas une catégorie politique. Sous
+  la règle actuelle ces 9 valent toutes « rien à jouer ». Les deux options extérieures, elles,
+  se séparent vraiment. Un test interdit le retour en arrière.
   Vérification externe : les 108 circonscriptions « monnaie d'échange » portent très
   majoritairement une investiture NFP 2024 du partenaire (55 PS, 25 Écologistes, 8 PCF, 19 LFI).
 - **Ordre de lecture** : par p_lfi décroissant, parce que ce qui se négocie est un NOMBRE de

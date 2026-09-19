@@ -6,18 +6,21 @@ peut-elle être fausse, et dans quelle direction ? Trois choses, toutes mesurée
 
   1. LE BIAIS. `bayesian_polls` garde l'erreur LOO de chaque scrutin d'apprentissage
      (`err = prédit − réel`). Sur les législatives, l'extrême droite est SUR-prédite à chaque
-     fois : +2,9 / +7,2 / +2,6 / +11,7 / +8,2 pts de 2002 à 2022. Ce n'est pas du bruit — 78 %
-     de son « RMSE » est de la moyenne, pas de la dispersion. Un tirage centré sur l'ancre
-     brute place donc l'extrême droite trop haut de plusieurs points à CHAQUE tirage, et le
-     modèle ne peut pas s'en apercevoir : l'erreur est dans le centre, pas dans la largeur.
+     fois : +2,2 / +6,9 / +2,3 / +11,2 / +7,3 pts de 2002 à 2022 — chiffres dans l'espace où ce
+     module travaille (point 3), d'où le léger écart avec les erreurs brutes de `bayesian_polls`.
+     Moyenne +6,0, t(4) = 3,5 : ce n'est pas du bruit. Un tirage centré sur l'ancre brute place
+     donc l'extrême droite trop haut de plusieurs points à CHAQUE tirage, et le modèle ne peut
+     pas s'en apercevoir — l'erreur est dans le centre, pas dans la largeur, et aucune largeur
+     d'intervalle ne rattrape une erreur de centre.
 
   2. LA RÉTRACTION. Cinq scrutins, c'est peu, et le sixième — 2024, hors échantillon — est
      parti dans l'AUTRE sens (−4,6). Corriger du biais brut reviendrait à parier que cinq
      observations disent toute la vérité ; ne rien corriger, à parier qu'elles n'en disent
      rien. On prend donc la moyenne a posteriori sous un a priori centré sur ZÉRO dont
-     l'échelle est estimée sur les trois blocs (empirical Bayes) : un bloc dont le biais est
-     grand devant son incertitude est peu rétracté, un bloc dont le biais tient dans son bruit
-     est ramené près de zéro. C'est la rétraction qui décide, pas nous.
+     l'échelle est estimée sur les données (empirical Bayes). Si les biais observés ne
+     dépassent pas leur propre bruit d'échantillonnage, le facteur vaut zéro et rien n'est
+     corrigé : la rétraction ne peut pas inventer un biais absent. C'est elle qui décide, pas
+     nous.
 
   3. LA COVARIANCE. Les trois blocs ne se trompent pas indépendamment : une part surestimée
      est prise à une autre. Gauche et centre-droit sont anticorrélés à −0,8 dans les données.
@@ -29,11 +32,19 @@ peut-elle être fausse, et dans quelle direction ? Trois choses, toutes mesurée
      renormalisation ait bien l'écart-type visé.
 
 2024 est inclus comme sixième observation. Il contredit la tendance, et c'est précisément
-pourquoi l'exclure serait indéfendable : on ne retire pas la seule observation qui gêne. Sa
-réserve est ailleurs et elle est réelle — la fenêtre 2024 contenait de vrais sondages
-législatifs, alors que celles de 2002→2022 n'avaient pratiquement que des sondages
-présidentiels, donc 2024 estimait une tâche plus facile que celle de 2027. Cette réserve joue
-dans le sens de la prudence : elle plaide pour rétracter davantage, ce que fait le modèle.
+pourquoi l'exclure serait indéfendable : on ne retire pas la seule observation qui gêne. Son
+inclusion rétracte DAVANTAGE (λ 0,64 → 0,36) et divise par deux et demi la correction appliquée
+à l'extrême droite (−3,8 → −1,5 pt).
+
+Deux réserves, qui vont dans le même sens et qu'il vaut mieux énoncer que laisser deviner. La
+fenêtre 2024 contenait de vrais sondages législatifs, alors que celles de 2002→2022 n'avaient
+pratiquement que des sondages présidentiels : 2024 estimait donc une tâche PLUS FACILE que celle
+de 2027. Et les cinq erreurs d'apprentissage viennent de `per_election[best_lam]`, où best_lam a
+été choisi pour minimiser la RMSE sur ces cinq scrutins mêmes. Les deux rendent les erreurs
+observées un peu trop petites, donc Σ trop petite, donc λ trop GRAND : la rétraction devrait être
+un peu plus forte que celle qu'on applique, et la correction un peu plus faible. C'est une borne
+sur le sens de l'erreur, pas une correction de plus — on ne rétracte pas deux fois sur un
+argument qualitatif.
 
     python3 -u -m src.poll_error_model        # → data/polls/national_errors.json
 """
@@ -107,6 +118,18 @@ def errors(d: dict | None = None, with_holdout: bool = True) -> np.ndarray:
     est singulière dans la direction (1,1,1), et un tirage dans cette covariance respecte le
     total SANS renormalisation — donc sans la distorsion que la renormalisation infligeait à la
     dispersion (−14 à −22 %) et à l'ordre des corrélations.
+
+    La raison de fond n'est pas seulement cet alignement d'espaces : les DÉNOMINATEURS diffèrent.
+    `pred` somme déjà à 100, tandis que `act` porte un bloc « Autre » sans contrepartie prédite
+    (les sommes réelles vont de 95,0 à 98,8). Soustraire les deux tels quels donnerait à chaque
+    bloc un biais parasite d'environ +1 pt qui ne serait qu'un écart de normalisation.
+
+    Ramener les deux à 100 (projection PROPORTIONNELLE) n'est pas la seule façon de rejoindre le
+    plan de somme nulle : on pourrait retrancher la moyenne de l'écart (projection par CENTRAGE).
+    Le choix n'est pas neutre — le centrage donnerait λ = 0,21 et une correction d'extrême droite
+    de −0,8 pt au lieu de −1,5. La proportionnelle est la bonne ici parce que l'écart vient
+    justement d'un rapport de normalisation et non d'un décalage additif commun ; la sensibilité
+    mérite d'être au dossier.
     """
     d = d or load()
     rows = d["train"] + ([d["holdout"]] if with_holdout else [])
@@ -121,7 +144,10 @@ def errors(d: dict | None = None, with_holdout: bool = True) -> np.ndarray:
 def fit(d: dict | None = None, with_holdout: bool = True) -> dict:
     """Biais rétracté et covariance prédictive de l'erreur d'ancre.
 
-    Rétraction par un facteur SCALAIRE, a priori centré sur zéro (Efron–Morris) :
+    Rétraction par un facteur SCALAIRE, a priori centré sur zéro — moyenne a posteriori,
+    facteur estimé par la méthode des moments (empirical Bayes). Ce n'est PAS la forme
+    James–Stein « 1 − (p−2)σ²/‖b̂‖² », qui dégénérerait ici : la contrainte de somme nulle
+    ramène la dimension effective à 2, et le facteur (p−2) s'y annulerait.
 
         λ = max(0, 1 − tr(Σ)/n / ‖b̂‖²)
 
@@ -135,20 +161,37 @@ def fit(d: dict | None = None, with_holdout: bool = True) -> dict:
     tiendrait plus dans le plan où le modèle tire, et il faudrait le reprojeter, c'est-à-dire
     défaire la rétraction qu'on vient de faire. Un scalaire préserve la contrainte exactement.
 
-    La covariance prédictive vaut Σ·(1 + λ/n) : corriger d'un biais ESTIMÉ laisse l'incertitude
-    de l'estimation, et l'oublier rendrait le modèle faussement sûr de lui. Le facteur porte sur
-    Σ tout entier, donc reste lui aussi dans le plan de somme nulle.
+    La covariance prédictive vaut Σ·(1 + λ/n). Le terme ajouté est la variance A POSTERIORI du
+    biais, λ·Σ/n, et non la variance d'échantillonnage de λb̂, qui vaudrait λ²·Σ/n : la
+    correction appliquée est une moyenne a posteriori, c'est donc l'incertitude a posteriori
+    qu'il faut reporter. La distinction n'est pas cosmétique — elle vaut ici 6 % d'écart-type en
+    plus plutôt que 2 %, dans le sens de la prudence. Le facteur porte sur Σ tout entier, donc
+    reste lui aussi dans le plan de somme nulle.
+
+    CE QUE CETTE COVARIANCE NE DIT PAS. Σ est estimée sur n scrutins et ensuite traitée
+    comme CONNUE : seule l'incertitude sur la moyenne est reportée. Avec 5 degrés de liberté,
+    une prédictive de Student élargirait les écarts-types marginaux d'environ 29 %, et les
+    corrélations (−0,61 / −0,41 / −0,47) ont une erreur-type de l'ordre de 0,3 — elles ne sont
+    pas distinguables les unes des autres. La page les affiche à deux décimales : c'est la
+    seule quantité du tableau servie sans ses bornes, et c'est une limite assumée, pas un
+    oubli — la corriger demanderait de tirer la covariance elle-même (Wishart inverse), ce qui
+    déplacerait l'incertitude sans qu'on sache la valider sur six observations.
     """
     e = errors(d, with_holdout)
     n = e.shape[1]
     b_hat = e.mean(axis=1)
     cov = np.cov(e, ddof=1)
-    lam = max(0.0, 1.0 - float(np.trace(cov)) / n / float(b_hat @ b_hat))
+    # ‖b̂‖² au dénominateur : un biais EXACTEMENT nul (données synthétiques, ou un jour des
+    # sondages sans biais) doit donner λ = 0, pas une division par zéro — c'est précisément le
+    # cas que le docstring promet de traiter.
+    nb2 = float(b_hat @ b_hat)
+    lam = 0.0 if nb2 <= 0.0 else max(0.0, 1.0 - float(np.trace(cov)) / n / nb2)
     bias = lam * b_hat
     pred_cov = cov * (1.0 + lam / n)
     sd = np.sqrt(np.diag(pred_cov))
     return {"n": n, "bias_raw": b_hat, "shrink": lam, "bias": bias, "cov": pred_cov,
-            "sd": sd, "corr": pred_cov / np.outer(sd, sd)}
+            "sd": sd, "corr": np.divide(pred_cov, np.outer(sd, sd),
+                                        out=np.zeros_like(pred_cov), where=np.outer(sd, sd) > 0)}
 
 
 def main() -> None:

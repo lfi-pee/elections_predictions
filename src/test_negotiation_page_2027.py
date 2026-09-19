@@ -202,6 +202,14 @@ def main() -> None:
                 (v, g, N.ci_txt(v, served["params"]["draws"]))
                 for v, g in zip(vals, got) if g != N.ci_txt(v, served["params"]["draws"])][:5]
             assert "100" not in page.evaluate("ciTxt(1)"), page.evaluate("ciTxt(1)")
+            # `pct` suit la MÊME convention que ses propres bornes : un zéro exact s'écrit
+            # « <1 % », pas « 0 % ». 363 des 571 q_lfi servis valent exactement 0, et la cellule
+            # affichait la certitude au-dessus de bornes qui la démentaient.
+            pv = [0.0, 0.004, 0.02, 0.05, 0.2, 0.5, 0.9, 0.996, 1.0]
+            want_pct = ["<1 %", "<1 %", "2 %", "5 %", "20 %", "50 %", "90 %", ">99 %", ">99 %"]
+            got_pct = page.evaluate("(vs) => vs.map(v => pct(v))", pv)
+            got_pct = [t.replace("\u202f", " ").replace("\u00a0", " ") for t in got_pct]
+            assert got_pct == want_pct, list(zip(pv, got_pct, want_pct))
             # `wilsonCI` comparé au Python NUMÉRIQUEMENT, pas seulement à travers l'arrondi
             # d'affichage de `ciTxt` : deux formules divergentes peuvent s'écrire pareil une fois
             # arrondies au point de pourcentage, et c'est la moitié basse de la colonne qui le

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Accès réservé</title>
+<style>
+  :root { --paper: #f4f3ef; --card: #fff; --ink: #1d232a; --mute: #5d6770; --line: #d9dcdf; --accent: #a01722; }
+  @media (prefers-color-scheme: dark) { :root { --paper: #12121b; --card: #1d1d28; --ink: #e9e9ef; --mute: #8b93a0; --line: #31313f; --accent: #e8434b; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--paper); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+  form { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 28px 24px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { margin: 0 0 18px; color: var(--mute); font-size: 14px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  input { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--line); border-radius: 6px; }
+  button { width: 100%; padding: 10px; font: inherit; font-weight: 700; color: #fff; background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  #msg { margin: 12px 0 0; min-height: 1.4em; }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+<form id="login" hidden>
+  <h1>Accès réservé</h1>
+  <p>Connectez-vous avec l’identifiant et le mot de passe des négociateurs.</p>
+  <label>Identifiant<input name="user" autocomplete="username" required></label>
+  <label>Mot de passe<input name="pass" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Se connecter</button>
+  <p id="msg" role="status"></p>
+</form>
+<noscript>Ce site demande JavaScript.</noscript>
+<script>
+"use strict";
+// Écran de connexion du site chiffré (deploy/README.md). Le mot de passe déchiffre la clé du site
+// (un des blocs de `_k.json`), rangée dans le navigateur ; le service worker `sw.js` s'en sert
+// pour déchiffrer chaque fichier. Le même identifiant ouvre les notes des négociateurs : leur clé
+// d'accès est dérivée ici aussi, comme le fait js/notes.js.
+const BASE = "/elections_predictions/", ITER = 310000, utf8 = new TextEncoder();
+const form = document.getElementById("login"), msg = document.getElementById("msg");
+const say = (t) => { form.hidden = false; msg.textContent = t; };
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+function idb(mode, run) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("site-auth", 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("k");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction("k", mode), req = run(tx.objectStore("k"));
+      tx.oncomplete = () => { open.result.close(); resolve(req && req.result); };
+      tx.onerror = () => { open.result.close(); reject(tx.error); };
+    };
+  });
+}
+async function pbkdf2(pass, salt, bits) {
+  const base = await crypto.subtle.importKey("raw", utf8.encode(pass), "PBKDF2", false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", iterations: ITER, salt: utf8.encode(salt) }, base, bits);
+}
+async function unlock(user, pass) {
+  const r = await fetch(BASE + "_k.json", { cache: "no-cache" });
+  if (!r.ok) throw new Error("clé du site introuvable");
+  const slots = await r.json(), who = user.trim().toLowerCase();
+  const kek = await crypto.subtle.importKey("raw", await pbkdf2(pass, "neg2027.site:" + who, 256), "AES-GCM", false, ["decrypt"]);
+  let raw = null;
+  for (const s of slots.slots) {
+    try { raw = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(s.iv) }, kek, b64(s.ct))); break; } catch (e) { /* autre bloc */ }
+  }
+  if (!raw) return false;
+  const enc = await crypto.subtle.importKey("raw", raw.slice(0, 32), "AES-GCM", false, ["decrypt"]);
+  const mac = await crypto.subtle.importKey("raw", raw.slice(32, 64), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  raw.fill(0);
+  await idb("readwrite", (s) => s.put({ enc, mac, kid: slots.kid }, "keys"));
+  // Notes des négociateurs : même identifiant, même dérivation que js/notes.js.
+  try { localStorage.setItem("neg2027.notes.key", hex(await pbkdf2(pass, "neg2027.notes:" + who, 256))); } catch (e) { /* stockage indisponible */ }
+  return true;
+}
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const go = form.querySelector("button"); go.disabled = true; say("Connexion…");
+  try {
+    if (!await unlock(form.user.value, form.pass.value)) { go.disabled = false; say("Identifiant ou mot de passe incorrect."); return; }
+    navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({ type: "login" });
+    location.reload();
+  } catch (err) { go.disabled = false; say("Connexion impossible : " + err.message); }
+});
+(async () => {
+  if (!("serviceWorker" in navigator) || !window.indexedDB || !crypto.subtle || typeof DecompressionStream === "undefined") {
+    say("Ce navigateur ne peut pas ouvrir le site (en navigation privée, Firefox bloque ce qu’il faut : ouvrez une fenêtre normale).");
+    form.querySelector("button").disabled = true; return;
+  }
+  try {
+    await navigator.serviceWorker.register(BASE + "sw.js", { scope: BASE });
+    await navigator.serviceWorker.ready;
+  } catch (err) { say("Ce navigateur ne peut pas ouvrir le site : " + err.message); return; }
+  const k = await idb("readonly", (s) => s.get("keys")).catch(() => null);
+  // Déjà connecté·e, mais la page n'est pas encore sous le contrôle du worker (première visite,
+  // rechargement forcé) : on recharge, une fois — c'est le worker qui servira la vraie page.
+  // L'horodatage évite une boucle si le worker ne prend jamais la main.
+  const last = +sessionStorage.getItem("site.reloaded") || 0;
+  if (k && !navigator.serviceWorker.controller && Date.now() - last > 10000) {
+    sessionStorage.setItem("site.reloaded", String(Date.now())); location.reload(); return;
+  }
+  form.hidden = false; form.user.focus();
+})();
+</script>
+</body>
+</html>

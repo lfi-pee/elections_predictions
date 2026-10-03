@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Accès réservé</title>
+<style>
+  :root { --paper: #f4f3ef; --card: #fff; --ink: #1d232a; --mute: #5d6770; --line: #d9dcdf; --accent: #a01722; }
+  @media (prefers-color-scheme: dark) { :root { --paper: #12121b; --card: #1d1d28; --ink: #e9e9ef; --mute: #8b93a0; --line: #31313f; --accent: #e8434b; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--paper); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+  form { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 28px 24px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { margin: 0 0 18px; color: var(--mute); font-size: 14px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  input { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; font: inherit; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--line); border-radius: 6px; }
+  button { width: 100%; padding: 10px; font: inherit; font-weight: 700; color: #fff; background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  #msg { margin: 12px 0 0; min-height: 1.4em; }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+<form id="login" hidden>
+  <h1>Accès réservé</h1>
+  <p>Connectez-vous avec l’identifiant et le mot de passe des négociateurs.</p>
+  <label>Identifiant<input name="user" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+  <label>Mot de passe<input name="pass" type="password" autocomplete="current-password" required></label>
+  <button type="submit">Se connecter</button>
+  <p id="msg" role="status"></p>
+</form>
+<noscript>Ce site demande JavaScript.</noscript>
+<script>
+"use strict";
+// Écran de connexion du site chiffré (deploy/README.md). Le mot de passe déchiffre la clé du site
+// (un des blocs de `_k.json`), rangée dans le navigateur. Le site s'ouvre ensuite de deux façons :
+// - le service worker `sw.js` déchiffre chaque requête (cas normal) ;
+// - sans service worker (iPad et iPhone hors Safari : Chrome, Firefox, navigateur intégré d'une
+//   application ; anciens Firefox en navigation privée), cette page déchiffre elle-même la page
+//   demandée, ses scripts, styles, images, données et le worker des scénarios (renderHere).
+// Le même identifiant ouvre les notes des négociateurs : leur clé d'accès est dérivée ici aussi,
+// comme le fait js/notes.js.
+// Cœur commun du site chiffré (voir deploy/README.md) : trouver, déchiffrer et décompresser un
+// fichier du site. encrypt_site.mjs le recopie dans l'écran de connexion et dans le service
+// worker ; l'écran le recopie aussi dans le worker des scénarios quand il n'y a pas de service
+// worker. La fonction ne dépend donc de rien d'extérieur : `fetchFn` est le fetch d'origine.
+function siteCore(BASE, fetchFn) {
+  "use strict";
+  const utf8 = new TextEncoder();
+  const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript; charset=utf-8",
+    mjs: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8",
+    json: "application/json; charset=utf-8", geojson: "application/json; charset=utf-8",
+    svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp",
+    gif: "image/gif", ico: "image/x-icon", woff2: "font/woff2", woff: "font/woff", pdf: "application/pdf",
+    // Markdown et CSV s'affichent comme texte au lieu de se télécharger.
+    md: "text/plain; charset=utf-8", csv: "text/plain; charset=utf-8", txt: "text/plain; charset=utf-8" };
+  const type = (rel) => TYPES[((rel.match(/\.([^./]+)$/) || [])[1] || "").toLowerCase()] || "application/octet-stream";
+  const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+
+  // Chemin d'un fichier du site (relatif à BASE) pour une adresse, ou null : autre site, ou l'un
+  // des seuls fichiers publics en clair (ce worker, les blocs de clé, le chiffré).
+  function rel(url) {
+    if (url.origin !== location.origin || !url.pathname.startsWith(BASE)) return null;
+    let r = decodeURIComponent(url.pathname.slice(BASE.length));
+    if (r === "sw.js" || r === "_k.json" || r.startsWith("_e/")) return null;
+    if (r === "" || r.endsWith("/")) r += "index.html";
+    return r;
+  }
+  // Clés : objets CryptoKey, ou les 64 octets bruts (rangés ainsi quand le navigateur ne sait pas
+  // ranger une CryptoKey, ou pour les passer au worker des scénarios sans service worker).
+  async function keys(rec) {
+    if (!rec || !rec.raw) return rec;
+    const raw = new Uint8Array(rec.raw);
+    return { raw, kid: rec.kid,
+      enc: await crypto.subtle.importKey("raw", raw.slice(0, 32), "AES-GCM", false, ["decrypt"]),
+      mac: await crypto.subtle.importKey("raw", raw.slice(32, 64), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]) };
+  }
+  const fileName = async (k, r) => hex(await crypto.subtle.sign("HMAC", k.mac, utf8.encode("path:" + r))).slice(0, 32);
+
+  // Un fichier : { status: 200, gz } (gzip déchiffré), { status: 404 | 5xx }, ou { status: "bad" }
+  // si la clé ne l'ouvre pas (clé d'une autre version du site).
+  async function load(k, r, search, init) {
+    const res = await fetchFn(BASE + "_e/" + await fileName(k, r) + (search || ""), init);
+    if (!res.ok) return { status: res.status };
+    const buf = await res.arrayBuffer();
+    try {
+      return { status: 200, gz: await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0, 12), additionalData: utf8.encode(r) },
+        k.enc, buf.slice(12)) };
+    } catch (e) { return { status: "bad" }; }
+  }
+
+  // gzip : DecompressionStream quand le navigateur l'a, sinon ce décodeur (iOS avant 16.4…).
+  const LB = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+  const LX = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+  const DB = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073,
+    4097, 6145, 8193, 12289, 16385, 24577];
+  const DX = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+  const ORDER = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+  // Table de décodage : indexée par les `max` prochains bits, donne (symbole << 4) | longueur.
+  function huff(lens) {
+    let max = 0;
+    for (const l of lens) if (l > max) max = l;
+    const count = new Uint16Array(16), next = new Uint16Array(16), t = new Uint16Array(1 << max);
+    for (const l of lens) count[l]++;
+    count[0] = 0;
+    for (let b = 1, code = 0; b <= 15; b++) next[b] = code = (code + count[b - 1]) << 1;
+    for (let s = 0; s < lens.length; s++) {
+      const l = lens[s];
+      if (!l) continue;
+      let c = next[l]++, r = 0;
+      for (let i = 0; i < l; i++) { r = (r << 1) | (c & 1); c >>= 1; }
+      for (let j = r; j < t.length; j += 1 << l) t[j] = (s << 4) | l;
+    }
+    return { t, mask: (1 << max) - 1 };
+  }
+  let fixed = null;
+  function inflate(src, out) {
+    let bp = 0, op = 0, last = 0;
+    const peek = () => { const i = bp >>> 3; return (src[i] | src[i + 1] << 8 | src[i + 2] << 16) >>> (bp & 7); };
+    const get = (n) => { const v = peek() & ((1 << n) - 1); bp += n; return v; };
+    const sym = (h) => { const e = h.t[peek() & h.mask]; bp += e & 15; return e >> 4; };
+    while (!last) {
+      last = get(1);
+      const kind = get(2);
+      let L, D;
+      if (kind === 0) {
+        const i = ((bp + 7) >>> 3) + 4, n = src[i - 4] | src[i - 3] << 8;
+        out.set(src.subarray(i, i + n), op); op += n; bp = (i + n) * 8;
+        continue;
+      } else if (kind === 1) {
+        if (!fixed) {
+          const l = new Uint8Array(288).fill(8, 0, 144).fill(9, 144, 256).fill(7, 256, 280).fill(8, 280, 288);
+          fixed = [huff(l), huff(new Uint8Array(30).fill(5))];
+        }
+        [L, D] = fixed;
+      } else if (kind === 2) {
+        const nl = get(5) + 257, nd = get(5) + 1, nc = get(4) + 4, cl = new Uint8Array(19);
+        for (let i = 0; i < nc; i++) cl[ORDER[i]] = get(3);
+        const C = huff(cl), lens = new Uint8Array(nl + nd);
+        for (let i = 0; i < nl + nd;) {
+          const s = sym(C);
+          if (s < 16) { lens[i++] = s; continue; }
+          const v = s === 16 ? lens[i - 1] : 0, n = s === 16 ? 3 + get(2) : s === 17 ? 3 + get(3) : 11 + get(7);
+          lens.fill(v, i, i + n); i += n;
+        }
+        L = huff(lens.subarray(0, nl)); D = huff(lens.subarray(nl));
+      } else throw new Error("gzip invalide");
+      for (;;) {
+        let s = sym(L);
+        if (s < 256) { out[op++] = s; continue; }
+        if (s === 256) break;
+        s -= 257;
+        const n = LB[s] + get(LX[s]), ds = sym(D), d = DB[ds] + get(DX[ds]);
+        for (let i = 0; i < n; i++, op++) out[op] = out[op - d];
+      }
+    }
+    if (op !== out.length) throw new Error("gzip tronqué");
+    return out;
+  }
+  function gunzip(buf) {
+    const b = new Uint8Array(buf), flg = b[3];
+    if (b[0] !== 0x1f || b[1] !== 0x8b || b[2] !== 8) throw new Error("gzip invalide");
+    let p = 10;
+    if (flg & 4) p += 2 + (b[p] | b[p + 1] << 8);
+    if (flg & 8) while (b[p++]);
+    if (flg & 16) while (b[p++]);
+    if (flg & 2) p += 2;
+    const n = (b[b.length - 4] | b[b.length - 3] << 8 | b[b.length - 2] << 16 | b[b.length - 1] << 24) >>> 0;
+    return inflate(b.subarray(p, b.length - 8), new Uint8Array(n));
+  }
+  const native = typeof DecompressionStream !== "undefined";
+  // Corps d'une réponse : un flux quand le navigateur sait décompresser en flux, sinon les octets.
+  const body = (gz) => native ? new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip")) : gunzip(gz);
+  const bytes = async (gz) => native ? new Uint8Array(await new Response(body(gz)).arrayBuffer()) : gunzip(gz);
+  // Réponse à un fetch du site, pour les pages et le worker des scénarios sans service worker.
+  async function respond(k, r, search) {
+    const f = await load(k, r, search);
+    if (f.status !== 200) return new Response("Introuvable", { status: f.status === 404 ? 404 : 502 });
+    return new Response(body(f.gz), { status: 200, headers: { "Content-Type": type(r) } });
+  }
+  return { rel, keys, load, body, bytes, gunzip, respond, type, hex };
+}
+
+const BASE = "/elections_predictions/", ITER = 310000, utf8 = new TextEncoder();
+const CORE = siteCore(BASE, window.fetch.bind(window));
+const form = document.getElementById("login"), msg = document.getElementById("msg");
+const say = (t) => { form.hidden = false; msg.textContent = t; };
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+let SW = false;
+function idb(mode, run) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("site-auth", 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("k");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction("k", mode), req = run(tx.objectStore("k"));
+      tx.oncomplete = () => { open.result.close(); resolve(req && req.result); };
+      tx.onerror = () => { open.result.close(); reject(tx.error); };
+    };
+  });
+}
+// La clé du site dans le navigateur : CryptoKey non extractible dans IndexedDB ; sinon (navigateur
+// qui ne range pas les CryptoKey, ou page sans service worker, qui la passe au worker des
+// scénarios) ses octets dans IndexedDB ; sinon dans localStorage.
+async function saveKeys(raw, kid, asRaw) {
+  if (!asRaw) {
+    try {
+      const k = await CORE.keys({ raw });
+      await idb("readwrite", (s) => s.put({ enc: k.enc, mac: k.mac, kid }, "keys")); return;
+    } catch (e) { /* octets bruts */ }
+  }
+  try { await idb("readwrite", (s) => s.put({ raw, kid }, "keys")); return; } catch (e) { /* localStorage */ }
+  localStorage.setItem("site.keys", JSON.stringify({ raw: CORE.hex(raw), kid }));
+}
+async function loadKeys() {
+  let rec = await idb("readonly", (s) => s.get("keys")).catch(() => null);
+  if (!rec) {
+    try {
+      const j = JSON.parse(localStorage.getItem("site.keys"));
+      if (j) rec = { raw: Uint8Array.from(j.raw.match(/../g), (h) => parseInt(h, 16)), kid: j.kid };
+    } catch (e) { /* rien de rangé */ }
+  }
+  return rec ? CORE.keys(rec) : null;
+}
+async function dropKeys() {
+  await idb("readwrite", (s) => s.delete("keys")).catch(() => null);
+  try { localStorage.removeItem("site.keys"); } catch (e) { /* rien de rangé */ }
+}
+async function pbkdf2(pass, salt, bits) {
+  const base = await crypto.subtle.importKey("raw", utf8.encode(pass), "PBKDF2", false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", iterations: ITER, salt: utf8.encode(salt) }, base, bits);
+}
+async function unlock(user, pass) {
+  const r = await fetch(BASE + "_k.json", { cache: "no-cache" });
+  if (!r.ok) throw new Error("clé du site introuvable");
+  const slots = await r.json(), who = user.trim().toLowerCase();
+  const kek = await crypto.subtle.importKey("raw", await pbkdf2(pass, "neg2027.site:" + who, 256), "AES-GCM", false, ["decrypt"]);
+  let raw = null;
+  for (const s of slots.slots) {
+    try { raw = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(s.iv) }, kek, b64(s.ct))); break; } catch (e) { /* autre bloc */ }
+  }
+  if (!raw) return false;
+  await saveKeys(raw, slots.kid, !SW);
+  raw.fill(0);
+  // Notes des négociateurs : même identifiant, même dérivation que js/notes.js.
+  try { localStorage.setItem("neg2027.notes.key", CORE.hex(await pbkdf2(pass, "neg2027.notes:" + who, 256))); } catch (e) { /* stockage indisponible */ }
+  return true;
+}
+
+// Sans service worker : cette page devient la page demandée. Faux si la clé rangée ne vaut plus
+// (clé de contenu changée) : il faut se reconnecter.
+async function renderHere(k) {
+  const kr = await fetch(BASE + "_k.json", { cache: "no-cache" }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (kr && kr.kid !== k.kid) { await dropKeys(); return false; }
+  const rel = CORE.rel(new URL(location.href)), f = await CORE.load(k, rel, "");
+  if (f.status === "bad") { await dropKeys(); return false; }
+  // « /2027 » sans barre finale : c'est un dossier, on y va pour que ses liens relatifs marchent.
+  if (f.status === 404 && !/\.[^/]+$/.test(rel) && (await CORE.load(k, rel + "/index.html", "")).status === 200) {
+    location.replace(location.pathname + "/" + location.search + location.hash); return true;
+  }
+  if (f.status !== 200) throw new Error(f.status === 404 ? "page introuvable" : "erreur " + f.status);
+  const bytes = await CORE.bytes(f.gz), type = CORE.type(rel);
+  patch(k);
+  window.siteForgetKey = dropKeys;               // la déconnexion de js/notes.js
+  if (type.startsWith("text/html")) await mount(new DOMParser().parseFromString(new TextDecoder().decode(bytes), "text/html"), k);
+  else if (/^(text\/|application\/json)/.test(type)) {
+    document.documentElement.innerHTML = '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+      + '<title></title></head><body><pre style="white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px"></pre></body>';
+    document.title = rel.split("/").pop();
+    document.querySelector("pre").textContent = new TextDecoder().decode(bytes);
+  } else location.replace(URL.createObjectURL(new Blob([bytes], { type })));
+  return true;
+}
+// Monte la page déchiffrée à la place de l'écran : ses fichiers du site deviennent des adresses
+// blob:, puis ses scripts s'exécutent dans l'ordre d'un vrai chargement (les normaux, puis les
+// « defer »), suivis des événements DOMContentLoaded et load.
+async function mount(doc, k) {
+  const site = (u) => { try { const a = new URL(u, location.href); return CORE.rel(a) === null ? null : a; } catch (e) { return null; } };
+  const blobOf = async (a) => {
+    const r = CORE.rel(a), f = await CORE.load(k, r, a.search);
+    return f.status === 200 ? URL.createObjectURL(new Blob([await CORE.bytes(f.gz)], { type: CORE.type(r) })) : null;
+  };
+  const jobs = [];
+  const swap = (el, attr) => { const a = site(el.getAttribute(attr)); if (a) jobs.push(blobOf(a).then((u) => { if (u) el.setAttribute(attr, u); })); };
+  doc.querySelectorAll("link[href]").forEach((el) => { if (/(^|\s)(stylesheet|icon)(\s|$)/i.test(el.getAttribute("rel") || "")) swap(el, "href"); });
+  doc.querySelectorAll("img[src], source[src]").forEach((el) => swap(el, "src"));
+  const scripts = Array.from(doc.querySelectorAll("script"), (s) => {
+    const info = { attrs: Array.from(s.attributes, (a) => [a.name, a.value]), text: s.textContent, src: s.hasAttribute("src"),
+      defer: s.hasAttribute("defer") && s.hasAttribute("src"), url: null, mark: doc.createElement("template") };
+    const a = info.src && site(s.getAttribute("src"));
+    if (a) jobs.push(blobOf(a).then((u) => { info.url = u; }));
+    s.replaceWith(info.mark);
+    return info;
+  });
+  await Promise.all(jobs);
+  document.replaceChild(document.adoptNode(doc.documentElement), document.documentElement);
+  // Les styles d'abord, comme un vrai chargement (5 s au plus).
+  await Promise.race([new Promise((r) => setTimeout(r, 5000)), Promise.all(Array.from(document.querySelectorAll('link[rel~="stylesheet"]'),
+    (l) => l.sheet || new Promise((r) => { l.addEventListener("load", r); l.addEventListener("error", r); })))]);
+  for (const info of scripts.filter((i) => !i.defer).concat(scripts.filter((i) => i.defer))) {
+    const s = document.createElement("script");
+    for (const [n, v] of info.attrs) s.setAttribute(n, v);
+    if (info.url) s.src = info.url;
+    if (!info.src) s.text = info.text;
+    const done = info.src && new Promise((r) => { s.onload = s.onerror = r; });
+    info.mark.replaceWith(s);
+    if (done) await done;
+  }
+  document.dispatchEvent(new Event("DOMContentLoaded", { bubbles: true }));
+  window.dispatchEvent(new Event("load"));
+  const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (target) target.scrollIntoView();
+}
+// Sans service worker, les requêtes du site passent par ici : fetch() des pages, et le worker des
+// scénarios, démarré par workerBoot avec la clé.
+function patch(k) {
+  const realFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    let a = null;
+    try { a = new URL(input instanceof Request ? input.url : String(input), location.href); } catch (e) { /* pas une adresse */ }
+    const get = !(init && init.method) || /^(GET|HEAD)$/i.test(init.method), r = a && get ? CORE.rel(a) : null;
+    return r === null ? realFetch(input, init) : CORE.respond(k, r, a.search);
+  };
+  const RealWorker = window.Worker;
+  if (!RealWorker) return;
+  const keys = k.raw ? { raw: k.raw, kid: k.kid } : { enc: k.enc, mac: k.mac, kid: k.kid };
+  window.Worker = function Worker(url, opts) {
+    const a = new URL(url, location.href);
+    if (CORE.rel(a) === null) return new RealWorker(url, opts);
+    const boot = `"use strict";\n${siteCore}\n(${workerBoot})(siteCore(${JSON.stringify(BASE)}, self.fetch.bind(self)), ${JSON.stringify(a.href)});`;
+    const w = new RealWorker(URL.createObjectURL(new Blob([boot], { type: "text/javascript" })), opts);
+    w.postMessage({ siteKeys: keys });
+    return w;
+  };
+  window.Worker.prototype = RealWorker.prototype;
+}
+// Dans le worker (chargé d'une adresse blob:) : attend la clé (premier message), garde de côté
+// les messages de la page, déchiffre son vrai script et ceux qu'il importe, l'exécute, puis lui
+// rend les messages. Ses fetch() du site sont déchiffrés aussi.
+function workerBoot(core, selfUrl) {
+  const queue = [], blob = (t) => URL.createObjectURL(new Blob([t], { type: "text/javascript" }));
+  let gotKeys;
+  const keysP = new Promise((r) => { gotKeys = r; });
+  const hold = (e) => {
+    e.stopImmediatePropagation();
+    if (e.data && e.data.siteKeys) gotKeys(e.data.siteKeys); else queue.push(e.data);
+  };
+  self.addEventListener("message", hold);
+  (async () => {
+    const k = await core.keys(await keysP), realFetch = self.fetch.bind(self);
+    self.fetch = (input, init) => {
+      const a = new URL(input instanceof Request ? input.url : String(input), selfUrl), r = core.rel(a);
+      return r === null ? realFetch(input, init) : core.respond(k, r, a.search);
+    };
+    const text = async (a) => {
+      const f = await core.load(k, core.rel(a), a.search);
+      if (f.status !== 200) throw new Error("script introuvable : " + a.href);
+      return new TextDecoder().decode(await core.bytes(f.gz));
+    };
+    const code = await text(new URL(selfUrl)), pre = new Map();
+    for (const m of code.matchAll(/importScripts\(([^)]*)\)/g)) {
+      for (const s of m[1].matchAll(/["'`]([^"'`]+)["'`]/g)) {
+        const a = new URL(s[1], selfUrl);
+        if (core.rel(a) !== null) pre.set(a.href, blob(await text(a)));
+      }
+    }
+    const realImport = self.importScripts.bind(self);
+    self.importScripts = (...urls) => realImport(...urls.map((u) => { const a = new URL(u, selfUrl).href; return pre.get(a) || a; }));
+    realImport(blob(code));
+    self.removeEventListener("message", hold);
+    for (const data of queue) self.dispatchEvent(new MessageEvent("message", { data }));
+  })().catch((e) => setTimeout(() => { throw e; }));
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const go = form.querySelector("button"); go.disabled = true; say("Connexion…");
+  try {
+    if (!await unlock(form.user.value, form.pass.value)) { go.disabled = false; say("Identifiant ou mot de passe incorrect."); return; }
+    if (SW && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({ type: "login" });
+    location.reload();
+  } catch (err) { go.disabled = false; say("Connexion impossible : " + err.message); }
+});
+(async () => {
+  if (!window.crypto || !crypto.subtle) {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    say("Ce navigateur ne peut pas ouvrir le site (il lui manque WebCrypto) : "
+      + (ios ? "mettez à jour l’iPad ou l’iPhone." : "mettez-le à jour, ou ouvrez le lien dans un navigateur récent."));
+    form.querySelector("button").disabled = true; return;
+  }
+  if ("serviceWorker" in navigator) {
+    try {
+      await navigator.serviceWorker.register(BASE + "sw.js", { scope: BASE });
+      await Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error("délai")), 8000))]);
+      SW = true;
+    } catch (err) { /* pas de service worker : la page déchiffrera elle-même */ }
+  }
+  const k = await loadKeys().catch(() => null);
+  if (k) {
+    // Déjà connecté·e, mais la page n'est pas encore sous le contrôle du worker (première visite,
+    // rechargement forcé) : on recharge, une fois — c'est le worker qui servira la vraie page.
+    // L'horodatage évite une boucle si le worker ne prend jamais la main.
+    if (SW && !navigator.serviceWorker.controller) {
+      let last = 0, noted = false;
+      try { last = +sessionStorage.getItem("site.reloaded") || 0; sessionStorage.setItem("site.reloaded", String(Date.now())); noted = true; } catch (e) { /* pas de rechargement */ }
+      if (noted && Date.now() - last > 10000) { location.reload(); return; }
+    }
+    // Pas de service worker, ou il ne voit pas la clé : la page s'ouvre ici.
+    try { if (await renderHere(k)) return; } catch (err) { say("Ouverture impossible : " + err.message); }
+  }
+  form.hidden = false; form.user.focus();
+})();
+</script>
+</body>
+</html>
